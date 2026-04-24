@@ -28,3 +28,8 @@
 - weitere Baustellen: Ausarbeitung von WS25/26, Ausblick 
 - Christoph Michelfeit uwzju@student.kit.edu, gerne kontaktieren, er will mitkriegen wie es mit dem Projekt weitergeht
 
+- Gerne Open Source
+    - geeignet zur Erwähnung/Verlinkung bei späteren Bewerbungen 
+    - kann im KITopen-Verlag mit DOI permanent veröffentlicht werden (Software, Ausarbeitung, Videos)
+    - und/oder auf YouTube etc
+
