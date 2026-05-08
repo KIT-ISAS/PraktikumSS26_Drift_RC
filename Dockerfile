@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     git \
     vim \
     nano \
+    ros-jazzy-foxglove-bridge \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /drift_ws
