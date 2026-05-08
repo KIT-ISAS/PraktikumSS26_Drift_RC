@@ -1,15 +1,17 @@
 services:
   ros2:
-    build: .
-    container_name: ros2_drift_ws_dev
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
 
     stdin_open: true
     tty: true
 
     volumes:
-      - ./drift_ws:/drift_ws
+      - ..:/workspace
+      - ../.:/repo
 
-    working_dir: /drift_ws
+    working_dir: /repo/drift_ws
 
     network_mode: host
 

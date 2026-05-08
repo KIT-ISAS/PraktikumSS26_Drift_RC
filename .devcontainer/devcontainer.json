@@ -1,0 +1,19 @@
+{
+    "name": "ROS 2 Drift RC",
+    "dockerComposeFile": "docker-compose.yaml",
+    "service": "ros2",
+    "workspaceFolder": "/repo/drift_ws",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-iot.vscode-ros",
+                "ms-python.vscode-pylance"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/bin/python3"
+            }
+        }
+    },
+    "remoteUser": "root"
+}

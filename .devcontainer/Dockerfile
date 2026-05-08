@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-foxglove-bridge \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /drift_ws
+WORKDIR /repo/drift_ws
 
 # Create virtual environment since Python doesn't allow system wide installation
 RUN python3 -m venv /opt/venv
@@ -39,7 +39,7 @@ RUN source /opt/ros/jazzy/setup.bash && \
     colcon build
 
 RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc && \
-    echo "source /drift_ws/install/setup.bash" >> ~/.bashrc && \
+    echo "source /repo/drift_ws/install/setup.bash" >> ~/.bashrc && \
     echo "source /opt/venv/bin/activate" >> ~/.bashrc
 
 CMD ["bash"]
