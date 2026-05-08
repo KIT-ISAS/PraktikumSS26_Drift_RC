@@ -1,0 +1,19 @@
+services:
+  ros2:
+    build: .
+    container_name: ros2_drift_ws_dev
+
+    stdin_open: true
+    tty: true
+
+    volumes:
+      - ./drift_ws:/drift_ws
+
+    working_dir: /drift_ws
+
+    network_mode: host
+
+    environment:
+      - ROS_DOMAIN_ID=0
+
+    command: bash
