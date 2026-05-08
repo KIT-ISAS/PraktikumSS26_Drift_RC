@@ -15,5 +15,6 @@
             }
         }
     },
+    "postCreateCommand": "mkdir -p ~/.ssh && echo 'Host github-gmail\\n  HostName github.com\\n  User git' > ~/.ssh/config",
     "remoteUser": "root"
 }
