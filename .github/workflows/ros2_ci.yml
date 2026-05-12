@@ -129,6 +129,7 @@ jobs:
             source /opt/ros/jazzy/setup.bash &&
             source /opt/venv/bin/activate &&
             colcon build --event-handlers console_direct+
+          "
 
       - name: Run Tests
         run: |
@@ -178,6 +179,7 @@ jobs:
             source /opt/ros/jazzy/setup.bash &&
             source /opt/venv/bin/activate &&
             colcon build --event-handlers console_direct+
+          "
 
       - name: Run Linters
         run: |
