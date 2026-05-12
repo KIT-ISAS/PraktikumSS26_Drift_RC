@@ -1,0 +1,48 @@
+name: ROS 2 CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    name: Build, Lint, Format, and Test
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Dev Container Docker Image
+        run: docker compose -f .devcontainer/docker-compose.yaml build
+
+      - name: Build Workspace
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml run --rm ros2 bash -c "\
+            source /opt/ros/jazzy/setup.bash && \
+            source /opt/venv/bin/activate && \
+            colcon build --event-handlers console_direct+"
+
+      - name: Lint and Format (Python)
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml run --rm ros2 bash -c "\
+            source /opt/ros/jazzy/setup.bash && \
+            source /opt/venv/bin/activate && \
+            colcon test --packages-select test_pkg --pytest-args -m 'linter' || true"
+
+      - name: Run Tests
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml run --rm ros2 bash -c "\
+            source /opt/ros/jazzy/setup.bash && \
+            source /opt/venv/bin/activate && \
+            source install/setup.bash && \
+            colcon test --event-handlers console_direct+"
+
+      - name: Check Test Results
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml run --rm ros2 bash -c "\
+            source /opt/ros/jazzy/setup.bash && \
+            source /opt/venv/bin/activate && \
+            colcon test-result --all --verbose"
