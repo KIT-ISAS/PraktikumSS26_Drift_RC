@@ -11,18 +11,42 @@ permissions:
 
 env:
   IMAGE_NAME: ros2-image
+  WS_PATH: /root/repo/drift_ws
 
 jobs:
+  build-docker-image:
+    name: Build Docker Image
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build Docker Image
+        run: docker compose -f .devcontainer/docker-compose.yaml build
+
+      - name: Export Docker Image
+        run: docker save $IMAGE_NAME -o ros2-image.tar
+
+      - name: Upload Docker Image
+        uses: actions/upload-artifact@v6
+        with:
+          name: ros2-image
+          path: ros2-image.tar
   format:
     name: Format Code
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Build Docker Image
-        run: docker compose -f .devcontainer/docker-compose.yaml build
+      - name: Download Docker Image
+        uses: actions/download-artifact@v6
+        with:
+          name: ros2-image
+
+      - name: Load Docker Image
+        run: docker load -i ros2-image.tar
 
       - name: Start Dev Container
         run: docker compose -f .devcontainer/docker-compose.yaml up -d
@@ -35,15 +59,6 @@ jobs:
             echo 'Run formatting tools here'
           "
 
-      - name: Export Docker Image
-        run: docker save $IMAGE_NAME -o ros2-image.tar
-
-      - name: Upload Docker Image
-        uses: actions/upload-artifact@v4
-        with:
-          name: ros2-image
-          path: ros2-image.tar
-
       - name: Stop Dev Container
         if: always()
         run: docker compose -f .devcontainer/docker-compose.yaml down
@@ -55,10 +70,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download Docker Image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: ros2-image
 
@@ -84,13 +99,13 @@ jobs:
           "
 
       - name: Upload Workspace Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ros2-workspace
           path: |
-            build/
-            install/
-            log/
+            ${WS_PATH}/build/
+            ${WS_PATH}/install/
+            ${WS_PATH}/log/
 
       - name: Stop Dev Container
         if: always()
@@ -103,10 +118,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download Docker Image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: ros2-image
 
@@ -114,9 +129,10 @@ jobs:
         run: docker load -i ros2-image.tar
 
       - name: Download Workspace Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: ros2-workspace
+          path: ${WS_PATH}/
 
       - name: Start Dev Container
         run: docker compose -f .devcontainer/docker-compose.yaml up -d
@@ -150,10 +166,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download Docker Image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: ros2-image
 
@@ -161,9 +177,10 @@ jobs:
         run: docker load -i ros2-image.tar
 
       - name: Download Workspace Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: ros2-workspace
+          path: ${WS_PATH}/
 
       - name: Start Dev Container
         run: docker compose -f .devcontainer/docker-compose.yaml up -d
