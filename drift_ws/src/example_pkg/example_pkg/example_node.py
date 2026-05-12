@@ -2,7 +2,6 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-
 class ExampleNode(Node):
     def __init__(self):
         super().__init__('example_node')
