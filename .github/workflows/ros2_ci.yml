@@ -7,16 +7,47 @@ on:
     branches: [ "main" ]
 
 jobs:
-  format:
-    name: Format Code
+  build-image:
+    name: Build Docker Image
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Build Docker image
+        run: docker compose -f .devcontainer/docker-compose.yaml build
+
+      - name: Save Docker image
+        run: docker save $(docker compose -f .devcontainer/docker-compose.yaml images -q) -o /tmp/ros2-image.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/ros2-image.tar
+          retention-days: 1
+
+  format:
+    name: Format Code
+    runs-on: ubuntu-24.04
+    needs: build-image
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load -i /tmp/ros2-image.tar
+
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d --build
+        run: docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Format
         run: |
@@ -39,8 +70,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load -i /tmp/ros2-image.tar
+
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d --build
+        run: docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Build Workspace
         run: |
@@ -62,8 +102,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load -i /tmp/ros2-image.tar
+
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d --build
+        run: docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Build Workspace
         run: |
@@ -100,8 +149,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load -i /tmp/ros2-image.tar
+
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d --build
+        run: docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Build Workspace
         run: |
