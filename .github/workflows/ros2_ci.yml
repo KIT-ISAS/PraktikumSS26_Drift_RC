@@ -89,6 +89,19 @@ jobs:
             source /opt/venv/bin/activate && \
             colcon build --event-handlers console_direct+"
 
+      - name: Extract built workspace
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
+            cd /root/repo/drift_ws && \
+            tar czf /tmp/workspace-build.tar.gz build/ install/"
+
+      - name: Upload workspace artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-build
+          path: /tmp/workspace-build.tar.gz
+          retention-days: 1
+
       - name: Stop Dev Container
         if: always()
         run: docker compose -f .devcontainer/docker-compose.yaml down
@@ -108,18 +121,23 @@ jobs:
           name: docker-image
           path: /tmp
 
+      - name: Download workspace artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace-build
+          path: /tmp
+
       - name: Load Docker image
         run: docker load -i /tmp/ros2-image.tar
 
       - name: Start Dev Container
         run: docker compose -f .devcontainer/docker-compose.yaml up -d
 
-      - name: Build Workspace
+      - name: Restore workspace build
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
-            source /opt/ros/jazzy/setup.bash && \
-            source /opt/venv/bin/activate && \
-            colcon build --event-handlers console_direct+"
+            cd /root/repo/drift_ws && \
+            tar xzf /tmp/workspace-build.tar.gz"
 
       - name: Run Tests
         run: |
@@ -155,18 +173,23 @@ jobs:
           name: docker-image
           path: /tmp
 
+      - name: Download workspace artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace-build
+          path: /tmp
+
       - name: Load Docker image
         run: docker load -i /tmp/ros2-image.tar
 
       - name: Start Dev Container
         run: docker compose -f .devcontainer/docker-compose.yaml up -d
 
-      - name: Build Workspace
+      - name: Restore workspace build
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
-            source /opt/ros/jazzy/setup.bash && \
-            source /opt/venv/bin/activate && \
-            colcon build --event-handlers console_direct+"
+            cd /root/repo/drift_ws && \
+            tar xzf /tmp/workspace-build.tar.gz"
 
       - name: Lint
         run: |
