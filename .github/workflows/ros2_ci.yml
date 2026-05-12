@@ -115,7 +115,7 @@ jobs:
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
             source /opt/ros/jazzy/setup.bash && \
             source /opt/venv/bin/activate && \
-            colcon test --packages-select example_pkg --pytest-args '-m linter' || true"
+            colcon test --event-handlers console_direct+ --pytest-args '-m linter'"
 
       - name: Stop Dev Container
         if: always()
