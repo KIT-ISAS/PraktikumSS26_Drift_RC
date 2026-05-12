@@ -3,7 +3,7 @@ import os
 
 from setuptools import find_packages, setup
 
-package_name = 'test_pkg'
+package_name = 'example_pkg'
 
 setup(
     name=package_name,
@@ -29,6 +29,6 @@ setup(
         ],
     },
     entry_points={
-        'console_scripts': ['test_node = test_pkg.test_node:main'],
+        'console_scripts': ['example_node = example_pkg.example_node:main'],
     },
 )

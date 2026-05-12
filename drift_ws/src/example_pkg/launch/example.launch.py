@@ -5,9 +5,9 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription([
         Node(
-            package='test_pkg',
-            executable='test_node',
-            name='test_node',
+            package='example_pkg',
+            executable='example_node',
+            name='example_node',
             output='screen'
         ),
         Node(
