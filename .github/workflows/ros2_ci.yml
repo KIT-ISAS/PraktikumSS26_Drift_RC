@@ -2,70 +2,42 @@ name: ROS 2 CI Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+env:
+  COMPOSE_FILE: .devcontainer/docker-compose.yaml
 
 jobs:
-  build-image:
-    name: Build Docker Image
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Build Docker image
-        run: docker compose -f .devcontainer/docker-compose.yaml build
-
-      - name: Save Docker image
-        run: |
-          IMAGE_NAME=$(docker compose -f .devcontainer/docker-compose.yaml images -q ros2)
-          if [ -z "$IMAGE_NAME" ]; then
-            echo "Error: Could not find docker image"
-            exit 1
-          fi
-          docker save "$IMAGE_NAME" -o /tmp/ros2-image.tar
-
-      - name: Upload Docker image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image
-          path: /tmp/ros2-image.tar
-          retention-days: 1
-
   format:
     name: Format Code
     runs-on: ubuntu-24.04
-    needs: build-image
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image
-          path: /tmp
-
-      - name: Load Docker image
-        run: docker load -i /tmp/ros2-image.tar
+      - name: Build Dev Container
+        run: docker compose build
 
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d
+        run: docker compose up -d
 
-      - name: Format
+      - name: Run Formatter
         run: |
-          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
-            source /opt/ros/jazzy/setup.bash && \
-            source /opt/venv/bin/activate && \
-            # Replace with your specific format command if needed (like black or ament_uncrustify)
-            echo 'Formatting check' "
+          docker compose exec -T ros2 bash -c "
+            source /opt/ros/jazzy/setup.bash &&
+            source /opt/venv/bin/activate &&
+            echo 'Run formatting tools here'
+          "
 
       - name: Stop Dev Container
         if: always()
-        run: docker compose -f .devcontainer/docker-compose.yaml down
+        run: docker compose down
 
   build:
     name: Build Workspace
@@ -74,43 +46,46 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image
-          path: /tmp
+      - name: Enable Docker BuildKit
+        run: |
+          echo "DOCKER_BUILDKIT=1" >> $GITHUB_ENV
+          echo "COMPOSE_DOCKER_CLI_BUILD=1" >> $GITHUB_ENV
 
-      - name: Load Docker image
-        run: docker load -i /tmp/ros2-image.tar
+      - name: Build Dev Container
+        run: docker compose build
 
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d
+        run: docker compose up -d
+
+      - name: Install ROS Dependencies
+        run: |
+          docker compose exec -T ros2 bash -c "
+            sudo rosdep update &&
+            rosdep install --from-paths src --ignore-src -r -y
+          "
 
       - name: Build Workspace
         run: |
-          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
-            source /opt/ros/jazzy/setup.bash && \
-            source /opt/venv/bin/activate && \
-            colcon build --event-handlers console_direct+"
+          docker compose exec -T ros2 bash -c "
+            source /opt/ros/jazzy/setup.bash &&
+            source /opt/venv/bin/activate &&
+            colcon build --event-handlers console_direct+
+          "
 
-      - name: Extract built workspace
-        run: |
-          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
-            cd /root/repo/drift_ws && \
-            tar czf /tmp/workspace-build.tar.gz build/ install/"
-
-      - name: Upload workspace artifacts
+      - name: Upload Workspace Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: workspace-build
-          path: /tmp/workspace-build.tar.gz
-          retention-days: 1
+          name: ros2-workspace
+          path: |
+            build/
+            install/
+            log/
 
       - name: Stop Dev Container
         if: always()
-        run: docker compose -f .devcontainer/docker-compose.yaml down
+        run: docker compose down
 
   test:
     name: Run Tests
@@ -119,50 +94,40 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Download Docker image artifact
+      - name: Download Workspace Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: docker-image
-          path: /tmp
+          name: ros2-workspace
 
-      - name: Download workspace artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: workspace-build
-          path: /tmp
-
-      - name: Load Docker image
-        run: docker load -i /tmp/ros2-image.tar
+      - name: Build Dev Container
+        run: docker compose build
 
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d
-
-      - name: Restore workspace build
-        run: |
-          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
-            cd /root/repo/drift_ws && \
-            tar xzf /tmp/workspace-build.tar.gz"
+        run: docker compose up -d
 
       - name: Run Tests
         run: |
-          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
-            source /opt/ros/jazzy/setup.bash && \
-            source /opt/venv/bin/activate && \
-            source install/setup.bash && \
-            colcon test --event-handlers console_direct+ --pytest-args '-m not linter'"
+          docker compose exec -T ros2 bash -c "
+            source /opt/ros/jazzy/setup.bash &&
+            source /opt/venv/bin/activate &&
+            source install/setup.bash &&
+            colcon test \
+              --event-handlers console_direct+ \
+              --pytest-args '-m not linter'
+          "
 
       - name: Check Test Results
         run: |
-          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
-            source /opt/ros/jazzy/setup.bash && \
-            source /opt/venv/bin/activate && \
-            colcon test-result --all --verbose"
+          docker compose exec -T ros2 bash -c "
+            source /opt/ros/jazzy/setup.bash &&
+            colcon test-result --all --verbose
+          "
 
       - name: Stop Dev Container
         if: always()
-        run: docker compose -f .devcontainer/docker-compose.yaml down
+        run: docker compose down
 
   lint:
     name: Lint Code
@@ -171,39 +136,36 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Download Docker image artifact
+      - name: Download Workspace Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: docker-image
-          path: /tmp
+          name: ros2-workspace
 
-      - name: Download workspace artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: workspace-build
-          path: /tmp
-
-      - name: Load Docker image
-        run: docker load -i /tmp/ros2-image.tar
+      - name: Build Dev Container
+        run: docker compose build
 
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d
+        run: docker compose up -d
 
-      - name: Restore workspace build
+      - name: Run Linters
         run: |
-          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
-            cd /root/repo/drift_ws && \
-            tar xzf /tmp/workspace-build.tar.gz"
+          docker compose exec -T ros2 bash -c "
+            source /opt/ros/jazzy/setup.bash &&
+            source /opt/venv/bin/activate &&
+            source install/setup.bash &&
+            colcon test \
+              --event-handlers console_direct+ \
+              --pytest-args '-m linter'
+          "
 
-      - name: Lint
+      - name: Check Lint Results
         run: |
-          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
-            source /opt/ros/jazzy/setup.bash && \
-            source /opt/venv/bin/activate && \
-            colcon test --event-handlers console_direct+ --pytest-args '-m linter'"
+          docker compose exec -T ros2 bash -c "
+            colcon test-result --all --verbose
+          "
 
       - name: Stop Dev Container
         if: always()
-        run: docker compose -f .devcontainer/docker-compose.yaml down
+        run: docker compose down
