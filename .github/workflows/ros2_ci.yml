@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 env:
-  COMPOSE_FILE: .devcontainer/docker-compose.yaml
+  IMAGE_NAME: ros2-image
 
 jobs:
   format:
@@ -21,23 +21,32 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build Dev Container
-        run: docker compose build
+      - name: Build Docker Image
+        run: docker compose -f .devcontainer/docker-compose.yaml build
 
       - name: Start Dev Container
-        run: docker compose up -d
+        run: docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Run Formatter
         run: |
-          docker compose exec -T ros2 bash -c "
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
             source /opt/venv/bin/activate &&
             echo 'Run formatting tools here'
           "
 
+      - name: Export Docker Image
+        run: docker save $IMAGE_NAME -o ros2-image.tar
+
+      - name: Upload Docker Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: ros2-image
+          path: ros2-image.tar
+
       - name: Stop Dev Container
         if: always()
-        run: docker compose down
+        run: docker compose -f .devcontainer/docker-compose.yaml down
 
   build:
     name: Build Workspace
@@ -48,27 +57,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Enable Docker BuildKit
-        run: |
-          echo "DOCKER_BUILDKIT=1" >> $GITHUB_ENV
-          echo "COMPOSE_DOCKER_CLI_BUILD=1" >> $GITHUB_ENV
+      - name: Download Docker Image
+        uses: actions/download-artifact@v4
+        with:
+          name: ros2-image
 
-      - name: Build Dev Container
-        run: docker compose build
+      - name: Load Docker Image
+        run: docker load -i ros2-image.tar
 
       - name: Start Dev Container
-        run: docker compose up -d
+        run: docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Install ROS Dependencies
         run: |
-          docker compose exec -T ros2 bash -c "
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             sudo rosdep update &&
             rosdep install --from-paths src --ignore-src -r -y
           "
 
       - name: Build Workspace
         run: |
-          docker compose exec -T ros2 bash -c "
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
             source /opt/venv/bin/activate &&
             colcon build --event-handlers console_direct+
@@ -85,7 +94,7 @@ jobs:
 
       - name: Stop Dev Container
         if: always()
-        run: docker compose down
+        run: docker compose -f .devcontainer/docker-compose.yaml down
 
   test:
     name: Run Tests
@@ -96,20 +105,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Download Docker Image
+        uses: actions/download-artifact@v4
+        with:
+          name: ros2-image
+
+      - name: Load Docker Image
+        run: docker load -i ros2-image.tar
+
       - name: Download Workspace Artifacts
         uses: actions/download-artifact@v4
         with:
           name: ros2-workspace
 
-      - name: Build Dev Container
-        run: docker compose build
-
       - name: Start Dev Container
-        run: docker compose up -d
+        run: docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Run Tests
         run: |
-          docker compose exec -T ros2 bash -c "
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
             source /opt/venv/bin/activate &&
             source install/setup.bash &&
@@ -120,14 +134,14 @@ jobs:
 
       - name: Check Test Results
         run: |
-          docker compose exec -T ros2 bash -c "
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
             colcon test-result --all --verbose
           "
 
       - name: Stop Dev Container
         if: always()
-        run: docker compose down
+        run: docker compose -f .devcontainer/docker-compose.yaml down
 
   lint:
     name: Lint Code
@@ -138,20 +152,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Download Docker Image
+        uses: actions/download-artifact@v4
+        with:
+          name: ros2-image
+
+      - name: Load Docker Image
+        run: docker load -i ros2-image.tar
+
       - name: Download Workspace Artifacts
         uses: actions/download-artifact@v4
         with:
           name: ros2-workspace
 
-      - name: Build Dev Container
-        run: docker compose build
-
       - name: Start Dev Container
-        run: docker compose up -d
+        run: docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Run Linters
         run: |
-          docker compose exec -T ros2 bash -c "
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
             source /opt/venv/bin/activate &&
             source install/setup.bash &&
@@ -162,10 +181,10 @@ jobs:
 
       - name: Check Lint Results
         run: |
-          docker compose exec -T ros2 bash -c "
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             colcon test-result --all --verbose
           "
 
       - name: Stop Dev Container
         if: always()
-        run: docker compose down
+        run: docker compose -f .devcontainer/docker-compose.yaml down
