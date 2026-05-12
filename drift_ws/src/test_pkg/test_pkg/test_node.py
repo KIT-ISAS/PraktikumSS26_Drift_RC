@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
+
 class TestNode(Node):
     def __init__(self):
         super().__init__('test_node')
@@ -9,7 +10,7 @@ class TestNode(Node):
         timer_period = 1.0  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
-        self.get_logger().info("Test node started!")
+        self.get_logger().info('Test node started!')
 
     def timer_callback(self):
         msg = String()
@@ -17,6 +18,7 @@ class TestNode(Node):
         self.publisher_.publish(msg)
         self.get_logger().info('Publishing: "%s"' % msg.data)
         self.i += 1
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -28,6 +30,7 @@ def main(args=None):
     finally:
         test_node.destroy_node()
         rclpy.try_shutdown()
+
 
 if __name__ == '__main__':
     main()
