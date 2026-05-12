@@ -7,8 +7,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-and-test:
-    name: Build, Lint, Format, and Test
+  format:
+    name: Format Code
     runs-on: ubuntu-24.04
 
     steps:
@@ -24,7 +24,46 @@ jobs:
             source /opt/ros/jazzy/setup.bash && \
             source /opt/venv/bin/activate && \
             # Replace with your specific format command if needed (like black or ament_uncrustify)
-            echo 'Formatting step' "
+            echo 'Formatting check' "
+
+      - name: Stop Dev Container
+        if: always()
+        run: docker compose -f .devcontainer/docker-compose.yaml down
+
+  build:
+    name: Build Workspace
+    runs-on: ubuntu-24.04
+    needs: format
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start Dev Container
+        run: docker compose -f .devcontainer/docker-compose.yaml up -d --build
+
+      - name: Build Workspace
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
+            source /opt/ros/jazzy/setup.bash && \
+            source /opt/venv/bin/activate && \
+            colcon build --event-handlers console_direct+"
+
+      - name: Stop Dev Container
+        if: always()
+        run: docker compose -f .devcontainer/docker-compose.yaml down
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-24.04
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start Dev Container
+        run: docker compose -f .devcontainer/docker-compose.yaml up -d --build
 
       - name: Build Workspace
         run: |
@@ -41,19 +80,42 @@ jobs:
             source install/setup.bash && \
             colcon test --event-handlers console_direct+"
 
-      - name: Lint
-        run: |
-          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
-            source /opt/ros/jazzy/setup.bash && \
-            source /opt/venv/bin/activate && \
-            colcon test --packages-select test_pkg --pytest-args -m 'linter' || true"
-
       - name: Check Test Results
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
             source /opt/ros/jazzy/setup.bash && \
             source /opt/venv/bin/activate && \
             colcon test-result --all --verbose"
+
+      - name: Stop Dev Container
+        if: always()
+        run: docker compose -f .devcontainer/docker-compose.yaml down
+
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-24.04
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start Dev Container
+        run: docker compose -f .devcontainer/docker-compose.yaml up -d --build
+
+      - name: Build Workspace
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
+            source /opt/ros/jazzy/setup.bash && \
+            source /opt/venv/bin/activate && \
+            colcon build --event-handlers console_direct+"
+
+      - name: Lint
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "\
+            source /opt/ros/jazzy/setup.bash && \
+            source /opt/venv/bin/activate && \
+            colcon test --packages-select test_pkg --pytest-args -m 'linter' || true"
 
       - name: Stop Dev Container
         if: always()
