@@ -105,9 +105,9 @@ jobs:
         with:
           name: ros2-workspace
           path: |
-            ${WS_PATH}/build/
-            ${WS_PATH}/install/
-            ${WS_PATH}/log/
+            ${{ env.WS_PATH }}/build/
+            ${{ env.WS_PATH }}/install/
+            ${{ env.WS_PATH }}/log/
 
       - name: Stop Dev Container
         if: always()
@@ -134,7 +134,7 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           name: ros2-workspace
-          path: ${WS_PATH}/
+          path: ${{ env.WS_PATH }}/
 
       - name: Start Dev Container
         run: docker compose -f .devcontainer/docker-compose.yaml up -d
@@ -182,7 +182,7 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           name: ros2-workspace
-          path: ${WS_PATH}/
+          path: ${{ env.WS_PATH }}/
 
       - name: Start Dev Container
         run: docker compose -f .devcontainer/docker-compose.yaml up -d
