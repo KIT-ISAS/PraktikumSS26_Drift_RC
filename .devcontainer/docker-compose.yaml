@@ -9,9 +9,9 @@ services:
 
     volumes:
       - ..:/workspace
-      - ../.:/repo
+      - ../.:/root/repo
 
-    working_dir: /repo/drift_ws
+    working_dir: /root/repo/drift_ws
 
     network_mode: host
 

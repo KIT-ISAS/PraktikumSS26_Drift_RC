@@ -2,7 +2,7 @@
     "name": "ROS 2 Drift RC",
     "dockerComposeFile": "docker-compose.yaml",
     "service": "ros2",
-    "workspaceFolder": "/repo/drift_ws",
+    "workspaceFolder": "/root/repo/",
     "customizations": {
         "vscode": {
             "extensions": [
