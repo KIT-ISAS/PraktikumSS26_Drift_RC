@@ -57,7 +57,7 @@ jobs:
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
             source /opt/venv/bin/activate &&
-            echo 'Run formatting tools here'
+            black --check src/
           "
 
       - name: Stop Dev Container
