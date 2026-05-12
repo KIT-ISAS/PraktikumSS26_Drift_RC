@@ -19,7 +19,13 @@ jobs:
         run: docker compose -f .devcontainer/docker-compose.yaml build
 
       - name: Save Docker image
-        run: docker save $(docker compose -f .devcontainer/docker-compose.yaml images -q) -o /tmp/ros2-image.tar
+        run: |
+          IMAGE_NAME=$(docker compose -f .devcontainer/docker-compose.yaml images -q ros2)
+          if [ -z "$IMAGE_NAME" ]; then
+            echo "Error: Could not find docker image"
+            exit 1
+          fi
+          docker save "$IMAGE_NAME" -o /tmp/ros2-image.tar
 
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
