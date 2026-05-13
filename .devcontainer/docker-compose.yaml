@@ -5,6 +5,9 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
 
+    ports:
+      - "8765:8765" # For ROS2 communication (DDS)
+
     stdin_open: true
     tty: true
 
@@ -13,8 +16,6 @@ services:
       - ../.:/root/repo
 
     working_dir: /root/repo/drift_ws
-
-    network_mode: host
 
     environment:
       - ROS_DOMAIN_ID=0
