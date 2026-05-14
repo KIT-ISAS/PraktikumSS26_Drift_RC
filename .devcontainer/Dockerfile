@@ -34,9 +34,7 @@ RUN chmod 644 /root/.asoundrc || true
 RUN python3 -m venv /opt/venv
 
 # Enable colored terminal output
-RUN echo "export PS1='\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '" >> ~/.bashrc \
-    && echo "alias ls='ls --color=auto'" >> ~/.bashrc \
-    && echo "alias grep='grep --color=auto'" >> ~/.bashrc
+RUN sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' ~/.bashrc
 
 # Activate venv automatically
 ENV PATH="/opt/venv/bin:$PATH"
