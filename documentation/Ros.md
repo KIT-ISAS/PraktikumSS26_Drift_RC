@@ -1,4 +1,4 @@
-# ROS Documentation
+# ROS2 Jazzy Documentation
 
 ### Links
 - [ROS2 Documentation](https://docs.ros.org/en/jazzy/index.html)
@@ -23,3 +23,21 @@ ros2 run <package_name> <executable_name>
 cd src
 ros2 pkg create <package_name> --build-type ament_python
 ```
+- To run tests:
+```bash
+colcon test --event-handlers console_direct+
+
+```
+- To run only the (non-)linter tests:
+```bash
+colcon test --event-handlers console_direct+ --pytest-args '-m not linter'
+colcon test --event-handlers console_direct+ --pytest-args '-m linter'
+```
+
+# Ament Flake8
+Ament Flake8 is the linter used for this project. It is part of the test suite and can be run with the command `colcon test --event-handlers console_direct+` from the root of the repository. This will run all tests, including the Flake8 linter tests that are generated automatically for each new package that is created with the `ros2 pkg create` command.
+It is also part of the CI Pipeline, so any code that does not conform to the Flake8 style will cause the CI checks to fail.
+
+### Configuration
+The `main_with_errors(argv=[])` function that is used in the generated tests can take in a path to a config file with the `--config` flag. However, we would like to use the default configuration and not make any changes to generated files (as it may be forgotten when creating a new one). The default configuration is set in the `/opt/ros/jazzy/lib/python3.12/site-packages/ament_flake8/configuration/ament_flake8.ini` file. 
+Flake8 prefers single quotes for strings, while the Black formatter uses double quotes by default. To avoid conflicts between the two, we have configured Flake8 to allow double quotes in the `ament_flake8.ini` file. See the `.devcontainer/Dockerfile` for details on how this is set up in the development environment.  
