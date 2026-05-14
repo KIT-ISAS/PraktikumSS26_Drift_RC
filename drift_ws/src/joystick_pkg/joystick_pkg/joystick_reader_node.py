@@ -170,7 +170,7 @@ class JoystickReaderNode(Node):
 
 
 def main(args=None):
-    """Main entry point."""
+    """Start joystick reader node."""
     rclpy.init(args=args)
 
     joystick_reader = JoystickReaderNode()

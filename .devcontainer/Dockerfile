@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     vim \
     nano \
     ros-jazzy-foxglove-bridge \
+    ros-jazzy-joy \
     && rm -rf /var/lib/apt/lists/*
 
 # configure flake8 to allow double quotes since the Black formatter uses them by default
@@ -36,21 +37,21 @@ RUN python3 -m venv /opt/venv
 # Enable colored terminal output
 RUN sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' ~/.bashrc
 
-# Activate venv automatically
+# Activate venv automatically and make installed packages available for ROS
+# see documentation/Python.md for details
 ENV PATH="/opt/venv/bin:$PATH"
-
-COPY requirements.txt .
+ENV PYTHONPATH="$PYTHONPATH:/opt/venv/lib/python3.12/site-packages" 
 
 # Install Python dependencies into venv
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt .
+RUN source /opt/venv/bin/activate && pip install -r requirements.txt
 
-# COPY src ./src
 
-RUN source /opt/ros/jazzy/setup.bash && \
-    colcon build
+RUN source /opt/ros/jazzy/setup.bash
 
+RUN echo "source /opt/venv/bin/activate" >> ~/.bashrc
 RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc && \
-    echo "source /root/repo/drift_ws/install/setup.bash" >> ~/.bashrc && \
-    echo "source /opt/venv/bin/activate" >> ~/.bashrc
+    echo "source /root/repo/drift_ws/install/setup.bash" >> ~/.bashrc
+
 
 CMD ["bash"]
