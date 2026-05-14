@@ -9,8 +9,15 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
+        (
+            "share/" + package_name + "/launch",
+            [
+                "launch/joystick_reader.launch.py",
+            ],
+        ),
+        ("share/" + package_name + "/config", ["config/joystick_params.yaml"]),
     ],
-    install_requires=["setuptools"],
+    install_requires=["setuptools", "pygame"],
     zip_safe=True,
     maintainer="root",
     maintainer_email="louis.wagner@ka-raceing.de",
@@ -22,6 +29,8 @@ setup(
         ],
     },
     entry_points={
-        "console_scripts": [],
+        "console_scripts": [
+            "joystick_reader = joystick_pkg.joystick_reader_node:main",
+        ],
     },
 )

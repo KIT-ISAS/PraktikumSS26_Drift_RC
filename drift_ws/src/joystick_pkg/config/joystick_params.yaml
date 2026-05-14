@@ -1,0 +1,13 @@
+/**:
+  ros__parameters:
+    joy_node:
+      # Publishing rate in Hz
+      publish_rate: 50
+
+      # Deadzone threshold for joystick axes (0.0 to 1.0)
+      # Values below this threshold are treated as zero
+      deadzone: 0.05
+
+      # Coalesce interval in milliseconds
+      # Combines multiple inputs into one message if they arrive within this interval
+      coalesce_interval_ms: 20
