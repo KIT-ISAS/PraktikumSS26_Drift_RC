@@ -20,5 +20,6 @@ ros2 run <package_name> <executable_name>
 ``` 
 - To create a new package:
 ```bash
+cd src
 ros2 pkg create <package_name> --build-type ament_python
 ```

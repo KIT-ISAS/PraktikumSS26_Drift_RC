@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-foxglove-bridge \
     && rm -rf /var/lib/apt/lists/*
 
+# configure flake8 to allow double quotes since the Black formatter uses them by default
+RUN echo "inline-quotes = \"" >> /opt/ros/jazzy/lib/python3.12/site-packages/ament_flake8/configuration/ament_flake8.ini
+
 WORKDIR /root/repo/drift_ws
 
 # Create virtual environment since Python doesn't allow system wide installation
