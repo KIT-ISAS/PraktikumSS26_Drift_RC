@@ -1,52 +1,35 @@
 """Launch file for joystick device manager with automatic device detection."""
 
+import os
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
     """Generate launch description for joystick device manager."""
-    # Declare launch arguments
-    device_check_interval_arg = DeclareLaunchArgument(
-        "device_check_interval",
-        default_value="1.0",
-        description="Time in seconds between device detection checks",
+    default_params_file = os.path.join(
+        os.path.dirname(__file__), 
+        "..",
+        "config",
+        "joystick_params.yaml",
     )
 
-    publish_rate_arg = DeclareLaunchArgument(
-        "publish_rate",
-        default_value="50",
-        description="Publishing rate in Hz for the joy_node",
+    params_file_arg = DeclareLaunchArgument(
+        "params_file",
+        default_value=default_params_file,
+        description="Path to joystick_reader parameters YAML",
     )
 
-    deadzone_arg = DeclareLaunchArgument(
-        "deadzone",
-        default_value="0.05",
-        description="Deadzone threshold for joystick inputs",
-    )
-
-    # Create the joystick reader node
     joystick_reader_node = Node(
         package="joystick_pkg",
         executable="joystick_reader",
         name="joystick_reader",
         output="screen",
-        parameters=[
-            {
-                "device_check_interval": LaunchConfiguration("device_check_interval"),
-                "publish_rate": LaunchConfiguration("publish_rate"),
-                "deadzone": LaunchConfiguration("deadzone"),
-            }
-        ],
+        parameters=[LaunchConfiguration("params_file")],
     )
 
-    return LaunchDescription(
-        [
-            device_check_interval_arg,
-            publish_rate_arg,
-            deadzone_arg,
-            joystick_reader_node,
-        ]
-    )
+    return LaunchDescription([params_file_arg, joystick_reader_node])
