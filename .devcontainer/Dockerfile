@@ -21,6 +21,15 @@ RUN echo "inline-quotes = \"" >> /opt/ros/jazzy/lib/python3.12/site-packages/ame
 
 WORKDIR /root/repo/drift_ws
 
+# Create a user ALSA config that routes audio to a null device to silence
+# ALSA errors when no sound hardware is present. Placed in /root since the
+# devcontainer runs as root by default.
+RUN cat > /root/.asoundrc <<'ASOUND'
+pcm.null { type null }
+pcm.!default { type plug; slave.pcm "null" }
+ASOUND
+RUN chmod 644 /root/.asoundrc || true
+
 # Create virtual environment since Python doesn't allow system wide installation
 RUN python3 -m venv /opt/venv
 
