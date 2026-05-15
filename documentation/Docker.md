@@ -26,3 +26,11 @@ docker-compose up -d
 ```bash
 docker exec -it ros2_drift_ws_dev bash
 ```
+### VsCode Remote Development
+You can also use Visual Studio Code's Remote Development extension to work directly within the Docker container. To set this up:
+1. Install the Remote Development extension in Visual Studio Code.
+2. Open the project folder in Visual Studio Code.
+3. Open the Command Palette (Ctrl+Shift+P) and select "Remote-Containers: Open Folder in Container".
+
+
+Keep in mind that you need to Rebuild the container if you make changes to the `Dockerfile`, `docker-compose.yaml`, or `requirements.txt` to ensure that the changes are reflected in the development environment.
