@@ -7,11 +7,16 @@
         "vscode": {
             "extensions": [
                 "ms-python.python",
-                "ms-iot.vscode-ros",
+                "ms-python.black-formatter",
+                "Ranch-Hand-Robotics.rde-pack",
                 "ms-python.vscode-pylance"
             ],
             "settings": {
-                "python.defaultInterpreterPath": "/usr/bin/python3"
+                "python.defaultInterpreterPath": "/usr/bin/python3",
+                "[python]": {
+                    "editor.defaultFormatter": "ms-python.black-formatter",
+                    "editor.formatOnSave": true
+                }
             }
         }
     },

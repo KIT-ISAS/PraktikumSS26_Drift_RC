@@ -12,7 +12,7 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     """Generate launch description for joystick device manager."""
     default_params_file = os.path.join(
-        os.path.dirname(__file__), 
+        os.path.dirname(__file__),
         "..",
         "config",
         "joystick_params.yaml",

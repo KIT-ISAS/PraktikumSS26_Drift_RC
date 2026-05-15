@@ -1,3 +1,17 @@
 {
-    "editor.formatOnSave": true
+    "ROS2.distro": "jazzy",
+    "python.autoComplete.extraPaths": [
+        "/root/repo/drift_ws/install/joystick_pkg/lib/python3.12/site-packages",
+        "/root/repo/drift_ws/install/example_pkg/lib/python3.12/site-packages",
+        "/opt/ros/jazzy/lib/python3.12/site-packages",
+        "",
+        "/opt/venv/lib/python3.12/site-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/root/repo/drift_ws/install/joystick_pkg/lib/python3.12/site-packages",
+        "/root/repo/drift_ws/install/example_pkg/lib/python3.12/site-packages",
+        "/opt/ros/jazzy/lib/python3.12/site-packages",
+        "",
+        "/opt/venv/lib/python3.12/site-packages"
+    ]
 }
