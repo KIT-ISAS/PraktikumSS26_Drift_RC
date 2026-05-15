@@ -18,6 +18,8 @@ from typing import Optional
 import pygame
 import rclpy
 from rclpy.node import Node
+from sensor_msgs.msg import Joy
+from vehicle_communication_pkg.msg import VehicleActionRequest
 
 
 class JoystickReaderNode(Node):
@@ -47,6 +49,16 @@ class JoystickReaderNode(Node):
         self.joy_node_process: Optional[subprocess.Popen] = None
         self.device_detected = False
         self.lock = threading.Lock()
+
+        # Create publisher for vehicle action requests
+        self.vehicle_action_publisher = self.create_publisher(
+            VehicleActionRequest, "/vehicle_action", 10
+        )
+
+        # Subscribe to joy topic
+        self.joy_subscriber = self.create_subscription(
+            Joy, "/joy", self._joy_callback, 10
+        )
 
         self.monitor_timer = self.create_timer(
             self.device_check_interval, self._check_devices_callback
@@ -137,6 +149,48 @@ class JoystickReaderNode(Node):
         except Exception as e:
             self.get_logger().error(f"Failed to start joy_node: {e}")
             self.joy_node_process = None
+
+    def _joy_callback(self, msg: Joy) -> None:
+        """
+        Process joystick input and publish vehicle action requests.
+
+        Xbox One Controller Mapping:
+        - axes[0]: left stick X (steering, range: [-1, 1])
+        - axes[2]: left trigger / LB (brake)
+        - axes[5]: right trigger / RB (acceleration)
+        """
+        if len(msg.axes) < 6:
+            self.get_logger().warn(
+                f"Joy message has insufficient axes: {len(msg.axes)}"
+            )
+            return
+
+        try:
+            # Extract steering from left stick X-axis
+            steering = msg.axes[0]
+
+            # Extract acceleration and brake from shoulder triggers
+            # Triggers typically range from 1 (not pressed) to -1 (fully pressed)
+            # Normalize to [0, 1] range
+            acceleration = -((msg.axes[5] + 1.0) / 2.0)  # Right trigger (RB)
+            brake = -((msg.axes[2] + 1.0) / 2.0)  # Left trigger (LB)
+
+            # Calculate speed: acceleration minus brake (brake overrules)
+            # Result range: [-1, 1]
+            speed = acceleration - brake
+
+            # Clamp values to [-1, 1] range
+            steering = max(-1.0, min(1.0, steering))
+            speed = max(-1.0, min(1.0, speed))
+
+            # Create and publish VehicleActionRequest
+            action_msg = VehicleActionRequest()
+            action_msg.steering = steering
+            action_msg.speed = speed
+            self.vehicle_action_publisher.publish(action_msg)
+
+        except Exception as e:
+            self.get_logger().error(f"Error processing joy message: {e}")
 
     def _stop_joy_node(self) -> None:
         """Stop the ros2-joy node."""

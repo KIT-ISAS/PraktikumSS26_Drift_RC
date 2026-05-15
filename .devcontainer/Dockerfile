@@ -39,7 +39,7 @@ RUN sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' ~/.bashrc
 
 # Activate venv automatically and make installed packages available for ROS
 # see documentation/Python.md for details
-ENV PATH="/opt/venv/bin:$PATH"
+# ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONPATH="$PYTHONPATH:/opt/venv/lib/python3.12/site-packages" 
 
 # Install Python dependencies into venv
@@ -49,7 +49,7 @@ RUN source /opt/venv/bin/activate && pip install -r requirements.txt
 
 RUN source /opt/ros/jazzy/setup.bash
 
-RUN echo "source /opt/venv/bin/activate" >> ~/.bashrc
+# RUN echo "source /opt/venv/bin/activate" >> ~/.bashrc
 RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc && \
     echo "source /root/repo/drift_ws/install/setup.bash" >> ~/.bashrc
 
