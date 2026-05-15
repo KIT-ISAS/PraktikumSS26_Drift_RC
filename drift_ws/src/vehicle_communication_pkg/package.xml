@@ -3,7 +3,7 @@
 <package format="3">
   <name>vehicle_communication_pkg</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Package that contains functionality for vehicle communication, e.g. TCP/IP sockets to the Raspberry Pi</description>
   <maintainer email="louis.wagner@ka-raceing.de">root</maintainer>
   <license>TODO: License declaration</license>
 
