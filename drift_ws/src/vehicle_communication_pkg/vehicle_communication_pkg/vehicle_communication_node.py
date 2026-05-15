@@ -4,8 +4,10 @@ import rclpy
 from rclpy.node import Node
 from std_srvs.srv import Trigger
 
-from vehicle_communication_pkg.lib.communication_interface import CommunicationInterface
-from vehicle_communication_pkg.msg import VehicleActionRequest
+from .lib.communication_interface import (
+    CommunicationInterface,
+)
+from shared_interfaces.msg import VehicleActionRequest
 
 
 class VehicleCommunicationNode(Node):
@@ -141,9 +143,11 @@ def main(args=None):
     rclpy.init(args=args)
 
     # Create communication interface instance
-    from vehicle_communication_pkg.lib.tcp_communication import TcpCommunicationClient
+    from .lib.tcp_communication import (
+        TcpCommunicationClient,
+    )
 
-    communication_interface = TcpCommunicationClient()
+    communication_interface = TcpCommunicationClient(ip="192.168.137.5", port=12345)
 
     # Create and spin node
     node = VehicleCommunicationNode(communication_interface)
