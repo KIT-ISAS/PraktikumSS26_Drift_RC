@@ -172,21 +172,21 @@ class JoystickReaderNode(Node):
             # Extract acceleration and brake from shoulder triggers
             # Triggers typically range from 1 (not pressed) to -1 (fully pressed)
             # Normalize to [0, 1] range
-            acceleration = -((msg.axes[5] + 1.0) / 2.0)  # Right trigger (RB)
+            forward_acceleration = -((msg.axes[5] + 1.0) / 2.0)  # Right trigger (RB)
             brake = -((msg.axes[2] + 1.0) / 2.0)  # Left trigger (LB)
 
-            # Calculate speed: acceleration minus brake (brake overrules)
+            # Calculate acceleration: acceleration minus brake (brake overrules)
             # Result range: [-1, 1]
-            speed = acceleration - brake
+            acceleration = forward_acceleration - brake
 
             # Clamp values to [-1, 1] range
             steering = max(-1.0, min(1.0, steering))
-            speed = max(-1.0, min(1.0, speed))
+            acceleration = max(-1.0, min(1.0, acceleration))
 
             # Create and publish VehicleActionRequest
             action_msg = VehicleActionRequest()
             action_msg.steering = steering
-            action_msg.speed = speed
+            action_msg.acceleration = acceleration
             self.vehicle_action_publisher.publish(action_msg)
 
         except Exception as e:

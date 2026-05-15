@@ -10,7 +10,7 @@ class TcpCommunicationClient(CommunicationInterface):
     """
     TCP client for communicating with a Raspberry Pi vehicle controller.
 
-    Sends speed and steering commands as JSON over a TCP socket.
+    Sends acceleration and steering commands as JSON over a TCP socket.
     """
 
     def __init__(self, ip: str, port: int):
@@ -43,12 +43,12 @@ class TcpCommunicationClient(CommunicationInterface):
             self._sock.close()
             self._sock = None
 
-    def send_value(self, speed: float, steering: float) -> None:
+    def send_value(self, acceleration: float, steering: float) -> None:
         """
-        Send speed and steering values as JSON over TCP.
+        Send acceleration and steering values as JSON over TCP.
 
         Args:
-            speed: Speed command value.
+            acceleration: acceleration command value.
             steering: Steering command value.
 
         Raises:
@@ -57,6 +57,6 @@ class TcpCommunicationClient(CommunicationInterface):
         if self._sock is None:
             raise RuntimeError("TCP connection not initialized. Call connect() first.")
 
-        message = {"speed": speed, "steering": steering}
+        message = {"acceleration": acceleration, "steering": steering}
         data = json.dumps(message) + "\n"
         self._sock.sendall(data.encode("utf-8"))

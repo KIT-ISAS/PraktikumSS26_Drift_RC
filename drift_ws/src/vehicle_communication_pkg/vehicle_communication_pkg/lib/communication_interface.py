@@ -41,12 +41,12 @@ class CommunicationInterface(ABC):
         pass
 
     @abstractmethod
-    def send_value(self, speed: float, steering: float) -> None:
+    def send_value(self, acceleration: float, steering: float) -> None:
         """
         Send a control command to the vehicle.
 
         Args:
-            speed: Speed command value.
+            acceleration: acceleration command value.
             steering: Steering command value.
 
         Raises:

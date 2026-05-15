@@ -65,10 +65,10 @@ class VehicleCommunicationNode(Node):
             return
 
         try:
-            self.interface.send_value(msg.speed, msg.steering)
+            self.interface.send_value(msg.acceleration, msg.steering)
         except Exception as e:
             self.get_logger().error(
-                f"Failed to send vehicle action (speed={msg.speed}, "
+                f"Failed to send vehicle action (acceleration={msg.acceleration}, "
                 f"steering={msg.steering}): {e}"
             )
 
