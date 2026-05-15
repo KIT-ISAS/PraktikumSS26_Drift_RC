@@ -13,9 +13,16 @@ setup(
             "share/" + package_name + "/launch",
             [
                 "launch/joystick_reader.launch.py",
+                "launch/joy.launch.py",
             ],
         ),
-        ("share/" + package_name + "/config", ["config/joystick_params.yaml"]),
+        (
+            "share/" + package_name + "/config",
+            [
+                "config/joystick_params.yaml",
+                "config/joy_params.yaml",
+            ],
+        ),
     ],
     install_requires=["setuptools", "pygame"],
     zip_safe=True,
