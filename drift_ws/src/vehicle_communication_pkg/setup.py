@@ -14,7 +14,7 @@ setup(
     zip_safe=True,
     maintainer="root",
     maintainer_email="louis.wagner@ka-raceing.de",
-    description="TODO: Package description",
+    description="Package that contains functionality for vehicle communication, e.g. TCP/IP sockets to the Raspberry Pi",
     license="TODO: License declaration",
     extras_require={
         "test": [
@@ -22,6 +22,8 @@ setup(
         ],
     },
     entry_points={
-        "console_scripts": [],
+        "console_scripts": [
+            "vehicle_communication_node = vehicle_communication_pkg.vehicle_communication_node:main",
+        ],
     },
 )
