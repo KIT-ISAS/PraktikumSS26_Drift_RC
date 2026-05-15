@@ -7,6 +7,8 @@ The `Dockerfile` defines the environment for the ROS2 workspace. It is based on 
 ### docker-compose.yaml
 The `docker-compose.yaml` file defines the services for the Docker environment. It specifies the build context, container name, volume mounts, and network settings for the ROS2 workspace.
 
+For joystick support, the container also needs access to the host input devices. The devcontainer maps `/dev/input` into the container and allows the `c 13:*` device class so `pygame` can detect Xbox controllers through Linux input events.
+
 ### requirements.txt
 The `requirements.txt` file lists the Python dependencies required for the project. They are installed when the docker is built into a virtual environment within the Docker container to avoid conflicts with system-wide packages.
 
@@ -26,6 +28,8 @@ docker-compose up -d
 ```bash
 docker exec -it ros2_drift_ws_dev bash
 ```
+
+If your controller is visible on the host but not inside the container, rebuild the container after updating `docker-compose.yaml` and verify that `/dev/input/js0` or `/dev/input/event*` exists inside the container.
 ### VsCode Remote Development
 You can also use Visual Studio Code's Remote Development extension to work directly within the Docker container. To set this up:
 1. Install the Remote Development extension in Visual Studio Code.

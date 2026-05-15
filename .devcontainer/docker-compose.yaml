@@ -5,6 +5,11 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
 
+    # Allow pygame/SDL inside the container to see Linux input devices such as
+    # /dev/input/js* and /dev/input/event*.
+    device_cgroup_rules:
+      - "c 13:* rmw"
+
     ports:
       - "8765:8765" # For ROS2 communication (DDS)
 
@@ -14,6 +19,8 @@ services:
     volumes:
       - ..:/workspace
       - ../.:/root/repo
+      - /dev/input:/dev/input
+      - /run/udev:/run/udev:ro
 
     working_dir: /root/repo/drift_ws
 
