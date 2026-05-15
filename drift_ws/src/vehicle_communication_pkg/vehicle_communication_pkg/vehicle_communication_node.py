@@ -31,7 +31,7 @@ class VehicleCommunicationNode(Node):
         # Subscribe to vehicle action requests
         self.subscription = self.create_subscription(
             VehicleActionRequest,
-            "vehicle_action_request",
+            "/vehicle_action_request",
             self._vehicle_action_callback,
             10,
         )
@@ -65,7 +65,6 @@ class VehicleCommunicationNode(Node):
                 "Received vehicle action but interface is not connected. Skipping."
             )
             return
-
         try:
             self.interface.send_value(msg.acceleration, msg.steering)
         except Exception as e:
@@ -147,7 +146,7 @@ def main(args=None):
         TcpCommunicationClient,
     )
 
-    communication_interface = TcpCommunicationClient(ip="192.168.137.5", port=12345)
+    communication_interface = TcpCommunicationClient(ip="10.42.0.148", port=12345)
 
     # Create and spin node
     node = VehicleCommunicationNode(communication_interface)

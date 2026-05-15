@@ -31,6 +31,7 @@ class TcpCommunicationClient(CommunicationInterface):
             return  # Already connected
 
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._sock.settimeout(5)
         self._sock.connect((self.ip, self.port))
 
     def is_connected(self) -> bool:
@@ -57,6 +58,10 @@ class TcpCommunicationClient(CommunicationInterface):
         if self._sock is None:
             raise RuntimeError("TCP connection not initialized. Call connect() first.")
 
-        message = {"acceleration": acceleration, "steering": steering}
+        message = {"speed": acceleration, "steering": steering}
         data = json.dumps(message) + "\n"
-        self._sock.sendall(data.encode("utf-8"))
+        try:
+            self._sock.sendall(data.encode("utf-8"))
+        except OSError:
+            self.close()
+            raise

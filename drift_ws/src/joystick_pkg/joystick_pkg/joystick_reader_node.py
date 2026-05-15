@@ -19,7 +19,7 @@ import pygame
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
-from vehicle_communication_pkg.msg import VehicleActionRequest
+from shared_interfaces.msg import VehicleActionRequest
 
 
 class JoystickReaderNode(Node):
@@ -52,7 +52,7 @@ class JoystickReaderNode(Node):
 
         # Create publisher for vehicle action requests
         self.vehicle_action_publisher = self.create_publisher(
-            VehicleActionRequest, "/vehicle_action", 10
+            VehicleActionRequest, "/vehicle_action_request", 10
         )
 
         # Subscribe to joy topic
@@ -180,7 +180,7 @@ class JoystickReaderNode(Node):
             acceleration = forward_acceleration - brake
 
             # Clamp values to [-1, 1] range
-            steering = max(-1.0, min(1.0, steering))
+            steering = -max(-1.0, min(1.0, steering))
             acceleration = max(-1.0, min(1.0, acceleration))
 
             # Create and publish VehicleActionRequest

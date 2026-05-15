@@ -11,9 +11,6 @@ def generate_launch_description():
         executable="vehicle_communication_node",
         name="vehicle_communication_node",
         output="screen",
-        remappings=[
-            ("vehicle_action_request", "/vehicle_action"),
-        ],
     )
 
     return LaunchDescription([vehicle_communication_node])

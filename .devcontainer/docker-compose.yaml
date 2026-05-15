@@ -10,6 +10,7 @@ services:
     device_cgroup_rules:
       - "c 13:* rmw"
 
+    network_mode: host
     ports:
       - "8765:8765" # For ROS2 communication (DDS)
 
@@ -26,5 +27,7 @@ services:
 
     environment:
       - ROS_DOMAIN_ID=0
+
+
 
     command: bash
