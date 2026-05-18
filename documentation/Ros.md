@@ -22,6 +22,8 @@ ros2 run <package_name> <executable_name>
 ```bash
 cd src
 ros2 pkg create <package_name> --build-type ament_python
+cd ../../.devcontainerscripts
+source update_package_list.sh
 ```
 - To run tests:
 ```bash

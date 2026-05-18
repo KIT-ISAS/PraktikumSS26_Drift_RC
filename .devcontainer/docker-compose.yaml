@@ -28,6 +28,7 @@ services:
     environment:
       - ROS_DOMAIN_ID=0
 
-
-
+    post_start:
+      - command: /bin/bash -c ". /root/repo/.devcontainer/scripts/post_start.sh"
+        user: root
     command: bash
