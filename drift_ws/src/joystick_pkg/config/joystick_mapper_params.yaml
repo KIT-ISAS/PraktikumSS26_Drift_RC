@@ -1,0 +1,7 @@
+joystick_mapper:
+  ros__parameters:
+    # Mapping of joystick axes to VehicleActionRequest fields
+    axis_mapping:
+      steering: 0  # Left stick horizontal
+      throttle: 5  # Right trigger
+      brake: 2     # Left trigger
