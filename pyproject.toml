@@ -1,0 +1,23 @@
+[tool.ruff]
+line-length = 100  # ROS2 often uses 100
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # import sorting (replaces flake8-import-order/isort)
+    "D",  # docstrings (pep257/pydocstyle)
+    "D213",  # multi-line docstring summary should start at the first line
+]
+ignore = [
+    "D100",  # missing docstring in public module
+    "D104",  # missing docstring in public package
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-sort-within-sections = true
+
