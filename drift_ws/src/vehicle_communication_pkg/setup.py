@@ -16,12 +16,17 @@ setup(
             os.path.join("share", package_name, "launch"),
             glob(os.path.join("launch", "*launch.[pxy][yma]*")),
         ),
+        (
+            os.path.join("share", package_name, "config"),
+            glob(os.path.join("config", "*.yaml")),
+        ),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
     maintainer="root",
     maintainer_email="louis.wagner@ka-raceing.de",
-    description="Package that contains functionality for vehicle communication, e.g. TCP/IP sockets to the Raspberry Pi",
+    description="Package that contains functionality for vehicle communication, \
+        e.g. TCP/IP sockets to the Raspberry Pi",
     license="TODO: License declaration",
     extras_require={
         "test": [
@@ -30,7 +35,8 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "vehicle_communication_node = vehicle_communication_pkg.vehicle_communication_node:main",
+            "vehicle_communication_node \
+                = vehicle_communication_pkg.vehicle_communication_node:main",
         ],
     },
 )

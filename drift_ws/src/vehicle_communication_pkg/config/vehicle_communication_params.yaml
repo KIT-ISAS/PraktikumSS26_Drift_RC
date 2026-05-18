@@ -1,0 +1,6 @@
+vehicle_communication:
+  ros__parameters:
+    tcp:
+      # Port number for TCP communication
+      port: 12345
+      ip: "10.42.0.146"

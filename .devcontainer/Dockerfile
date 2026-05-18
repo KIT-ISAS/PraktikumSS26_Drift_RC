@@ -17,7 +17,10 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-joy \
     && rm -rf /var/lib/apt/lists/*
 
-# configure flake8 to allow double quotes since the Black formatter uses them by default
+# Ignore D401 "First line of Docstring should be in imperative mood"
+RUN sed -i 's/^extend-ignore = \(.*\)$/extend-ignore = \1,D401/' /opt/ros/jazzy/lib/python3.12/site-packages/ament_flake8/configuration/ament_flake8.ini
+RUN sed -i "/_ament_ignore = \[/,/\]/ s/\]/    'D401',\n]/" /opt/ros/jazzy/lib/python3.12/site-packages/ament_pep257/main.py
+# configure flake8 to allow double quotes to avoid conflicts with other formatters (and double quotes are nicer)
 RUN echo "inline-quotes = \"" >> /opt/ros/jazzy/lib/python3.12/site-packages/ament_flake8/configuration/ament_flake8.ini
 
 WORKDIR /root/repo/drift_ws

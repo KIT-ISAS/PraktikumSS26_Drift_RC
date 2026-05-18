@@ -40,4 +40,4 @@ It is also part of the CI Pipeline, so any code that does not conform to the Fla
 
 ### Configuration
 The `main_with_errors(argv=[])` function that is used in the generated tests can take in a path to a config file with the `--config` flag. However, we would like to use the default configuration and not make any changes to generated files (as it may be forgotten when creating a new one). The default configuration is set in the `/opt/ros/jazzy/lib/python3.12/site-packages/ament_flake8/configuration/ament_flake8.ini` file. 
-Flake8 prefers single quotes for strings, while the Black formatter uses double quotes by default. To avoid conflicts between the two, we have configured Flake8 to allow double quotes in the `ament_flake8.ini` file. See the `.devcontainer/Dockerfile` for details on how this is set up in the development environment.  
+Flake8 prefers single quotes for strings, while the Ruff formatter uses double quotes by default. To avoid conflicts, we have configured Flake8 to allow double quotes in the `ament_flake8.ini` file. See the `.devcontainer/Dockerfile` for details on how this is set up in the development environment.  
