@@ -24,7 +24,7 @@ setup(
             ],
         ),
     ],
-    install_requires=["setuptools"W],
+    install_requires=["setuptools"],
     zip_safe=True,
     maintainer="root",
     maintainer_email="louis.wagner@ka-raceing.de",
