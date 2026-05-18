@@ -10,5 +10,5 @@ echo 'inline-quotes = "' >> $AMENT_FLAKE8_CONFIG
 
 # Add all packages in the workspace to the application-import-names configuration so that flake8 doesn't complain about imports from other packages in the workspace
 # See README.md for more information about this workaround
-PACKAGES=(example_pkg,joystick_pkg,shared_interfaces,vehicle_communication_pkg)
+PACKAGES=(example_pkg,joystick_pkg,shared_interfaces,shared_pkg,vehicle_communication_pkg)
 echo "application-import-names = $PACKAGES" >> $AMENT_FLAKE8_CONFIG

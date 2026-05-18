@@ -5,6 +5,7 @@ from rclpy.node import Node
 from std_srvs.srv import Trigger
 
 from shared_interfaces.msg import VehicleActionRequest
+from shared_pkg import Topics
 
 from .lib import CommunicationInterface, TcpCommunicationClient
 
@@ -26,7 +27,7 @@ class VehicleCommunicationNode(Node):
         # Subscribe to vehicle action requests
         self.subscription = self.create_subscription(
             VehicleActionRequest,
-            "/vehicle_action_request",
+            Topics.VEHICLE_ACTION_REQUEST,
             self._vehicle_action_callback,
             10,
         )
