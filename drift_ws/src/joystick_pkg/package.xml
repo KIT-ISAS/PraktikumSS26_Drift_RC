@@ -7,6 +7,8 @@
   <maintainer email="louis.wagner@ka-raceing.de">root</maintainer>
   <license>Apache License 2.0</license>
 
+  <depend>shared_pkg</depend>
+
   <exec_depend>rclpy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>ros2-joy</exec_depend>

@@ -4,6 +4,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
 from shared_interfaces.msg import VehicleActionRequest
+from shared_pkg.topics import Topics
 
 from .lib import JoystickMapper
 
@@ -19,11 +20,11 @@ class JoystickMapperNode(Node):
 
         # Create publisher for vehicle action requests
         self.vehicle_action_publisher = self.create_publisher(
-            VehicleActionRequest, "/vehicle_action_request", 10
+            VehicleActionRequest, Topics.VEHICLE_ACTION_REQUEST, 10
         )
 
         # Subscribe to joy topic
-        self.joy_subscriber = self.create_subscription(Joy, "/joy", self._joy_callback, 10)
+        self.joy_subscriber = self.create_subscription(Joy, Topics.JOY_NODE, self._joy_callback, 10)
 
     def _joy_callback(self, msg: Joy) -> None:
         """
