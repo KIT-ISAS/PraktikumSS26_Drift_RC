@@ -58,7 +58,7 @@ jobs:
             source /opt/ros/jazzy/setup.bash &&
             source /opt/venv/bin/activate &&
             realpath . &&
-            ruff format --check /repo/drift_ws/src/
+            ruff format --check src/
           "
 
       - name: Stop Dev Container
