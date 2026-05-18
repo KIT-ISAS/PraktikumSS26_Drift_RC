@@ -25,7 +25,9 @@ class JoystickMapperNode(Node):
         )
 
         # Subscribe to joy topic
-        self.joy_subscriber = self.create_subscription(Joy, Topics.JOY_NODE, self._joy_callback, 10)
+        self.joy_subscriber = self.create_subscription(
+            Joy, Topics.JOY_NODE, self._joy_callback, 10
+        )
 
     def _joy_callback(self, msg: Joy) -> None:
         """

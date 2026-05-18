@@ -1,5 +1,5 @@
 [tool.ruff]
-line-length = 100  # ROS2 often uses 100
+line-length = 99  # ROS2 ament_flake uses 99
 
 [tool.ruff.lint]
 select = [
