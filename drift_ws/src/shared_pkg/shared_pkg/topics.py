@@ -2,8 +2,8 @@ class Topics:
     """Topics used for communication between nodes."""
 
     # ROS wide Topics
-    JOY_NODE = "/joy"
+    JOY_NODE: str = "/joy"
 
     # Car-related Topics
-    CAR_BASE = "/car"
-    VEHICLE_ACTION_REQUEST = CAR_BASE + "/vehicle_action_request"
+    CAR_BASE: str = "/car"
+    VEHICLE_ACTION_REQUEST: str = CAR_BASE + "/vehicle_action_request"
