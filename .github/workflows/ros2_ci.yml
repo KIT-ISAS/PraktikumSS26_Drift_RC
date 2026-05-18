@@ -56,7 +56,7 @@ jobs:
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
-            source /opt/venv/bin/activate &&
+            source /opt/venv/bin/activate && 
             realpath . &&
             ruff format --check src/
           "
@@ -96,7 +96,6 @@ jobs:
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
-            source /opt/venv/bin/activate &&
             colcon build --event-handlers console_direct+
           "
 
@@ -128,7 +127,6 @@ jobs:
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
-            source /opt/venv/bin/activate &&
             colcon build --event-handlers console_direct+
           "
 
@@ -136,7 +134,6 @@ jobs:
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
-            source /opt/venv/bin/activate &&
             source install/setup.bash &&
             colcon test \
               --event-handlers console_direct+ \
@@ -178,7 +175,6 @@ jobs:
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
-            source /opt/venv/bin/activate &&
             colcon build --event-handlers console_direct+
           "
 
@@ -186,7 +182,6 @@ jobs:
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
-            source /opt/venv/bin/activate &&
             source install/setup.bash &&
             colcon test \
               --event-handlers console_direct+ \
