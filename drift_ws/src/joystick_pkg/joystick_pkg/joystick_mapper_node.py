@@ -5,7 +5,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Joy
 
 from shared_interfaces.msg import VehicleActionRequest
-from shared_pkg.topics import Topics
+from shared_pkg import Topics
 
 from .lib import JoystickMapper
 

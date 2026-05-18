@@ -5,7 +5,7 @@ from rclpy.node import Node
 from std_srvs.srv import Trigger
 
 from shared_interfaces.msg import VehicleActionRequest
-from shared_pkg.topics import Topics
+from shared_pkg import Topics
 
 from .lib import CommunicationInterface, TcpCommunicationClient
 
