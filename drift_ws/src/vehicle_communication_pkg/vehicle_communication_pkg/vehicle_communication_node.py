@@ -2,12 +2,10 @@
 
 import rclpy
 from rclpy.node import Node
+from shared_interfaces.msg import VehicleActionRequest
 from std_srvs.srv import Trigger
 
-from .lib.communication_interface import (
-    CommunicationInterface,
-)
-from shared_interfaces.msg import VehicleActionRequest
+from .lib.communication_interface import CommunicationInterface
 
 
 class VehicleCommunicationNode(Node):
@@ -21,9 +19,8 @@ class VehicleCommunicationNode(Node):
         """
         Initialize the vehicle communication node.
 
-        Args:
-            communication_interface: An instance implementing CommunicationInterface.
-                                   The node takes ownership and will close it on shutdown.
+        :param communication_interface: An instance implementing CommunicationInterface.
+                                       The node takes ownership and will close it on shutdown.
         """
         super().__init__("vehicle_communication_node")
         self.interface = communication_interface
@@ -37,9 +34,7 @@ class VehicleCommunicationNode(Node):
         )
 
         # Provide services for manual connection control
-        self.connect_service = self.create_service(
-            Trigger, "connect", self._handle_connect
-        )
+        self.connect_service = self.create_service(Trigger, "connect", self._handle_connect)
         self.disconnect_service = self.create_service(
             Trigger, "disconnect", self._handle_disconnect
         )
@@ -57,8 +52,8 @@ class VehicleCommunicationNode(Node):
 
         Forwards the message to the communication interface.
 
-        Args:
-            msg: The received VehicleActionRequest message.
+        :param msg: The received VehicleActionRequest message.
+
         """
         if not self.interface.is_connected():
             self.get_logger().warn(
@@ -79,12 +74,11 @@ class VehicleCommunicationNode(Node):
         """
         Handle request to connect the communication interface.
 
-        Args:
-            request: Empty request.
-            response: Response with success flag and message.
+        :param request: Empty request.
+        :param response: Response with success flag and message.
 
-        Returns:
-            Updated response.
+        :returns: Updated response.
+
         """
         try:
             if self.interface.is_connected():
@@ -108,12 +102,11 @@ class VehicleCommunicationNode(Node):
         """
         Handle request to disconnect the communication interface.
 
-        Args:
-            request: Empty request.
-            response: Response with success flag and message.
+        :param request: Empty request.
+        :param response: Response with success flag and message.
 
-        Returns:
-            Updated response.
+        :returns: Updated response.
+
         """
         try:
             self.interface.close()

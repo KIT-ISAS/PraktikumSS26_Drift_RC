@@ -17,9 +17,9 @@ class TcpCommunicationClient(CommunicationInterface):
         """
         Initialize TCP client with connection parameters.
 
-        Args:
-            ip: IP address of the Raspberry Pi.
-            port: TCP port to connect to.
+        :param ip: IP address of the Raspberry Pi.
+        :param port: TCP port to connect to.
+
         """
         self.ip = ip
         self.port = port
@@ -48,12 +48,11 @@ class TcpCommunicationClient(CommunicationInterface):
         """
         Send acceleration and steering values as JSON over TCP.
 
-        Args:
-            acceleration: acceleration command value.
-            steering: Steering command value.
+        :param acceleration: acceleration command value.
+        :param steering: Steering command value.
 
-        Raises:
-            RuntimeError: If not connected.
+        :raises RuntimeError: If not connected.
+
         """
         if self._sock is None:
             raise RuntimeError("TCP connection not initialized. Call connect() first.")

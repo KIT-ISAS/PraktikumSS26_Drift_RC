@@ -16,8 +16,8 @@ class CommunicationInterface(ABC):
         """
         Establish a connection to the vehicle.
 
-        Raises:
-            RuntimeError: If connection fails or is already established.
+        :raises RuntimeError: If connection fails or is already established.
+
         """
         pass
 
@@ -26,8 +26,8 @@ class CommunicationInterface(ABC):
         """
         Check if the communication interface is currently connected.
 
-        Returns:
-            True if connected, False otherwise.
+        :returns: True if connected, False otherwise.
+
         """
         pass
 
@@ -45,11 +45,10 @@ class CommunicationInterface(ABC):
         """
         Send a control command to the vehicle.
 
-        Args:
-            acceleration: acceleration command value.
-            steering: Steering command value.
+        :param acceleration: acceleration command value.
+        :param steering: Steering command value.
 
-        Raises:
-            RuntimeError: If not connected or send fails.
+        :raises RuntimeError: If not connected or send fails.
+
         """
         pass
