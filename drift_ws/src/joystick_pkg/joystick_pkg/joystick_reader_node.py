@@ -16,7 +16,6 @@ import subprocess
 import threading
 from typing import Optional
 
-from click import Path
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
