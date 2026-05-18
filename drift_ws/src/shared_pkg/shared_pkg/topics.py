@@ -1,5 +1,5 @@
 class Topics:
-    """Topics used for communication between nodes."""
+    """Topics used for communication between ROS nodes."""
 
     # ROS wide Topics
     JOY_NODE: str = "/joy"
