@@ -21,8 +21,8 @@ class TcpCommunicationClient(CommunicationInterface):
         :param port: TCP port to connect to.
 
         """
-        self.ip = ip
-        self.port = port
+        self.ip: str = ip
+        self.port: int = port
         self._sock: socket.socket | None = None
 
     def connect(self) -> None:

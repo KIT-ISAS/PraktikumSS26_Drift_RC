@@ -5,7 +5,7 @@ from rclpy.node import Node
 from shared_interfaces.msg import VehicleActionRequest
 from std_srvs.srv import Trigger
 
-from .lib import CommunicationInterface
+from .lib import CommunicationInterface, TcpCommunicationClient
 
 
 class VehicleCommunicationNode(Node):
@@ -15,15 +15,12 @@ class VehicleCommunicationNode(Node):
     Uses a pluggable communication interface for flexibility (TCP, CAN, etc.).
     """
 
-    def __init__(self, communication_interface: CommunicationInterface):
-        """
-        Initialize the vehicle communication node.
-
-        :param communication_interface: An instance implementing CommunicationInterface.
-                                       The node takes ownership and will close it on shutdown.
-        """
+    def __init__(self):
+        """Initialize the vehicle communication node."""
         super().__init__("vehicle_communication_node")
-        self.interface = communication_interface
+        self._load_params()
+
+        self.interface: CommunicationInterface = TcpCommunicationClient(self.ip, self.port)
 
         # Subscribe to vehicle action requests
         self.subscription = self.create_subscription(
@@ -45,6 +42,10 @@ class VehicleCommunicationNode(Node):
             self.get_logger().info("Vehicle communication interface connected.")
         except Exception as e:
             self.get_logger().error(f"Failed to connect on startup: {e}")
+
+        self.get_logger().info(
+            f"VehicleCommunicationNode initialized with IP: {self.ip}, Port: {self.port}"
+        )
 
     def _vehicle_action_callback(self, msg: VehicleActionRequest) -> None:
         """
@@ -120,6 +121,13 @@ class VehicleCommunicationNode(Node):
 
         return response
 
+    def _load_params(self) -> None:
+        """Load parameters from the ROS parameter server."""
+        self.declare_parameter("ip_address", "10.42.0.148")
+        self.declare_parameter("port", 12345)
+        self.ip = self.get_parameter("ip_address").value
+        self.port = self.get_parameter("port").value
+
     def destroy_node(self) -> None:
         """Clean up resources when the node is destroyed."""
         try:
@@ -134,13 +142,8 @@ def main(args=None):
     """Entry point for the vehicle communication node."""
     rclpy.init(args=args)
 
-    # Create communication interface instance
-    from .lib import TcpCommunicationClient
-
-    communication_interface = TcpCommunicationClient(ip="10.42.0.148", port=12345)
-
     # Create and spin node
-    node = VehicleCommunicationNode(communication_interface)
+    node = VehicleCommunicationNode()
 
     try:
         rclpy.spin(node)
