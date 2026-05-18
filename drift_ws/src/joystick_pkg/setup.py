@@ -13,6 +13,7 @@ setup(
             "share/" + package_name + "/launch",
             [
                 "launch/joystick_reader.launch.py",
+                "launch/joystick_mapper.launch.py",
                 "launch/joy.launch.py",
             ],
         ),
@@ -20,6 +21,7 @@ setup(
             "share/" + package_name + "/config",
             [
                 "config/joystick_params.yaml",
+                "config/joystick_mapper_params.yaml",
                 "config/joy_params.yaml",
             ],
         ),
@@ -38,6 +40,7 @@ setup(
     entry_points={
         "console_scripts": [
             "joystick_reader = joystick_pkg.joystick_reader_node:main",
+            "joystick_mapper = joystick_pkg.joystick_mapper_node:main",
         ],
     },
 )
