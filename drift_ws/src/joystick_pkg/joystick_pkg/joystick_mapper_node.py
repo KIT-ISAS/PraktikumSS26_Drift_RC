@@ -1,7 +1,4 @@
-"""
-Maps the Joystick topic from /joy to /vehicle_action_request
-with the correct joystick key mapping for the drift car.
-"""
+"""Maps the Joystick topic with the correct joystick key mapping for the drift car."""
 
 import rclpy
 from rclpy.node import Node
@@ -26,16 +23,14 @@ class JoystickMapperNode(Node):
         )
 
         # Subscribe to joy topic
-        self.joy_subscriber = self.create_subscription(
-            Joy, "/joy", self._joy_callback, 10
-        )
+        self.joy_subscriber = self.create_subscription(Joy, "/joy", self._joy_callback, 10)
 
     def _joy_callback(self, msg: Joy) -> None:
         """
         Process joystick input and publish vehicle action requests.
+
         Maps the parameterized joystick axes to steering and acceleration values.
         """
-
         action_msg = VehicleActionRequest()
         action_msg.steering = self._mapper.extract_steering(msg)
         action_msg.acceleration = self._mapper.extract_acceleration(msg)
@@ -49,8 +44,7 @@ class JoystickMapperNode(Node):
         self.declare_parameter("axis_mapping.steering", 0)
         axis_mapping_params = self.get_parameters_by_prefix("axis_mapping")
         self.axis_mapping = {
-            param_key: param_value.value
-            for param_key, param_value in axis_mapping_params.items()
+            param_key: param_value.value for param_key, param_value in axis_mapping_params.items()
         }
 
 

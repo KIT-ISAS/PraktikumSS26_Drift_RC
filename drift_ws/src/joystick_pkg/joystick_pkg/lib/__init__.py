@@ -1,4 +1,4 @@
-"""Non-ROS communication library for mapping and extracting joystick input to vehicle action requests."""
+"""Non-ROS library for mapping and extracting joystick input to vehicle action requests."""
 
 __all__ = [
     "JoystickMapper",

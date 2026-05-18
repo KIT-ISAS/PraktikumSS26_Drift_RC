@@ -2,8 +2,9 @@
 """
 Joystick device monitor and joy_node manager.
 
-This node monitors for connected joystick devices and automatically manages the ros2-joy node lifecycle.
-Additionnally, it processes joystick input and publishes VehicleActionRequest messages based on the controller mapping.
+This node monitors for connected joystick devices and manages ros2-joy node lifecycle.
+Additionnally, it processes joystick input and publishes VehicleActionRequest
+messages based on the controller mapping.
 It will:
 1. Detect when a joystick device is connected
 2. Start the ROS2 joy_node if not already running
@@ -12,6 +13,7 @@ It will:
 
 """
 
+from pathlib import Path
 import subprocess
 import threading
 from typing import Optional
@@ -20,7 +22,6 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
 from shared_interfaces.msg import VehicleActionRequest
-from pathlib import Path
 
 
 class JoystickReaderNode(Node):
@@ -49,9 +50,7 @@ class JoystickReaderNode(Node):
         )
 
         # Subscribe to joy topic
-        self.joy_subscriber = self.create_subscription(
-            Joy, "/joy", self._joy_callback, 10
-        )
+        self.joy_subscriber = self.create_subscription(Joy, "/joy", self._joy_callback, 10)
 
         self.monitor_timer = self.create_timer(
             self.device_check_interval, self._check_devices_callback
@@ -100,9 +99,7 @@ class JoystickReaderNode(Node):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-            self.get_logger().info(
-                f"joy_node started (PID: {self.joy_node_process.pid})"
-            )
+            self.get_logger().info(f"joy_node started (PID: {self.joy_node_process.pid})")
         except Exception as e:
             self.get_logger().error(f"Failed to start joy_node: {e}")
             self.joy_node_process = None
@@ -117,9 +114,7 @@ class JoystickReaderNode(Node):
         - axes[5]: right trigger / RB (acceleration)
         """
         if len(msg.axes) < 6:
-            self.get_logger().warn(
-                f"Joy message has insufficient axes: {len(msg.axes)}"
-            )
+            self.get_logger().warn(f"Joy message has insufficient axes: {len(msg.axes)}")
             return
 
         try:
@@ -155,9 +150,7 @@ class JoystickReaderNode(Node):
             return
 
         try:
-            self.get_logger().info(
-                f"Stopping joy_node (PID: {self.joy_node_process.pid})..."
-            )
+            self.get_logger().info(f"Stopping joy_node (PID: {self.joy_node_process.pid})...")
             self.joy_node_process.terminate()
 
             try:

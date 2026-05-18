@@ -1,5 +1,6 @@
 """
-Launch file for ROS2 joy node without overhead of automatic joystick detection.
+Launch file for ROS2 joy node.
+
 Must be launched only after joystick is plugged in.
 """
 
