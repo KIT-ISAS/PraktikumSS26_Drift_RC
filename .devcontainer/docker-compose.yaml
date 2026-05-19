@@ -13,8 +13,7 @@ services:
     tty: true
 
     volumes:
-      - ..:/workspace
-      - ../.:/root/repo
+      - ..:/root/repo # This workspace here is mounted to /root/repo in the container
       - /dev/input:/dev/input # For input devices (Joystick) access
       - /run/udev:/run/udev:ro # To detect plugging-in/out events for input devices
 
