@@ -10,7 +10,8 @@ class XBoxOneMapper(JoystickMapper):
         """
         Initialize the Xbox One mapper with the given axis mapping.
 
-        :param axis_mapping: A dictionary mapping 'throttle', 'brake', and 'steering' to their respective joystick axis indices.
+        :param axis_mapping: A dictionary mapping 'throttle', 'brake', and 'steering'
+        to their respective joystick axis indices.
         """
         super().__init__(axis_mapping)
 
