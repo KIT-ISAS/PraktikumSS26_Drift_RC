@@ -5,14 +5,9 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
 
-    # Allow pygame/SDL inside the container to see Linux input devices such as
-    # /dev/input/js* and /dev/input/event*.
-    device_cgroup_rules:
-      - "c 13:* rmw"
-
     network_mode: host
     ports:
-      - "8765:8765" # For ROS2 communication (DDS)
+      - "8765:8765" # For Foxglove Bridge communication
 
     stdin_open: true
     tty: true
@@ -20,8 +15,13 @@ services:
     volumes:
       - ..:/workspace
       - ../.:/root/repo
-      - /dev/input:/dev/input
+      - /dev/input:/dev/input # For Joystick access
       - /run/udev:/run/udev:ro
+
+    # Allow SDL inside the container to see Linux input devices such as
+    # /dev/input/js* and /dev/input/event*.
+    device_cgroup_rules:
+      - "c 13:* rmw"
 
     working_dir: /root/repo/drift_ws
 
