@@ -15,8 +15,8 @@ services:
     volumes:
       - ..:/workspace
       - ../.:/root/repo
-      - /dev/input:/dev/input # For Joystick access
-      - /run/udev:/run/udev:ro
+      - /dev/input:/dev/input # For input devices (Joystick) access
+      - /run/udev:/run/udev:ro # To detect plugging-in/out events for input devices
 
     # Allow SDL inside the container to see Linux input devices such as
     # /dev/input/js* and /dev/input/event*.
