@@ -16,8 +16,8 @@ class JoystickMapperNode(Node):
     def __init__(self, mapper: JoystickMapper):
         """Initialize the joystick mapper node."""
         super().__init__("joystick_mapper")
-        self._load_params()
         self._mapper = mapper
+        self._load_params()
 
         # Create publisher for vehicle action requests
         self.vehicle_action_publisher = self.create_publisher(
@@ -47,7 +47,7 @@ class JoystickMapperNode(Node):
         self.declare_parameter("axis_mapping.brake", 0)
         self.declare_parameter("axis_mapping.steering", 0)
         axis_mapping_params = self.get_parameters_by_prefix("axis_mapping")
-        self.axis_mapping = {
+        self._mapper.axis_mapping = {
             param_key: param_value.value for param_key, param_value in axis_mapping_params.items()
         }
 

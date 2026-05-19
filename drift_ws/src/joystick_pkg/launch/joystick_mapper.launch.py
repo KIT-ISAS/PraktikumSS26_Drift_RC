@@ -31,4 +31,12 @@ def generate_launch_description():
         parameters=[LaunchConfiguration("params_file")],
     )
 
-    return LaunchDescription([params_file_arg, joystick_mapper_node])
+    joy_node = Node(
+        package="joy",
+        executable="joy_node",
+        name="joy_node",
+        output="screen",
+        parameters=[LaunchConfiguration("params_file")],
+    )
+
+    return LaunchDescription([params_file_arg, joy_node, joystick_mapper_node])
