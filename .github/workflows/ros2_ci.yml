@@ -8,31 +8,40 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 env:
-  IMAGE_NAME: ros2-image
+  IMAGE_NAME: ghcr.io/${{ github.repository }}/ros2-image
+  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
   build-docker-image:
-    name: Build Docker Image
+    name: Build and Push Docker Image
     runs-on: ubuntu-24.04
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Build Docker Image
-        run: docker compose -f .devcontainer/docker-compose.yaml build
-
-      - name: Export Docker Image
-        run: docker save $IMAGE_NAME -o ros2-image.tar
-
-      - name: Upload Docker Image
-        uses: actions/upload-artifact@v6
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
         with:
-          name: ros2-image
-          path: ros2-image.tar
-          retention-days: 1
-    
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker Image
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml build
+
+      - name: Tag Docker Image
+        run: |
+          docker tag ros2-image $IMAGE_NAME:$IMAGE_TAG
+
+      - name: Push Docker Image
+        run: |
+          docker push $IMAGE_NAME:$IMAGE_TAG
+
   format:
     name: Format Code
     runs-on: ubuntu-24.04
@@ -42,23 +51,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Download Docker Image
-        uses: actions/download-artifact@v6
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
         with:
-          name: ros2-image
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Load Docker Image
-        run: docker load -i ros2-image.tar
+      - name: Pull Docker Image
+        run: |
+          docker pull $IMAGE_NAME:$IMAGE_TAG
 
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Run Formatter
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
             source /opt/ros/jazzy/setup.bash &&
-            source /opt/venv/bin/activate && 
-            realpath . &&
+            source /opt/venv/bin/activate &&
             ruff format --check src/
           "
 
@@ -75,16 +87,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Download Docker Image
-        uses: actions/download-artifact@v6
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
         with:
-          name: ros2-image
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Load Docker Image
-        run: docker load -i ros2-image.tar
+      - name: Pull Docker Image
+        run: |
+          docker pull $IMAGE_NAME:$IMAGE_TAG
 
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Install ROS Dependencies
         run: |
@@ -113,16 +129,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Download Docker Image
-        uses: actions/download-artifact@v6
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
         with:
-          name: ros2-image
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Load Docker Image
-        run: docker load -i ros2-image.tar
+      - name: Pull Docker Image
+        run: |
+          docker pull $IMAGE_NAME:$IMAGE_TAG
 
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Build Workspace
         run: |
@@ -161,16 +181,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Download Docker Image
-        uses: actions/download-artifact@v6
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
         with:
-          name: ros2-image
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Load Docker Image
-        run: docker load -i ros2-image.tar
+      - name: Pull Docker Image
+        run: |
+          docker pull $IMAGE_NAME:$IMAGE_TAG
 
       - name: Start Dev Container
-        run: docker compose -f .devcontainer/docker-compose.yaml up -d
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml up -d
 
       - name: Build Workspace
         run: |
