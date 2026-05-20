@@ -6,6 +6,10 @@ from sensor_msgs.msg import Joy
 class JoystickMapper(ABC):
     """Abstract base class for mapping joystick input to vehicle action requests."""
 
+    def __init__(self, axis_mapping: dict):
+        super().__init__()
+        self.axis_mapping = axis_mapping
+
     @abstractmethod
     def extract_steering(self, joy_msg: Joy) -> float:
         """

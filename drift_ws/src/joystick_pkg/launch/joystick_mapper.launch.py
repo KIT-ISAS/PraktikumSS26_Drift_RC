@@ -1,4 +1,4 @@
-"""Launch file for joystick mapper."""
+"""Launch file for joystick mapper and ROS2 joy node."""
 
 import os
 
@@ -14,7 +14,7 @@ def generate_launch_description():
         os.path.dirname(__file__),
         "..",
         "config",
-        "joystick_mapper_params.yaml",
+        "joystick_params.yaml",
     )
 
     params_file_arg = DeclareLaunchArgument(
@@ -31,4 +31,12 @@ def generate_launch_description():
         parameters=[LaunchConfiguration("params_file")],
     )
 
-    return LaunchDescription([params_file_arg, joystick_mapper_node])
+    joy_node = Node(
+        package="joy",
+        executable="joy_node",
+        name="joy_node",
+        output="screen",
+        parameters=[LaunchConfiguration("params_file")],
+    )
+
+    return LaunchDescription([params_file_arg, joy_node, joystick_mapper_node])

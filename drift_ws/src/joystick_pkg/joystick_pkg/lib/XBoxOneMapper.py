@@ -6,6 +6,15 @@ from .JoystickMapper import JoystickMapper
 class XBoxOneMapper(JoystickMapper):
     """Maps Xbox One controller input to vehicle action requests."""
 
+    def __init__(self, axis_mapping: dict):
+        """
+        Initialize the Xbox One mapper with the given axis mapping.
+
+        :param axis_mapping: A dictionary mapping 'throttle', 'brake', and 'steering'
+        to their respective joystick axis indices.
+        """
+        super().__init__(axis_mapping)
+
     def extract_steering(self, joy_msg: Joy) -> float:
         """
         Extract steering value from joystick message based on configured axis mapping.

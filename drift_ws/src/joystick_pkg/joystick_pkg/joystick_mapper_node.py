@@ -7,17 +7,17 @@ from sensor_msgs.msg import Joy
 from shared_interfaces.msg import VehicleActionRequest
 from shared_pkg import Topics
 
-from .lib import JoystickMapper
+from .lib import JoystickMapper, XBoxOneMapper
 
 
 class JoystickMapperNode(Node):
     """ROS2 node that maps joystick input to vehicle action requests."""
 
-    def __init__(self, mapper: JoystickMapper):
+    def __init__(self):
         """Initialize the joystick mapper node."""
         super().__init__("joystick_mapper")
         self._load_params()
-        self._mapper = mapper
+        self._mapper: JoystickMapper = XBoxOneMapper(self.axis_mapping)
 
         # Create publisher for vehicle action requests
         self.vehicle_action_publisher = self.create_publisher(
@@ -56,9 +56,7 @@ def main(args=None):
     """Start joystick reader node."""
     rclpy.init(args=args)
 
-    from .lib import XBoxOneMapper
-
-    joystick_mapper = JoystickMapperNode(XBoxOneMapper())
+    joystick_mapper = JoystickMapperNode()
 
     try:
         rclpy.spin(joystick_mapper)

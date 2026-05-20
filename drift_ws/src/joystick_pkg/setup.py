@@ -34,7 +34,6 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "joystick_reader = joystick_pkg.joystick_reader_node:main",
             "joystick_mapper = joystick_pkg.joystick_mapper_node:main",
         ],
     },
