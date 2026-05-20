@@ -36,7 +36,7 @@ jobs:
 
       - name: Tag Docker Image
         run: |
-          docker tag ros2-image $IMAGE_NAME:$IMAGE_TAG
+          docker tag ros2-image ghcr.io/kit-isas/praktikumss26_drift_rc:$IMAGE_TAG
 
       - name: Push Docker Image
         run: |
