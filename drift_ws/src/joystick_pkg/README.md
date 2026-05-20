@@ -6,3 +6,8 @@ The `joy_node` is provided by the `joy` package of ROS2 (see: https://index.ros.
 
 ### Joystick Mapper Node
 The `joystick_mapper_node` is a custom node that subscribes to the `/joy` topic that is published by the `joy_node` and maps the joystick inputs to control commands for the car. In our case we convert it to throttle and steering commands that are published on the `/car/vehicle_action_request` topic with a custom message. The mapping is defined in the `joystick_mapper_node` and can be customized to fit the specific joystick and control scheme you want to use by extending the abstract base class `JoystickMapper`. We currently use an XBox One controller.
+
+### Docker Configuration
+In order to access joystick devices from within the Docker container, we need to mount the `/dev/input` directory into the container. This is done in the `docker-compose.yaml` file. Additionally we need to ensure that the container has the necessary permissions to access the joystick device (device_cgroup_rules:
+      - "c 13:* rmw").
+To detect hot-plugging events, we need to mount `/run/udev` as well, which is also done in the `docker-compose.yaml` file. This allows the `joy_node` to detect when a joystick is connected or disconnected while the node is running.
