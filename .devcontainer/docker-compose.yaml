@@ -1,6 +1,6 @@
 services:
   ros2:
-    image: ros2-image
+    image: ${IMAGE_NAME:-ros2-image}:${IMAGE_TAG:-latest} # Use the built image from the CI pipeline, fallback to 'latest' if not available
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
