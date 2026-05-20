@@ -1,0 +1,5 @@
+# Vehicle Communication Package
+This package contains every code related to the communication between the PC running the ROS nodes and the vehicle. Currently, the communication is done through a TCP connection.
+
+### Vehicle Setup
+On the vehicles Raspberry Pi, there is a system service that constantly listens for incoming TCP connections on a specific port (IP is irrelevant, it listens to 0.0.0.0). When a connection is established, the service receives data from the PC and controls the vehicle Servo and Motor via PWM. For this to work, the Rapsberry Pi must be in the same network as the PC running the ROS nodes. Since the KIT network blocks these connections, we use a mobile hotspot to create a local network for the communication. You can e.g. use the hotspot of your laptop for this, or use the USB Stick on the holodeck PC. You must ensure that the Raspberry Pi can connect to your hotspot-Wifi. Then you have to set the correct IP address and port (of the Raspberry Pi in your hotspot) in the ROS node parameters to establish the connection.

@@ -45,10 +45,6 @@ class VehicleCommunicationNode(Node):
         except Exception as e:
             self.get_logger().error(f"Failed to connect on startup: {e}")
 
-        self.get_logger().info(
-            f"VehicleCommunicationNode initialized with IP: {self.ip}, Port: {self.port}"
-        )
-
     def _vehicle_action_callback(self, msg: VehicleActionRequest) -> None:
         """
         Callback for received VehicleActionRequest messages.
