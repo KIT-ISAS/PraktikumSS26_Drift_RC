@@ -31,6 +31,7 @@ jobs:
         with:
           name: ros2-image
           path: ros2-image.tar
+          retention-days: 1
     
   format:
     name: Format Code
