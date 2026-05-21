@@ -22,7 +22,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 # Set the project name
-project(libsurvive_ros2)
+project(holodeck_pkg)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
