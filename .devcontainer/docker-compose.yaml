@@ -5,9 +5,13 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
 
+    privileged: true
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+      
     network_mode: host
     ports:
-      - "8765:8765" # For Foxglove Bridge communication
+      - 8765:8765 # For Foxglove Bridge communication
 
     stdin_open: true
     tty: true
