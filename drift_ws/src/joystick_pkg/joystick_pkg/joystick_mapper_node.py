@@ -33,16 +33,17 @@ class JoystickMapperNode(Node):
         """
         Process joystick input and publish vehicle action requests.
 
-        Maps the parameterized joystick axes to steering and acceleration values.
+        Maps the parameterized joystick axes to steering and throttle values.
         """
         action_msg = VehicleActionRequest()
         action_msg.steering = self._mapper.extract_steering(msg)
-        action_msg.acceleration = self._mapper.extract_acceleration(msg)
+        action_msg.throttle = self._mapper.extract_throttle(msg)
+        action_msg.gyro_mode = self.gyro_mode
+        action_msg.gyro_gain = self.gyro_gain
         self.vehicle_action_publisher.publish(action_msg)
 
     def _load_params(self) -> None:
         """Load parameters from the ROS2 parameter server."""
-        # Load axis mapping parameters
         self.declare_parameter("axis_mapping.throttle", 0)
         self.declare_parameter("axis_mapping.brake", 0)
         self.declare_parameter("axis_mapping.steering", 0)
@@ -50,6 +51,11 @@ class JoystickMapperNode(Node):
         self.axis_mapping = {
             param_key: param_value.value for param_key, param_value in axis_mapping_params.items()
         }
+
+        self.declare_parameter("gyro_mode", "soft")
+        self.declare_parameter("gyro_gain", 0.0)
+        self.gyro_mode = self.get_parameter("gyro_mode").value
+        self.gyro_gain = float(self.get_parameter("gyro_gain").value)
 
 
 def main(args=None):

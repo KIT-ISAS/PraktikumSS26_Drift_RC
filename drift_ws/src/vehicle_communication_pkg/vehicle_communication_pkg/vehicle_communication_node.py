@@ -60,11 +60,11 @@ class VehicleCommunicationNode(Node):
             )
             return
         try:
-            self.interface.send_value(msg.acceleration, msg.steering)
+            self.interface.send_value(msg.steering, msg.throttle, msg.gyro_mode, msg.gyro_gain)
         except Exception as e:
             self.get_logger().error(
-                f"Failed to send vehicle action (acceleration={msg.acceleration}, "
-                f"steering={msg.steering}): {e}"
+                f"Failed to send vehicle action (steering={msg.steering}, "
+                f"throttle={msg.throttle}): {e}"
             )
 
     def _handle_connect(

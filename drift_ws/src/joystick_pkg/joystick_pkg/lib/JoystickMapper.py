@@ -22,12 +22,11 @@ class JoystickMapper(ABC):
         pass
 
     @abstractmethod
-    def extract_acceleration(self, joy_msg: Joy) -> float:
+    def extract_throttle(self, joy_msg: Joy) -> float:
         """
-        Extract acceleration value from joystick message based on configured axis mapping.
+        Extract throttle value from joystick message based on configured axis mapping.
 
         :param joy_msg: The incoming joystick ROS message containing axes data.
-        :returns: A float in [-1, 1] representing the combined throttle and brake value,
-        where positive values indicate acceleration and negative values indicate braking.
+        :returns: A float in [-1, 1] where positive = forward, negative = brake/reverse.
         """
         pass

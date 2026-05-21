@@ -41,12 +41,20 @@ class CommunicationInterface(ABC):
         pass
 
     @abstractmethod
-    def send_value(self, acceleration: float, steering: float) -> None:
+    def send_value(
+        self,
+        steering: float,
+        throttle: float,
+        gyro_mode: str,
+        gyro_gain: float,
+    ) -> None:
         """
         Send a control command to the vehicle.
 
-        :param acceleration: acceleration command value.
-        :param steering: Steering command value.
+        :param steering: Steering value in [-1, 1]. Negative = left, positive = right.
+        :param throttle: Throttle value in [-1, 1]. Negative = brake/reverse, positive = forward.
+        :param gyro_mode: Gyro correction mode, either "soft" or "hard".
+        :param gyro_gain: Gyro correction strength in [0, 1].
 
         :raises RuntimeError: If not connected or send fails.
 

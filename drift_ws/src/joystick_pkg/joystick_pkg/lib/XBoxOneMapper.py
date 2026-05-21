@@ -26,17 +26,14 @@ class XBoxOneMapper(JoystickMapper):
         steering = -joy_msg.axes[self.axis_mapping["steering"]]  # invert axis
         return max(-1.0, min(1.0, steering))
 
-    def extract_acceleration(self, joy_msg: Joy) -> float:
+    def extract_throttle(self, joy_msg: Joy) -> float:
         """
-        Extract acceleration value from joystick message based on configured axis mapping.
+        Extract throttle value from joystick message based on configured axis mapping.
 
         :param joy_msg: The incoming joystick ROS message containing axes data.
-        :returns: A float in [-1, 1] representing the combined throttle and brake value,
-        where positive values indicate acceleration and negative values indicate braking.
+        :returns: A float in [-1, 1] where positive = forward, negative = brake/reverse.
         """
-        # Normalize throttle and brake from (not pressed, fully pressed) [1, -1]
-        # to [0, 1] by inverting and scaling
-        throttle = -((joy_msg.axes[self.axis_mapping["throttle"]] + 1.0) / 2.0)
-        brake = -((joy_msg.axes[self.axis_mapping["brake"]] + 1.0) / 2.0)
-        acceleration = throttle - brake
-        return max(-1.0, min(1.0, acceleration))
+        # Normalize triggers from [1, -1] (released, fully pressed) to [0, 1]
+        throttle = (1.0 - joy_msg.axes[self.axis_mapping["throttle"]]) / 2.0
+        brake = (1.0 - joy_msg.axes[self.axis_mapping["brake"]]) / 2.0
+        return max(-1.0, min(1.0, throttle - brake))

@@ -17,13 +17,14 @@ class TcpCommunicationClient(CommunicationInterface):
         """
         Initialize TCP client with connection parameters.
 
-        :param ip: IP address of the Raspberry Pi.
+        :param ip: IP address of the ESP32.
         :param port: TCP port to connect to.
 
         """
         self.ip: str = ip
         self.port: int = port
         self._sock: socket.socket | None = None
+        self._seq: int = 0
 
     def connect(self) -> None:
         """Initialize and open a TCP connection."""
@@ -44,12 +45,20 @@ class TcpCommunicationClient(CommunicationInterface):
             self._sock.close()
             self._sock = None
 
-    def send_value(self, acceleration: float, steering: float) -> None:
+    def send_value(
+        self,
+        steering: float,
+        throttle: float,
+        gyro_mode: str,
+        gyro_gain: float,
+    ) -> None:
         """
-        Send acceleration and steering values as JSON over TCP.
+        Send a control command as newline-delimited JSON over TCP.
 
-        :param acceleration: acceleration command value.
-        :param steering: Steering command value.
+        :param steering: Steering value in [-1, 1].
+        :param throttle: Throttle value in [-1, 1].
+        :param gyro_mode: "soft" or "hard".
+        :param gyro_gain: Gyro strength in [0, 1].
 
         :raises RuntimeError: If not connected.
 
@@ -57,7 +66,14 @@ class TcpCommunicationClient(CommunicationInterface):
         if self._sock is None:
             raise RuntimeError("TCP connection not initialized. Call connect() first.")
 
-        message = {"speed": acceleration, "steering": steering}
+        self._seq += 1
+        message = {
+            "steering": steering,
+            "throttle": throttle,
+            "gyro_mode": gyro_mode,
+            "gyro_gain": gyro_gain,
+            "seq": self._seq,
+        }
         data = json.dumps(message) + "\n"
         try:
             self._sock.sendall(data.encode("utf-8"))
