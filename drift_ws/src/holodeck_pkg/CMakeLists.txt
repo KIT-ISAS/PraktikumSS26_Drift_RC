@@ -125,6 +125,13 @@ install(
     launch
   DESTINATION share/${PROJECT_NAME})
 
+install(
+  FILES
+    config/config.json
+  DESTINATION
+    /root/.config/libsurvive
+)
+
 # For testing only
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
