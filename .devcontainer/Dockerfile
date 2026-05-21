@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-joy \
     && rm -rf /var/lib/apt/lists/*
 
+
 # Create virtual environment since Ubuntu doesn't allow system wide installation
 RUN python3 -m venv /opt/venv
 
