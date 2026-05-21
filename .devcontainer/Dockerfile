@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y \
     libopenblas-dev \
     libx11-dev \
     zlib1g-dev \
-    libsciplot-dev
+    libsciplot-dev \
     && rm -rf /var/lib/apt/lists/*
 
 
