@@ -7,6 +7,7 @@ SHELL ["/bin/bash", "-c"]
 
 ########## Installations ##########
 RUN apt-get update && apt-get install -y \
+    freeglut3-dev \
     python3-pip \
     python3-venv \
     python3-colcon-common-extensions \
@@ -16,7 +17,15 @@ RUN apt-get update && apt-get install -y \
     nano \
     ros-jazzy-foxglove-bridge \
     ros-jazzy-joy \
+    libusb-1.0-0-dev \
+    libpcap-dev \
+    liblapacke-dev \
+    libopenblas-dev \
+    libx11-dev \
+    zlib1g-dev \
+    libsciplot-dev
     && rm -rf /var/lib/apt/lists/*
+
 
 
 # Create virtual environment since Ubuntu doesn't allow system wide installation
