@@ -37,7 +37,8 @@ CFG_FILE = os.path.join(get_package_share_directory("holodeck_pkg"), "config", "
 
 # Sow we don't have to repeat for composable and non-composable versions.
 PARAMETERS = [
-    {"driver_args": f"--force-recalibrate 1 -c {CFG_FILE}"},
+    {"driver_args": f"-c {CFG_FILE}"},
+    # {"driver_args": f"--force-recalibrate 1 -c {CFG_FILE}"},
     {"tracking_frame": "libsurvive_world"},
     {"imu_topic": "imu"},
     {"joy_topic": "joy"},
