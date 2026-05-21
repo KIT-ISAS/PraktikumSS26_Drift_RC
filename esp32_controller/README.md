@@ -35,7 +35,7 @@ NoWifi ──wifi connects──▶ WifiConnected ──peer connects──▶ P
 | Receiving      | Failsafe     | Rapid blink (8 Hz)         |
 | Receiving + **armed** | Active | **Solid on**          |
 
-Message timeout is 500 ms — if no valid command arrives within that window the
+Message timeout is 150 ms — if no valid command arrives within that window the
 state drops back to `PeerConnected` and outputs go to failsafe.
 
 ## Arming
@@ -65,8 +65,8 @@ across transient connection drops.
 | `seq`       | uint32 | —            | Sequence number (for debugging, not validated)   |
 
 Values outside the stated ranges are clamped silently. Only one TCP client is
-served at a time. Send commands at ≥ 2 Hz to stay in `Receiving` state (the
-timeout is 500 ms).
+served at a time. Send commands at ≥ 10 Hz to stay in `Receiving` state (the
+timeout is 150 ms).
 
 ## WiFi networks (priority order)
 

@@ -4,7 +4,7 @@
 #include "led.h"
 #include "button.h"
 
-static const unsigned long COMMAND_TIMEOUT_MS = 500;
+static const unsigned long COMMAND_TIMEOUT_MS = 150;
 
 static SystemState state = SystemState::NoWifi;
 static bool armed = false;

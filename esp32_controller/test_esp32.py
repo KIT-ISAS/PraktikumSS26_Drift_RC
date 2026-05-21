@@ -25,7 +25,7 @@ import sys
 import time
 
 PORT = 12345
-COMMAND_TIMEOUT_S = 0.5   # must match firmware COMMAND_TIMEOUT_MS
+COMMAND_TIMEOUT_S = 0.15  # must match firmware COMMAND_TIMEOUT_MS
 SEND_RATE_HZ = 20
 
 
