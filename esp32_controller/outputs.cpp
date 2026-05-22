@@ -5,9 +5,9 @@ static Servo steeringServo;
 static Servo escServo;
 static Servo gyroServo;
 
-static const int STEERING_PIN = 9;
-static const int ESC_PIN      = 6;
-static const int GYRO_PIN     = 10;
+static const int STEERING_PIN = 25;
+static const int ESC_PIN      = 26;
+static const int GYRO_PIN     = 27;
 
 static const int PWM_MIN_US     = 1000;
 static const int PWM_NEUTRAL_US = 1500;

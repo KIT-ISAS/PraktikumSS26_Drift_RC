@@ -7,11 +7,13 @@ Receives steering and throttle commands over WiFi/TCP and drives the car's servo
 
 | Signal   | GPIO | Connected to         | PWM range        |
 |----------|------|----------------------|------------------|
-| Steering | 9    | Steering servo       | 1100 – 1900 µs   |
-| Throttle | 6    | ESC                  | 1200 – 1800 µs   |
-| Gyro     | 10   | Gyro sensitivity pin | 1100 – 1900 µs   |
-| LED      | 2    | Built-in LED         | —                |
-| Button   | 0    | BOOT button          | —                |
+| Steering | 25   | Steering servo       | 1100 – 1900 µs   |
+| Throttle | 26   | ESC                  | 1200 – 1800 µs   |
+| Gyro     | 27   | Gyro sensitivity pin | 1100 – 1950 µs   |
+| LED      | 2    | Built-in LED (PCB)   | —                |
+| Button   | 0    | BOOT button (PCB)    | —                |
+
+GPIO 25, 26, 27 are on the VIN side of the 38-pin DOIT DevKit. GPIO 2 and 0 are PCB-mounted and require no side pin.
 
 Neutral (failsafe) for all outputs is 1500 µs. All PWM signals run at 50 Hz.
 
