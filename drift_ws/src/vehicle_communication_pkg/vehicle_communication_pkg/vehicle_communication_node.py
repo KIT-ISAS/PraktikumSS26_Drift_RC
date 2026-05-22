@@ -49,23 +49,10 @@ class VehicleCommunicationNode(Node):
 
     def _vehicle_action_callback(self, msg: VehicleActionRequest) -> None:
         """Forward a VehicleActionRequest to the vehicle."""
-        if not self.interface.is_connected():
-            try:
-                self.interface.connect()
-                self.get_logger().info("Opened UDP socket.")
-            except Exception:
-                self.get_logger().warn(
-                    "Cannot open UDP socket, skipping command.",
-                    throttle_duration_sec=3.0,
-                )
-                return
         try:
             self.interface.send_value(msg.steering, msg.throttle, msg.gyro_mode, msg.gyro_gain)
         except Exception as e:
-            self.get_logger().error(
-                f"Failed to send vehicle action (steering={msg.steering}, "
-                f"throttle={msg.throttle}): {e}"
-            )
+            self.get_logger().error(f"Failed to send command: {e}")
 
     def _log_status(self) -> None:
         """Log the latest ESP32 status if it changed or is newly absent."""

@@ -45,12 +45,12 @@ class UdpCommunicationClient(CommunicationInterface):
     def close(self) -> None:
         """Stop the receiver thread and close the socket."""
         self._running = False
-        if self._sock is not None:
-            self._sock.close()
-            self._sock = None
         if self._rx_thread is not None:
             self._rx_thread.join(timeout=2.0)
             self._rx_thread = None
+        if self._sock is not None:
+            self._sock.close()
+            self._sock = None
 
     def send_value(
         self,

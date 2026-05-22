@@ -7,6 +7,7 @@
 static const unsigned long COMMAND_TIMEOUT_MS = 200;
 
 static SystemState state = SystemState::NoWifi;
+static const char* currentStateName = "NoWifi";
 static bool armed = false;
 static unsigned long lastCommandMs = 0;
 static Command lastCommand;
@@ -59,8 +60,9 @@ void stateMachineUpdate() {
   else                next = SystemState::Receiving;
 
   if (next != state) {
+    currentStateName = stateName(next);
     Serial.print("State: ");
-    Serial.println(stateName(next));
+    Serial.println(currentStateName);
     state = next;
   }
 
@@ -75,7 +77,7 @@ void stateMachineUpdate() {
   }
 
   ledSet(ledForState(state, armed));
-  commsSendStatus(stateName(state), armed, lastCommand.seq);
+  commsSendStatus(currentStateName, armed, lastCommand.seq);
 }
 
 SystemState stateMachineGetState() { return state; }

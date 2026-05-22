@@ -25,7 +25,6 @@ static unsigned long lastReconnectAttemptMs = 0;
 
 static IPAddress senderIp;
 static uint16_t  senderPort = 0;
-static bool      hasSender  = false;
 static unsigned long lastStatusMs = 0;
 
 static bool hasPendingCommand = false;
@@ -33,10 +32,10 @@ static Command pendingCommand;
 
 static char rxBuf[512];
 
-static void handleWifiReconnect() {
+static void handleWifiReconnect(bool isConnected) {
   unsigned long now = millis();
 
-  if (WiFi.status() == WL_CONNECTED) {
+  if (isConnected) {
     wifiConnecting = false;
     return;
   }
@@ -96,9 +95,8 @@ void commsBegin() {
 }
 
 void commsUpdate() {
-  handleWifiReconnect();
-
   bool isConnected = (WiFi.status() == WL_CONNECTED);
+  handleWifiReconnect(isConnected);
 
   if (isConnected && !wasWifiConnected) {
     Serial.print("Connected. IP: ");
@@ -122,13 +120,12 @@ void commsUpdate() {
     rxBuf[len] = '\0';
     senderIp   = udp.remoteIP();
     senderPort = udp.remotePort();
-    hasSender  = true;
     processPacket(rxBuf, len);
   }
 }
 
 bool commsWifiConnected() {
-  return WiFi.status() == WL_CONNECTED;
+  return wasWifiConnected;
 }
 
 bool commsTakeCommand(Command& out) {
@@ -139,7 +136,7 @@ bool commsTakeCommand(Command& out) {
 }
 
 void commsSendStatus(const char* state, bool armed, uint32_t lastSeq) {
-  if (!hasSender || WiFi.status() != WL_CONNECTED) return;
+  if (senderPort == 0 || !wasWifiConnected) return;
   unsigned long now = millis();
   if (now - lastStatusMs < STATUS_INTERVAL_MS) return;
   lastStatusMs = now;

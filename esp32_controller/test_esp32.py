@@ -128,6 +128,16 @@ def pause(msg: str = "  Press Enter to continue...") -> None:
     input(msg)
 
 
+def probe_bad_packet(ip: str, label: str, probe_fn) -> None:
+    """Pre-stream 0.5 s, call probe_fn(session), post-stream 1 s."""
+    s = Session(ip)
+    stream(s, 0.5)
+    print(f"  {label} …")
+    probe_fn(s)
+    stream(s, 1.0)
+    s.close()
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -261,15 +271,10 @@ def test_invalid_json(ip: str) -> None:
         '"JSON parse error." — no state change, command ignored.',
         "No LED change (state stays wherever it was).",
     )
-    s = Session(ip)
-    print("  Pre-streaming 0.5 s to reach Receiving state …")
-    stream(s, 0.5)
-    print("  Sending invalid JSON datagram …")
-    s.send_raw(b"{bad json}")
-    time.sleep(0.2)
-    print("  Post-streaming 1 s (should still work) …")
-    stream(s, 1.0)
-    s.close()
+    def probe(s):
+        s.send_raw(b"{bad json}")
+        time.sleep(0.2)
+    probe_bad_packet(ip, "Sending invalid JSON datagram", probe)
 
 
 def test_invalid_gyro_mode(ip: str) -> None:
@@ -279,17 +284,11 @@ def test_invalid_gyro_mode(ip: str) -> None:
         '"Invalid gyro_mode." — command rejected, no state change.',
         "No LED change.",
     )
-    s = Session(ip)
-    print("  Pre-streaming 0.5 s …")
-    stream(s, 0.5)
-    print("  Sending bad gyro_mode …")
-    bad = json.dumps({"steering": 0, "throttle": 0, "gyro_mode": "turbo",
-                      "gyro_gain": 0, "seq": 999})
-    s.send_raw(bad.encode())
-    time.sleep(0.2)
-    print("  Post-streaming 1 s …")
-    stream(s, 1.0)
-    s.close()
+    def probe(s):
+        s.send_raw(json.dumps({"steering": 0, "throttle": 0, "gyro_mode": "turbo",
+                               "gyro_gain": 0, "seq": 999}).encode())
+        time.sleep(0.2)
+    probe_bad_packet(ip, "Sending bad gyro_mode", probe)
 
 
 def test_out_of_range(ip: str) -> None:
@@ -299,14 +298,11 @@ def test_out_of_range(ip: str) -> None:
         "No error — firmware clamps to ±1 / [0,1] silently.",
         "No LED change, outputs clamped to limits.",
     )
-    s = Session(ip)
-    stream(s, 0.5)
-    print("  Sending out-of-range values …")
-    for _ in range(10):
-        s.send(steering=5.0, throttle=-3.0, gyro_mode="soft", gyro_gain=2.0)
-        time.sleep(0.05)
-    stream(s, 1.0)
-    s.close()
+    def probe(s):
+        for _ in range(10):
+            s.send(steering=5.0, throttle=-3.0, gyro_mode="soft", gyro_gain=2.0)
+            time.sleep(0.05)
+    probe_bad_packet(ip, "Sending out-of-range values", probe)
 
 
 def test_overflow(ip: str) -> None:
@@ -316,14 +312,10 @@ def test_overflow(ip: str) -> None:
         '"Packet too large, discarded." — no state change.',
         "No LED change. Stream functional afterwards.",
     )
-    s = Session(ip)
-    stream(s, 0.5)
-    print("  Sending 600-byte datagram …")
-    s.send_raw(b"x" * 600)
-    time.sleep(0.1)
-    print("  Post-streaming 1 s …")
-    stream(s, 1.0)
-    s.close()
+    def probe(s):
+        s.send_raw(b"x" * 600)
+        time.sleep(0.1)
+    probe_bad_packet(ip, "Sending 600-byte datagram", probe)
 
 
 def test_multiple_senders(ip: str) -> None:
