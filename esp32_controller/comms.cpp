@@ -1,8 +1,9 @@
 #include "comms.h"
 #include <WiFi.h>
+#include <WiFiUdp.h>
 #include <ArduinoJson.h>
 
-static const uint16_t SERVER_PORT = 12345;
+static const uint16_t LOCAL_PORT = 12345;
 static const char* WIFI_SSIDS[]     = {"JulianCar", "wifi_mid", "wifi_low"};
 static const char* WIFI_PASSWORDS[] = {"Hund1234",  "pass_mid", "pass_low"};
 static const size_t WIFI_COUNT = sizeof(WIFI_SSIDS) / sizeof(WIFI_SSIDS[0]);
@@ -13,20 +14,25 @@ static const IPAddress SUBNET(255, 255, 255, 0);
 
 static const unsigned long RECONNECT_INTERVAL_MS = 3000;
 static const unsigned long CONNECT_TIMEOUT_MS    = 8000;
+static const unsigned long STATUS_INTERVAL_MS    = 100;
 
-static WiFiServer server(SERVER_PORT);
-static WiFiClient client;
-static String rxBuffer;
-static bool hasPendingCommand = false;
-static Command pendingCommand;
-
+static WiFiUDP udp;
+static bool wasWifiConnected = false;
 static bool wifiConnecting = false;
 static size_t wifiCandidateIdx = 0;
 static unsigned long wifiPhaseStartMs = 0;
 static unsigned long lastReconnectAttemptMs = 0;
-static bool wasWifiConnected = false;
 
-// Non-blocking: starts a connection attempt or times out and moves to next SSID.
+static IPAddress senderIp;
+static uint16_t  senderPort = 0;
+static bool      hasSender  = false;
+static unsigned long lastStatusMs = 0;
+
+static bool hasPendingCommand = false;
+static Command pendingCommand;
+
+static char rxBuf[512];
+
 static void handleWifiReconnect() {
   unsigned long now = millis();
 
@@ -61,11 +67,10 @@ static bool parseGyroMode(const char* raw, GyroMode& mode) {
   return false;
 }
 
-static void processLine(const String& line) {
+static void processPacket(const char* data, int len) {
   StaticJsonDocument<256> doc;
-  if (deserializeJson(doc, line)) {
-    Serial.print("JSON parse error: ");
-    Serial.println(line);
+  if (deserializeJson(doc, data, len)) {
+    Serial.println("JSON parse error.");
     return;
   }
 
@@ -84,45 +89,9 @@ static void processLine(const String& line) {
   hasPendingCommand = true;
 }
 
-static void handleServer() {
-  if (!client || !client.connected()) {
-    client = server.available();
-    if (client) {
-      rxBuffer = "";
-      Serial.println("Peer connected.");
-    } else {
-      return;
-    }
-  }
-
-  while (client.available()) {
-    char c = client.read();
-    if (c == '\r') continue;
-    if (c == '\n') {
-      String line = rxBuffer;
-      rxBuffer = "";
-      line.trim();
-      if (line.length() > 0) processLine(line);
-    } else {
-      rxBuffer += c;
-      if (rxBuffer.length() > 512) {
-        Serial.println("RX overflow, clearing buffer.");
-        rxBuffer = "";
-      }
-    }
-  }
-
-  if (!client.connected()) {
-    client.stop();
-    rxBuffer = "";
-    Serial.println("Peer disconnected.");
-  }
-}
-
 void commsBegin() {
   WiFi.mode(WIFI_STA);
   WiFi.config(STATIC_IP, GATEWAY, SUBNET);
-  // Trigger first attempt immediately on the first commsUpdate() call.
   lastReconnectAttemptMs = millis() - RECONNECT_INTERVAL_MS;
 }
 
@@ -134,17 +103,27 @@ void commsUpdate() {
   if (isConnected && !wasWifiConnected) {
     Serial.print("Connected. IP: ");
     Serial.println(WiFi.localIP());
-    server.begin();
-    Serial.print("TCP server on port ");
-    Serial.println(SERVER_PORT);
+    udp.begin(LOCAL_PORT);
+    Serial.print("UDP listening on port ");
+    Serial.println(LOCAL_PORT);
   }
   wasWifiConnected = isConnected;
 
-  if (isConnected) {
-    handleServer();
-  } else if (client) {
-    client.stop();
-    rxBuffer = "";
+  if (!isConnected) return;
+
+  int packetSize;
+  while ((packetSize = udp.parsePacket()) > 0) {
+    if (packetSize >= (int)sizeof(rxBuf)) {
+      udp.flush();
+      Serial.println("Packet too large, discarded.");
+      continue;
+    }
+    int len = udp.read(rxBuf, sizeof(rxBuf) - 1);
+    rxBuf[len] = '\0';
+    senderIp   = udp.remoteIP();
+    senderPort = udp.remotePort();
+    hasSender  = true;
+    processPacket(rxBuf, len);
   }
 }
 
@@ -152,13 +131,28 @@ bool commsWifiConnected() {
   return WiFi.status() == WL_CONNECTED;
 }
 
-bool commsPeerConnected() {
-  return client && client.connected();
-}
-
 bool commsTakeCommand(Command& out) {
   if (!hasPendingCommand) return false;
   out = pendingCommand;
   hasPendingCommand = false;
   return true;
+}
+
+void commsSendStatus(const char* state, bool armed, uint32_t lastSeq) {
+  if (!hasSender || WiFi.status() != WL_CONNECTED) return;
+  unsigned long now = millis();
+  if (now - lastStatusMs < STATUS_INTERVAL_MS) return;
+  lastStatusMs = now;
+
+  StaticJsonDocument<128> doc;
+  doc["state"]    = state;
+  doc["armed"]    = armed;
+  doc["last_seq"] = lastSeq;
+
+  char buf[128];
+  serializeJson(doc, buf, sizeof(buf));
+
+  udp.beginPacket(senderIp, senderPort);
+  udp.write((const uint8_t*)buf, strlen(buf));
+  udp.endPacket();
 }

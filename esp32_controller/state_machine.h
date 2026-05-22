@@ -6,7 +6,6 @@
 enum class SystemState {
   NoWifi,        // LED: slow blink  1 Hz
   WifiConnected, // LED: fast blink  4 Hz
-  PeerConnected, // LED: double-pulse
   Receiving,     // LED: rapid blink (unarmed) or solid (armed)
 };
 

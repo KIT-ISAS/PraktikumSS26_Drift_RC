@@ -4,7 +4,7 @@
 #include "led.h"
 #include "button.h"
 
-static const unsigned long COMMAND_TIMEOUT_MS = 500;
+static const unsigned long COMMAND_TIMEOUT_MS = 200;
 
 static SystemState state = SystemState::NoWifi;
 static bool armed = false;
@@ -16,7 +16,6 @@ static const char* stateName(SystemState s) {
   switch (s) {
     case SystemState::NoWifi:        return "NoWifi";
     case SystemState::WifiConnected: return "WifiConnected";
-    case SystemState::PeerConnected: return "PeerConnected";
     case SystemState::Receiving:     return "Receiving";
   }
   return "?";
@@ -26,7 +25,6 @@ static LedPattern ledForState(SystemState s, bool isArmed) {
   switch (s) {
     case SystemState::NoWifi:        return LedPattern::SlowBlink;
     case SystemState::WifiConnected: return LedPattern::FastBlink;
-    case SystemState::PeerConnected: return LedPattern::DoublePulse;
     case SystemState::Receiving:     return isArmed ? LedPattern::SolidOn : LedPattern::RapidBlink;
   }
   return LedPattern::Off;
@@ -53,13 +51,11 @@ void stateMachineUpdate() {
   }
 
   bool wifi     = commsWifiConnected();
-  bool peer     = commsPeerConnected();
   bool messages = lastCommandMs > 0 && (millis() - lastCommandMs) < COMMAND_TIMEOUT_MS;
 
   SystemState next;
   if      (!wifi)     next = SystemState::NoWifi;
-  else if (!peer)     next = SystemState::WifiConnected;
-  else if (!messages) next = SystemState::PeerConnected;
+  else if (!messages) next = SystemState::WifiConnected;
   else                next = SystemState::Receiving;
 
   if (next != state) {
@@ -79,6 +75,7 @@ void stateMachineUpdate() {
   }
 
   ledSet(ledForState(state, armed));
+  commsSendStatus(stateName(state), armed, lastCommand.seq);
 }
 
 SystemState stateMachineGetState() { return state; }

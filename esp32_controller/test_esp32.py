@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Manual test script for the ESP32 driftcar controller.
+Manual test script for the ESP32 driftcar controller (UDP protocol).
 
 Each test describes what it does, the expected Serial output on the ESP32,
 and the expected LED behaviour. Watch both the Serial monitor and the LED
@@ -12,15 +12,15 @@ NOTE: The car only moves if the BOOT button has been pressed to ARM it.
 Usage:
     python test_esp32.py <ESP32_IP> [test ...]
 
-    python test_esp32.py 192.168.1.42            # interactive menu
-    python test_esp32.py 192.168.1.42 all        # run every test in order
-    python test_esp32.py 192.168.1.42 timeout reconnect
+    python test_esp32.py 10.42.0.99            # interactive menu
+    python test_esp32.py 10.42.0.99 all        # run every test in order
+    python test_esp32.py 10.42.0.99 timeout status
 """
 
 import argparse
 import json
+import math
 import socket
-import struct
 import sys
 import time
 
@@ -30,25 +30,19 @@ SEND_RATE_HZ = 20
 
 
 # ---------------------------------------------------------------------------
-# Connection helper
+# Session helper
 # ---------------------------------------------------------------------------
 
 class Session:
-    """One TCP connection to the ESP32."""
+    """UDP session for sending commands and receiving status from the ESP32."""
 
     def __init__(self, ip: str, port: int = PORT):
         self.ip = ip
         self.port = port
-        self._sock: socket.socket | None = None
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._sock.settimeout(0.1)
         self._seq = 0
-
-    def connect(self, timeout: float = 3.0) -> None:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(timeout)
-        s.connect((self.ip, self.port))
-        s.settimeout(None)
-        self._sock = s
-        print(f"  [connected to {self.ip}:{self.port}]")
+        print(f"  [UDP socket open, will send to {ip}:{port}]")
 
     def send(
         self,
@@ -65,51 +59,54 @@ class Session:
             "gyro_gain": gyro_gain,
             "seq": self._seq,
         }
-        self._send_raw((json.dumps(msg) + "\n").encode())
+        self._sock.sendto(json.dumps(msg).encode(), (self.ip, self.port))
 
     def send_raw(self, data: bytes) -> None:
         """Send arbitrary bytes — used to provoke parser errors."""
-        self._send_raw(data)
+        self._sock.sendto(data, (self.ip, self.port))
 
-    def _send_raw(self, data: bytes) -> None:
-        if self._sock is None:
-            raise RuntimeError("Not connected.")
-        self._sock.sendall(data)
+    def recv_status(self) -> dict | None:
+        """Return parsed status dict if a reply arrived, else None."""
+        try:
+            data, _ = self._sock.recvfrom(512)
+            return json.loads(data.decode())
+        except (socket.timeout, json.JSONDecodeError):
+            return None
+
+    def wait_for_status(self, timeout_s: float = 2.0) -> dict | None:
+        """Block until a status arrives or timeout, then return it."""
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            s = self.recv_status()
+            if s is not None:
+                return s
+        return None
 
     def close(self) -> None:
-        """Graceful close (FIN)."""
-        if self._sock:
-            self._sock.close()
-            self._sock = None
-            print("  [disconnected gracefully]")
-
-    def rst(self) -> None:
-        """Abrupt close (RST — no FIN, no TIME_WAIT)."""
-        if self._sock:
-            # SO_LINGER with l_onoff=1, l_linger=0 → RST on close
-            self._sock.setsockopt(
-                socket.SOL_SOCKET,
-                socket.SO_LINGER,
-                struct.pack("ii", 1, 0),
-            )
-            self._sock.close()
-            self._sock = None
-            print("  [disconnected abruptly (RST)]")
+        self._sock.close()
+        print("  [UDP socket closed]")
 
 
 # ---------------------------------------------------------------------------
 # Utilities
 # ---------------------------------------------------------------------------
 
-def stream(session: Session, duration_s: float, **kwargs) -> None:
+def stream(
+    session: Session,
+    duration_s: float,
+    print_status: bool = False,
+    **kwargs,
+) -> None:
     """Send commands at SEND_RATE_HZ for duration_s seconds."""
     interval = 1.0 / SEND_RATE_HZ
     end = time.monotonic() + duration_s
     while time.monotonic() < end:
         t = time.monotonic()
         session.send(**kwargs)
-        elapsed = time.monotonic() - t
-        remaining = interval - elapsed
+        status = session.recv_status()
+        if print_status and status:
+            print(f"    ESP32: {status}")
+        remaining = interval - (time.monotonic() - t)
         if remaining > 0:
             time.sleep(remaining)
 
@@ -147,7 +144,6 @@ def test_normal(ip: str) -> None:
         "Solid ON if armed, RapidBlink if not armed.",
     )
     s = Session(ip)
-    s.connect()
     interval = 1.0 / SEND_RATE_HZ
 
     def lerp(a: float, b: float, x: float) -> float:
@@ -173,8 +169,6 @@ def test_normal(ip: str) -> None:
             if remaining > 0:
                 time.sleep(remaining)
 
-    import math
-
     run_phase(
         "Phase 1: steering sweep", 8.0,
         lambda t: lerp(-1.0, 1.0, t / 4.0) if t < 4.0 else lerp(1.0, -1.0, (t - 4.0) / 4.0),
@@ -185,10 +179,22 @@ def test_normal(ip: str) -> None:
         lambda _: 0.0,
         lambda t: lerp(0.0, 1.0, t / 4.0) if t < 4.0 else lerp(1.0, 0.0, (t - 4.0) / 4.0),
     )
+    # ESC requires brake→neutral→brake again to arm reverse.
+    # Phase 3a: brake to full, 3b: back to neutral (blip), 3c: ramp into reverse and back.
     run_phase(
-        "Phase 3: brake/reverse throttle ramp", 8.0,
+        "Phase 3a: brake to arm", 2.0,
         lambda _: 0.0,
-        lambda t: lerp(0.0, -1.0, t / 4.0) if t < 4.0 else lerp(-1.0, 0.0, (t - 4.0) / 4.0),
+        lambda t: lerp(0.0, -1.0, t / 2.0),
+    )
+    run_phase(
+        "Phase 3b: neutral blip", 0.3,
+        lambda _: 0.0,
+        lambda _: 0.0,
+    )
+    run_phase(
+        "Phase 3c: reverse ramp", 5.7,
+        lambda _: 0.0,
+        lambda t: lerp(0.0, -1.0, t / 2.85) if t < 2.85 else lerp(-1.0, 0.0, (t - 2.85) / 2.85),
     )
     run_phase(
         "Phase 4: combined steering + throttle", 8.0,
@@ -199,15 +205,26 @@ def test_normal(ip: str) -> None:
     s.close()
 
 
+def test_status(ip: str) -> None:
+    header(
+        "status — verify bidirectional UDP",
+        "Stream commands for 3 s and print every status reply from the ESP32.",
+        "'State: Receiving' on first command. Status at ~10 Hz.",
+        "Solid ON if armed, RapidBlink if not armed.",
+    )
+    s = Session(ip)
+    stream(s, 3.0, print_status=True)
+    s.close()
+
+
 def test_timeout(ip: str) -> None:
     header(
         "timeout — stop sending mid-stream",
         f"Stream 1 s, pause {COMMAND_TIMEOUT_S * 1000:.0f}+ ms, resume 2 s.",
-        '"State: PeerConnected" after pause, "State: Receiving" on resume.',
-        "DoublePulse during pause, then solid/rapid again.",
+        '"State: WifiConnected" after pause, "State: Receiving" on resume.',
+        "FastBlink during pause, then solid/rapid again.",
     )
     s = Session(ip)
-    s.connect()
     print("  Phase 1: streaming 1 s …")
     stream(s, 1.0)
     print(f"  Phase 2: silence {COMMAND_TIMEOUT_S + 0.3:.1f} s …")
@@ -217,65 +234,41 @@ def test_timeout(ip: str) -> None:
     s.close()
 
 
-def test_graceful_disconnect(ip: str) -> None:
-    header(
-        "graceful disconnect — clean FIN",
-        "Stream 1 s then close the socket normally.",
-        '"Peer disconnected." → "State: WifiConnected".',
-        "Drops from solid/rapid → FastBlink.",
-    )
-    s = Session(ip)
-    s.connect()
-    stream(s, 1.0)
-    s.close()
-
-
-def test_abrupt_disconnect(ip: str) -> None:
-    header(
-        "abrupt disconnect — RST (no FIN)",
-        "Stream 1 s then force a TCP reset.",
-        "ESP32 detects broken connection on next read/write attempt. "
-        '"Peer disconnected." may be delayed until it tries to read.',
-        "Same as graceful but may take one loop iteration longer.",
-    )
-    s = Session(ip)
-    s.connect()
-    stream(s, 1.0)
-    s.rst()
-
-
 def test_reconnect(ip: str) -> None:
     header(
-        "reconnect — disconnect then reconnect",
-        "Stream, disconnect, wait 1 s, reconnect, stream again.",
-        '"Peer disconnected." then "Peer connected." + "State: Receiving".',
+        "reconnect — new sender socket after silence",
+        "Stream 1 s from socket A, close it, wait 1 s, open socket B, stream 2 s.",
+        '"State: WifiConnected" during silence, "State: Receiving" on resume.\n'
+        "ESP32 switches status target to socket B automatically.",
         "FastBlink for ~1 s, then back to solid/rapid.",
     )
-    s = Session(ip)
-    s.connect()
-    stream(s, 1.0)
-    s.close()
+    a = Session(ip)
+    print("  Socket A: streaming 1 s …")
+    stream(a, 1.0)
+    a.close()
     print("  Waiting 1 s …")
     time.sleep(1.0)
-    s.connect()
-    stream(s, 2.0)
-    s.close()
+    b = Session(ip)
+    print("  Socket B: streaming 2 s …")
+    stream(b, 2.0, print_status=True)
+    b.close()
 
 
 def test_invalid_json(ip: str) -> None:
     header(
         "invalid JSON",
-        'Send "{bad json}\\n" — not valid JSON.',
-        '"JSON parse error: {bad json}" — no state change, command ignored.',
+        'Send one datagram with "{bad json}" — not valid JSON.',
+        '"JSON parse error." — no state change, command ignored.',
         "No LED change (state stays wherever it was).",
     )
     s = Session(ip)
-    s.connect()
-    stream(s, 0.5)   # get into Receiving first
-    print("  Sending invalid JSON …")
-    s.send_raw(b"{bad json}\n")
+    print("  Pre-streaming 0.5 s to reach Receiving state …")
+    stream(s, 0.5)
+    print("  Sending invalid JSON datagram …")
+    s.send_raw(b"{bad json}")
     time.sleep(0.2)
-    stream(s, 1.0)   # confirm stream still works after the bad line
+    print("  Post-streaming 1 s (should still work) …")
+    stream(s, 1.0)
     s.close()
 
 
@@ -287,13 +280,14 @@ def test_invalid_gyro_mode(ip: str) -> None:
         "No LED change.",
     )
     s = Session(ip)
-    s.connect()
+    print("  Pre-streaming 0.5 s …")
     stream(s, 0.5)
     print("  Sending bad gyro_mode …")
     bad = json.dumps({"steering": 0, "throttle": 0, "gyro_mode": "turbo",
-                      "gyro_gain": 0, "seq": 999}) + "\n"
+                      "gyro_gain": 0, "seq": 999})
     s.send_raw(bad.encode())
     time.sleep(0.2)
+    print("  Post-streaming 1 s …")
     stream(s, 1.0)
     s.close()
 
@@ -306,7 +300,6 @@ def test_out_of_range(ip: str) -> None:
         "No LED change, outputs clamped to limits.",
     )
     s = Session(ip)
-    s.connect()
     stream(s, 0.5)
     print("  Sending out-of-range values …")
     for _ in range(10):
@@ -318,100 +311,73 @@ def test_out_of_range(ip: str) -> None:
 
 def test_overflow(ip: str) -> None:
     header(
-        "RX buffer overflow (>512 bytes without newline)",
-        "Send 600 bytes without \\n, then flush with \\n.",
-        '"RX overflow, clearing buffer." — the oversized line is discarded.',
-        "No LED change. Stream remains functional afterwards.",
+        "RX overflow — datagram >511 bytes",
+        "Send a 600-byte datagram. Firmware discards it (too large for rxBuf).",
+        '"Packet too large, discarded." — no state change.',
+        "No LED change. Stream functional afterwards.",
     )
     s = Session(ip)
-    s.connect()
     stream(s, 0.5)
-    print("  Sending 600-byte line without newline …")
+    print("  Sending 600-byte datagram …")
     s.send_raw(b"x" * 600)
     time.sleep(0.1)
-    print("  Sending newline to flush …")
-    s.send_raw(b"\n")
-    time.sleep(0.1)
+    print("  Post-streaming 1 s …")
     stream(s, 1.0)
     s.close()
 
 
-def test_no_newline(ip: str) -> None:
+def test_multiple_senders(ip: str) -> None:
     header(
-        "partial message — valid JSON, no trailing newline",
-        "Send complete JSON without \\n, wait 0.8 s, then send \\n.",
-        "No command processed until \\n arrives. State stays PeerConnected "
-        "during the wait, then transitions to Receiving.",
-        "DoublePulse while waiting, then solid/rapid after \\n.",
-    )
-    s = Session(ip)
-    s.connect()
-    # First get into Receiving, then let it time out so we start fresh
-    stream(s, 0.5)
-    time.sleep(COMMAND_TIMEOUT_S + 0.1)   # drop back to PeerConnected
-    msg = json.dumps({"steering": 0, "throttle": 0,
-                      "gyro_mode": "soft", "gyro_gain": 0, "seq": 1})
-    print("  Sending JSON without newline …")
-    s.send_raw(msg.encode())
-    print(f"  Waiting {COMMAND_TIMEOUT_S + 0.3:.1f} s (state should stay PeerConnected) …")
-    time.sleep(COMMAND_TIMEOUT_S + 0.3)
-    print("  Sending newline — command should now be processed …")
-    s.send_raw(b"\n")
-    time.sleep(0.1)
-    stream(s, 1.0)
-    s.close()
-
-
-def test_rapid_cycles(ip: str) -> None:
-    header(
-        "rapid connect/disconnect cycles",
-        "10 × connect → 2 commands → RST, 100 ms apart.",
-        "Rapid 'Peer connected.' / 'Peer disconnected.' churn. No crash.",
-        "Flickers between FastBlink and DoublePulse/solid.",
-    )
-    for i in range(10):
-        print(f"  Cycle {i + 1}/10 …")
-        s = Session(ip)
-        try:
-            s.connect(timeout=2.0)
-            s.send()
-            s.send()
-            s.rst()
-        except OSError as e:
-            print(f"  [connect failed: {e}]")
-        time.sleep(0.1)
-    print("  Done — give the ESP32 a moment to settle …")
-    time.sleep(1.0)
-
-
-def test_double_connect(ip: str) -> None:
-    header(
-        "second client while first is still connected",
-        "Connect client A, stream, then connect client B simultaneously.",
-        "ESP32 queues client B (TCP backlog). Client B gets no data read "
-        "until client A disconnects. Then 'Peer connected.' for B.",
-        "LED stays solid/rapid while A is streaming. Switches to A-based "
-        "state only. After A disconnects, B takes over.",
+        "multiple senders — two sockets compete",
+        "Socket A and B alternate sends. ESP32 always replies to whichever\n"
+        "sent the most recent datagram (no connection state).",
+        "No state change. Status target alternates between A and B.",
+        "Solid ON if armed, RapidBlink if not armed.",
     )
     a = Session(ip)
-    a.connect()
-    stream(a, 1.0)
-    print("  Connecting second client while first is active …")
     b = Session(ip)
-    try:
-        b.connect(timeout=2.0)
-        print("  Client B connected (queued in TCP backlog).")
-        print("  Streaming from A for 1 s (B ignored by ESP32) …")
-        stream(a, 1.0)
-        print("  Disconnecting A …")
-        a.close()
-        time.sleep(0.2)
-        print("  Streaming from B (ESP32 should now accept it) …")
-        stream(b, 1.5)
-        b.close()
-    except OSError as e:
-        print(f"  Client B failed to connect: {e}")
-        a.close()
+    interval = 1.0 / SEND_RATE_HZ
+    end = time.monotonic() + 4.0
+    toggle = True
+    while time.monotonic() < end:
+        t = time.monotonic()
+        if toggle:
+            a.send()
+        else:
+            b.send()
+        toggle = not toggle
+        # Both sockets try to recv; only the current target will get replies
+        sa = a.recv_status()
+        sb = b.recv_status()
+        if sa:
+            print(f"    A got: {sa}")
+        if sb:
+            print(f"    B got: {sb}")
+        remaining = interval - (time.monotonic() - t)
+        if remaining > 0:
+            time.sleep(remaining)
+    a.close()
+    b.close()
+
+
+def test_wifi_loss(ip: str) -> None:
+    header(
+        "WiFi loss simulation",
+        "Stream 2 s, then power-cycle the WiFi AP or move out of range.\n"
+        "Resume sending when AP is back.",
+        '"State: NoWifi" during outage, "State: Receiving" on reconnect.',
+        "SlowBlink during outage, solid/rapid after reconnect.",
+    )
+    s = Session(ip)
+    print("  Streaming 2 s …")
+    stream(s, 2.0, print_status=True)
+    pause("  Now disable the WiFi AP. Press Enter when done …")
+    print("  Waiting 4 s (ESP32 should detect loss and show SlowBlink) …")
+    time.sleep(4.0)
+    pause("  Re-enable the AP. Press Enter when ready to resume streaming …")
+    print("  Streaming 5 s (ESP32 should reconnect and re-enter Receiving) …")
+    stream(s, 5.0, print_status=True)
+    s.close()
 
 
 # ---------------------------------------------------------------------------
@@ -419,25 +385,23 @@ def test_double_connect(ip: str) -> None:
 # ---------------------------------------------------------------------------
 
 TESTS: dict[str, tuple[str, object]] = {
-    "normal":             ("Steady 20 Hz command stream",            test_normal),
-    "timeout":            ("Stop sending → failsafe after 500 ms",   test_timeout),
-    "graceful_disconnect":("Clean TCP FIN disconnect",                test_graceful_disconnect),
-    "abrupt_disconnect":  ("TCP RST disconnect",                      test_abrupt_disconnect),
-    "reconnect":          ("Disconnect then reconnect",               test_reconnect),
-    "invalid_json":       ("Malformed JSON line",                     test_invalid_json),
-    "invalid_gyro_mode":  ("Unknown gyro_mode string",                test_invalid_gyro_mode),
-    "out_of_range":       ("Values outside [-1, 1]",                  test_out_of_range),
-    "overflow":           ("RX buffer overflow (>512 b, no newline)", test_overflow),
-    "no_newline":         ("Valid JSON without trailing newline",      test_no_newline),
-    "rapid_cycles":       ("10 rapid connect/disconnect cycles",      test_rapid_cycles),
-    "double_connect":     ("Two clients simultaneously",              test_double_connect),
+    "normal":           ("Steady 20 Hz command stream, full sweep",     test_normal),
+    "status":           ("Print bidirectional status replies at 10 Hz", test_status),
+    "timeout":          ("Stop sending → failsafe → resume",            test_timeout),
+    "reconnect":        ("New sender socket after silence",             test_reconnect),
+    "invalid_json":     ("Malformed JSON datagram",                     test_invalid_json),
+    "invalid_gyro_mode":("Unknown gyro_mode string",                    test_invalid_gyro_mode),
+    "out_of_range":     ("Values outside [-1, 1]",                      test_out_of_range),
+    "overflow":         ("Datagram >511 bytes discarded",               test_overflow),
+    "multiple_senders": ("Two UDP sockets alternating",                 test_multiple_senders),
+    "wifi_loss":        ("Manually disable/enable AP mid-stream",       test_wifi_loss),
 }
 
 
 def print_menu() -> None:
     print("\nAvailable tests:")
     for i, (name, (desc, _)) in enumerate(TESTS.items(), 1):
-        print(f"  {i:2d}. {name:<25} {desc}")
+        print(f"  {i:2d}. {name:<22} {desc}")
     print()
 
 
@@ -447,14 +411,15 @@ def run_test(name: str, ip: str) -> None:
         fn(ip)
         print(f"\n  ✓ {name} done.")
     except KeyboardInterrupt:
-        print(f"\n  [interrupted]")
+        print("\n  [interrupted]")
     except OSError as e:
-        print(f"\n  [connection error: {e}]")
+        print(f"\n  [socket error: {e}]")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("ip", help="ESP32 IP address")
     parser.add_argument("tests", nargs="*",
                         help="Test name(s) or 'all'. Omit for interactive menu.")
@@ -473,7 +438,6 @@ def main() -> None:
             run_test(name, args.ip)
         return
 
-    # Interactive menu
     print_menu()
     while True:
         choice = input("Enter test name (or number, 'all', 'q'): ").strip()

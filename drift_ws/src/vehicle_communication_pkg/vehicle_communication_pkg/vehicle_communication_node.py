@@ -7,14 +7,14 @@ from std_srvs.srv import Trigger
 from shared_interfaces.msg import VehicleActionRequest
 from shared_pkg import Topics
 
-from .lib import CommunicationInterface, TcpCommunicationClient
+from .lib import CommunicationInterface, UdpCommunicationClient
 
 
 class VehicleCommunicationNode(Node):
     """
     ROS 2 node that subscribes to VehicleActionRequest messages and forwards them to a vehicle.
 
-    Uses a pluggable communication interface for flexibility (TCP, CAN, etc.).
+    Uses a pluggable communication interface for flexibility (UDP, TCP, CAN, etc.).
     """
 
     def __init__(self):
@@ -22,9 +22,8 @@ class VehicleCommunicationNode(Node):
         super().__init__("vehicle_communication_node")
         self._load_params()
 
-        self.interface: CommunicationInterface = TcpCommunicationClient(self.ip, self.port)
+        self.interface: CommunicationInterface = UdpCommunicationClient(self.ip, self.port)
 
-        # Subscribe to vehicle action requests
         self.subscription = self.create_subscription(
             VehicleActionRequest,
             Topics.VEHICLE_ACTION_REQUEST,
@@ -32,35 +31,31 @@ class VehicleCommunicationNode(Node):
             10,
         )
 
-        # Provide services for manual connection control
         self.connect_service = self.create_service(Trigger, "connect", self._handle_connect)
         self.disconnect_service = self.create_service(
             Trigger, "disconnect", self._handle_disconnect
         )
 
-        # Auto-connect on startup
+        self._last_logged_status: dict | None = None
+
+        # Log ESP32 status at 1 Hz
+        self.create_timer(1.0, self._log_status)
+
         try:
             self.interface.connect()
-            self.get_logger().info("Vehicle communication interface connected.")
+            self.get_logger().info(f"UDP socket open, sending to {self.ip}:{self.port}")
         except Exception as e:
-            self.get_logger().error(f"Failed to connect on startup: {e}")
+            self.get_logger().error(f"Failed to open UDP socket: {e}")
 
     def _vehicle_action_callback(self, msg: VehicleActionRequest) -> None:
-        """
-        Callback for received VehicleActionRequest messages.
-
-        Forwards the message to the communication interface.
-
-        :param msg: The received VehicleActionRequest message.
-
-        """
+        """Forward a VehicleActionRequest to the vehicle."""
         if not self.interface.is_connected():
             try:
                 self.interface.connect()
-                self.get_logger().info("Reconnected to vehicle.")
+                self.get_logger().info("Opened UDP socket.")
             except Exception:
                 self.get_logger().warn(
-                    "Vehicle not reachable, skipping command.",
+                    "Cannot open UDP socket, skipping command.",
                     throttle_duration_sec=3.0,
                 )
                 return
@@ -72,18 +67,24 @@ class VehicleCommunicationNode(Node):
                 f"throttle={msg.throttle}): {e}"
             )
 
+    def _log_status(self) -> None:
+        """Log the latest ESP32 status if it changed or is newly absent."""
+        status = self.interface.get_last_status()
+        if status != self._last_logged_status:
+            if status is None:
+                self.get_logger().warn("ESP32 status timeout — no reply received.")
+            else:
+                self.get_logger().info(
+                    f"ESP32: state={status.get('state', '?')} "
+                    f"armed={status.get('armed', '?')} "
+                    f"last_seq={status.get('last_seq', '?')}"
+                )
+            self._last_logged_status = status
+
     def _handle_connect(
         self, request: Trigger.Request, response: Trigger.Response
     ) -> Trigger.Response:
-        """
-        Handle request to connect the communication interface.
-
-        :param request: Empty request.
-        :param response: Response with success flag and message.
-
-        :returns: Updated response.
-
-        """
+        """Handle request to open the UDP socket."""
         try:
             if self.interface.is_connected():
                 response.success = True
@@ -91,37 +92,27 @@ class VehicleCommunicationNode(Node):
             else:
                 self.interface.connect()
                 response.success = True
-                response.message = "Connected successfully."
-                self.get_logger().info("Vehicle communication interface connected.")
+                response.message = "UDP socket opened."
+                self.get_logger().info("UDP socket opened.")
         except Exception as e:
             response.success = False
-            response.message = f"Connection failed: {str(e)}"
-            self.get_logger().error(f"Failed to connect: {e}")
-
+            response.message = f"Failed: {str(e)}"
+            self.get_logger().error(f"Failed to open UDP socket: {e}")
         return response
 
     def _handle_disconnect(
         self, request: Trigger.Request, response: Trigger.Response
     ) -> Trigger.Response:
-        """
-        Handle request to disconnect the communication interface.
-
-        :param request: Empty request.
-        :param response: Response with success flag and message.
-
-        :returns: Updated response.
-
-        """
+        """Handle request to close the UDP socket."""
         try:
             self.interface.close()
             response.success = True
-            response.message = "Disconnected successfully."
-            self.get_logger().info("Vehicle communication interface disconnected.")
+            response.message = "UDP socket closed."
+            self.get_logger().info("UDP socket closed.")
         except Exception as e:
             response.success = False
-            response.message = f"Disconnection failed: {str(e)}"
-            self.get_logger().error(f"Failed to disconnect: {e}")
-
+            response.message = f"Failed: {str(e)}"
+            self.get_logger().error(f"Failed to close UDP socket: {e}")
         return response
 
     def _load_params(self) -> None:
@@ -137,17 +128,13 @@ class VehicleCommunicationNode(Node):
             self.interface.close()
         except Exception as e:
             self.get_logger().error(f"Error closing interface on shutdown: {e}")
-
         super().destroy_node()
 
 
 def main(args=None):
     """Entry point for the vehicle communication node."""
     rclpy.init(args=args)
-
-    # Create and spin node
     node = VehicleCommunicationNode()
-
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

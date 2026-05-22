@@ -7,7 +7,7 @@
 void commsBegin();
 void commsUpdate();
 bool commsWifiConnected();
-bool commsPeerConnected();
 bool commsTakeCommand(Command& out);
+void commsSendStatus(const char* state, bool armed, uint32_t lastSeq);
 
 #endif
