@@ -6,10 +6,10 @@ joystick_mapper:
       throttle: 5  # Right trigger
       brake: 2     # Left trigger
     gyro_mode: "soft"   # "soft" or "hard"
-    gyro_gain: 0.0      # 0.0 (off) to 1.0 (full)
+    gyro_gain: 1.0      # 0.0 (off) to 1.0 (full)
 
 joy_node:
   ros__parameters:
     # Deadzone threshold for joystick axes (0.0 to 1.0)
     # Values below this threshold are treated as zero
-    deadzone: 0.05
+    deadzone: 0.01

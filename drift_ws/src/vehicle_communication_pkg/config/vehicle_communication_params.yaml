@@ -1,6 +1,4 @@
-vehicle_communication:
+vehicle_communication_node:
   ros__parameters:
-    tcp:
-      # Port number for TCP communication
-      port: 12345
-      ip: "10.42.0.146" # IP address of the Raspberry Pi in the hotspot network
+    ip_address: "10.42.0.99"
+    port: 12345

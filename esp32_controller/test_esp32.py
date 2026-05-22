@@ -137,18 +137,65 @@ def pause(msg: str = "  Press Enter to continue...") -> None:
 
 def test_normal(ip: str) -> None:
     header(
-        "normal — steady command stream",
-        "Stream steering sweep + throttle=0 at 20 Hz for 3 s.",
-        "No new output (state already Receiving after first message).",
+        "normal — full range sweep",
+        "Runs four phases at 20 Hz (~32 s total):\n"
+        "  1) Steering sweep -1→+1→-1 at throttle=0\n"
+        "  2) Forward ramp  throttle 0→1→0, steering centered\n"
+        "  3) Brake/reverse ramp  throttle 0→-1→0, steering centered\n"
+        "  4) Combined: steering sweep while throttle oscillates",
+        "No Serial output after initial 'State: Receiving'.",
         "Solid ON if armed, RapidBlink if not armed.",
     )
     s = Session(ip)
     s.connect()
-    print("  Streaming 3 s …")
-    for i in range(SEND_RATE_HZ * 3):
-        steering = (i % (SEND_RATE_HZ * 2)) / (SEND_RATE_HZ * 2) * 2 - 1
-        s.send(steering=steering, throttle=0.0, gyro_mode="soft", gyro_gain=0.3)
-        time.sleep(1 / SEND_RATE_HZ)
+    interval = 1.0 / SEND_RATE_HZ
+
+    def lerp(a: float, b: float, x: float) -> float:
+        return a + (b - a) * max(0.0, min(1.0, x))
+
+    def run_phase(label: str, duration_s: float, steering_fn, throttle_fn) -> None:
+        print(f"  {label} ({duration_s:.0f} s) …")
+        next_send = time.monotonic()
+        t_start = time.monotonic()
+        while True:
+            now = time.monotonic()
+            elapsed = now - t_start
+            if elapsed >= duration_s:
+                break
+            s.send(
+                steering=steering_fn(elapsed),
+                throttle=throttle_fn(elapsed),
+                gyro_mode="soft",
+                gyro_gain=0.0,
+            )
+            next_send += interval
+            remaining = next_send - time.monotonic()
+            if remaining > 0:
+                time.sleep(remaining)
+
+    import math
+
+    run_phase(
+        "Phase 1: steering sweep", 8.0,
+        lambda t: lerp(-1.0, 1.0, t / 4.0) if t < 4.0 else lerp(1.0, -1.0, (t - 4.0) / 4.0),
+        lambda _: 0.0,
+    )
+    run_phase(
+        "Phase 2: forward throttle ramp", 8.0,
+        lambda _: 0.0,
+        lambda t: lerp(0.0, 1.0, t / 4.0) if t < 4.0 else lerp(1.0, 0.0, (t - 4.0) / 4.0),
+    )
+    run_phase(
+        "Phase 3: brake/reverse throttle ramp", 8.0,
+        lambda _: 0.0,
+        lambda t: lerp(0.0, -1.0, t / 4.0) if t < 4.0 else lerp(-1.0, 0.0, (t - 4.0) / 4.0),
+    )
+    run_phase(
+        "Phase 4: combined steering + throttle", 8.0,
+        lambda t: math.sin(2 * math.pi * t / 4.0),
+        lambda t: math.sin(2 * math.pi * t / 8.0) * 0.5,
+    )
+
     s.close()
 
 

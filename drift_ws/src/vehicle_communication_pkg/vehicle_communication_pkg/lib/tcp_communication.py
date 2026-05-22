@@ -34,6 +34,8 @@ class TcpCommunicationClient(CommunicationInterface):
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.settimeout(5)
         self._sock.connect((self.ip, self.port))
+        self._sock.settimeout(None)
+        self._sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
     def is_connected(self) -> bool:
         """Check if the TCP connection is open."""

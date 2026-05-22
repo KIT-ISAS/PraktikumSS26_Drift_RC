@@ -55,10 +55,15 @@ class VehicleCommunicationNode(Node):
 
         """
         if not self.interface.is_connected():
-            self.get_logger().warn(
-                "Received vehicle action but interface is not connected. Skipping."
-            )
-            return
+            try:
+                self.interface.connect()
+                self.get_logger().info("Reconnected to vehicle.")
+            except Exception:
+                self.get_logger().warn(
+                    "Vehicle not reachable, skipping command.",
+                    throttle_duration_sec=3.0,
+                )
+                return
         try:
             self.interface.send_value(msg.steering, msg.throttle, msg.gyro_mode, msg.gyro_gain)
         except Exception as e:
@@ -121,7 +126,7 @@ class VehicleCommunicationNode(Node):
 
     def _load_params(self) -> None:
         """Load parameters from the ROS parameter server."""
-        self.declare_parameter("ip_address", "10.42.0.148")
+        self.declare_parameter("ip_address", "10.42.0.99")
         self.declare_parameter("port", 12345)
         self.ip = self.get_parameter("ip_address").value
         self.port = self.get_parameter("port").value

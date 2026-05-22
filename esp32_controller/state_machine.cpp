@@ -4,7 +4,7 @@
 #include "led.h"
 #include "button.h"
 
-static const unsigned long COMMAND_TIMEOUT_MS = 150;
+static const unsigned long COMMAND_TIMEOUT_MS = 500;
 
 static SystemState state = SystemState::NoWifi;
 static bool armed = false;
@@ -46,7 +46,8 @@ void stateMachineUpdate() {
   }
 
   Command cmd;
-  if (commsTakeCommand(cmd)) {
+  bool newCommand = commsTakeCommand(cmd);
+  if (newCommand) {
     lastCommandMs = millis();
     lastCommand = cmd;
   }
@@ -68,7 +69,9 @@ void stateMachineUpdate() {
   }
 
   if (state == SystemState::Receiving && armed) {
-    outputsApply(lastCommand);
+    if (newCommand) {
+      outputsApply(lastCommand);
+    }
     failsafeApplied = false;
   } else if (!failsafeApplied) {
     outputsFailsafe();
