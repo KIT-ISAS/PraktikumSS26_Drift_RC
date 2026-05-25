@@ -99,8 +99,20 @@ The firmware tries networks in order, cycling every 8 s until one connects. Reco
 
 ## Dependencies (Arduino libraries)
 
-- **ESP32Servo** — PWM output
-- **ArduinoJson** — JSON parsing (bundled in `libraries/`)
+Libraries are declared in `sketch.yaml` and must be installed before compiling.
+They are not committed to the repository.
+
+With `arduino-cli`:
+```bash
+arduino-cli lib install "ArduinoJson@7.4.3" "ESP32Servo@3.2.0"
+```
+
+Or install via **Arduino IDE → Tools → Manage Libraries**.
+
+| Library     | Version | Purpose    |
+|-------------|---------|------------|
+| ArduinoJson | 7.4.3   | JSON parsing/serialization |
+| ESP32Servo  | 3.2.0   | PWM output via LEDC hardware |
 
 Board: *ESP32 Dev Module* (or equivalent). Flash via Arduino IDE or `arduino-cli`.
 
