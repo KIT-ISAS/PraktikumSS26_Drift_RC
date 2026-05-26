@@ -32,7 +32,9 @@ class VehicleCommunicationNode(Node):
         )
 
         self.status_publisher = self.create_publisher(
-            VehicleStatus, Topics.VEHICLE_STATUS, 10
+            VehicleStatus,
+            Topics.VEHICLE_STATUS,
+            10,
         )
 
         self.connect_service = self.create_service(Trigger, "connect", self._handle_connect)
