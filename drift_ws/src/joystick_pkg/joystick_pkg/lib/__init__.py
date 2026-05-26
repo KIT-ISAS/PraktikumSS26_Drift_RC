@@ -5,5 +5,5 @@ __all__ = [
     "XBoxOneMapper",
 ]
 
-from .JoystickMapper import JoystickMapper
-from .XBoxOneMapper import XBoxOneMapper
+from .joystick_mapper import JoystickMapper
+from .xbox_one_mapper import XBoxOneMapper

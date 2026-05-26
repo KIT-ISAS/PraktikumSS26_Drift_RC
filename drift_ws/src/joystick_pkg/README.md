@@ -50,9 +50,11 @@ Axis values below this threshold are treated as zero.
 ## Extending the mapper
 
 To support a different controller, subclass `JoystickMapper` (in
-`joystick_pkg/joystick_mapper/`) and implement the axis extraction methods.
-The current implementation (`XBoxOneMapper`) handles Xbox One trigger normalization
-(triggers report −1 at rest, +1 at full press).
+`joystick_pkg/lib/joystick_mapper.py`) and implement the axis extraction methods.
+The current implementation (`XBoxOneMapper`, in `xbox_one_mapper.py`) handles
+Xbox One trigger normalization (triggers report +1 at rest, −1 at full press)
+and treats untouched triggers (reported as 0 by `joy_node` until first moved)
+as "released" so the car doesn't get a phantom half-throttle at startup.
 
 ## Docker configuration
 
