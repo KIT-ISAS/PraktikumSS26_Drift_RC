@@ -6,8 +6,7 @@
 enum class LedPattern {
   Off,
   SlowBlink,    // 1 Hz  — no WiFi
-  FastBlink,    // 4 Hz  — WiFi, no peer
-  DoublePulse,  //        — peer, no messages
+  DoublePulse,  //        — WiFi up, no commands
   RapidBlink,   // 8 Hz  — receiving, not armed
   SolidOn,      //        — receiving + armed
 };

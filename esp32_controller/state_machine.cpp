@@ -25,7 +25,7 @@ static const char* stateName(SystemState s) {
 static LedPattern ledForState(SystemState s, bool isArmed) {
   switch (s) {
     case SystemState::NoWifi:        return LedPattern::SlowBlink;
-    case SystemState::WifiConnected: return LedPattern::FastBlink;
+    case SystemState::WifiConnected: return LedPattern::DoublePulse;
     case SystemState::Receiving:     return isArmed ? LedPattern::SolidOn : LedPattern::RapidBlink;
   }
   return LedPattern::Off;
@@ -40,8 +40,12 @@ void stateMachineBegin() {
 
 void stateMachineUpdate() {
   if (buttonWasPressed()) {
-    armed = !armed;
-    Serial.println(armed ? "Armed." : "Disarmed.");
+    if (!outputsReady()) {
+      Serial.println("ESC not ready yet, arm ignored.");
+    } else {
+      armed = !armed;
+      Serial.println(armed ? "Armed." : "Disarmed.");
+    }
   }
 
   Command cmd;
@@ -77,8 +81,9 @@ void stateMachineUpdate() {
   }
 
   ledSet(ledForState(state, armed));
-  commsSendStatus(currentStateName, armed, lastCommand.seq);
 }
 
-SystemState stateMachineGetState() { return state; }
-bool stateMachineIsArmed()         { return armed; }
+SystemState stateMachineGetState()        { return state; }
+const char* stateMachineGetStateName()    { return currentStateName; }
+bool stateMachineIsArmed()                { return armed; }
+uint32_t stateMachineGetLastSeq()         { return lastCommand.seq; }

@@ -15,6 +15,7 @@ static const IPAddress SUBNET(255, 255, 255, 0);
 static const unsigned long RECONNECT_INTERVAL_MS = 3000;
 static const unsigned long CONNECT_TIMEOUT_MS    = 8000;
 static const unsigned long STATUS_INTERVAL_MS    = 100;
+static const unsigned long PEER_STALE_MS         = 2000;
 
 static WiFiUDP udp;
 static bool wasWifiConnected = false;
@@ -29,6 +30,9 @@ static unsigned long lastStatusMs = 0;
 
 static bool hasPendingCommand = false;
 static Command pendingCommand;
+static uint32_t lastAcceptedSeq = 0;
+static bool seenAnySeq = false;
+static unsigned long lastValidPacketMs = 0;
 
 static char rxBuf[512];
 
@@ -66,26 +70,44 @@ static bool parseGyroMode(const char* raw, GyroMode& mode) {
   return false;
 }
 
-static void processPacket(const char* data, int len) {
+static bool processPacket(const char* data, int len) {
   StaticJsonDocument<256> doc;
   if (deserializeJson(doc, data, len)) {
     Serial.println("JSON parse error.");
-    return;
+    return false;
   }
 
   const char* modeRaw = doc["gyro_mode"] | "soft";
   GyroMode mode;
   if (!parseGyroMode(modeRaw, mode)) {
     Serial.println("Invalid gyro_mode.");
-    return;
+    return false;
+  }
+
+  uint32_t seq = doc["seq"] | 0u;
+  if (seenAnySeq && seq <= lastAcceptedSeq) {
+    return false;  // stale or duplicate, ignore
   }
 
   pendingCommand.steering = doc["steering"]  | 0.0f;
   pendingCommand.throttle = doc["throttle"]  | 0.0f;
   pendingCommand.gyroMode = mode;
   pendingCommand.gyroGain = doc["gyro_gain"] | 0.0f;
-  pendingCommand.seq      = doc["seq"]       | 0u;
+  pendingCommand.seq      = seq;
   hasPendingCommand = true;
+  lastAcceptedSeq = seq;
+  seenAnySeq = true;
+  lastValidPacketMs = millis();
+  return true;
+}
+
+static void expireStalePeer() {
+  if (senderPort == 0) return;
+  if ((millis() - lastValidPacketMs) < PEER_STALE_MS) return;
+  Serial.println("Peer stale, clearing sender and seq window.");
+  senderPort = 0;
+  seenAnySeq = false;
+  lastAcceptedSeq = 0;
 }
 
 void commsBegin() {
@@ -118,10 +140,15 @@ void commsUpdate() {
     }
     int len = udp.read(rxBuf, sizeof(rxBuf) - 1);
     rxBuf[len] = '\0';
-    senderIp   = udp.remoteIP();
-    senderPort = udp.remotePort();
-    processPacket(rxBuf, len);
+    IPAddress fromIp = udp.remoteIP();
+    uint16_t  fromPort = udp.remotePort();
+    if (processPacket(rxBuf, len)) {
+      senderIp   = fromIp;
+      senderPort = fromPort;
+    }
   }
+
+  expireStalePeer();
 }
 
 bool commsWifiConnected() {

@@ -30,7 +30,7 @@ NoWifi ──wifi connects──▶ WifiConnected ──commands arrive──▶
 | State                  | Outputs  | LED                    |
 |------------------------|----------|------------------------|
 | NoWifi                 | Failsafe | Slow blink (1 Hz)      |
-| WifiConnected          | Failsafe | Fast blink (4 Hz)      |
+| WifiConnected          | Failsafe | Double pulse (1 Hz)    |
 | Receiving              | Failsafe | Rapid blink (8 Hz)     |
 | Receiving + **armed**  | Active   | **Solid on**           |
 
@@ -39,6 +39,8 @@ The command timeout is 200 ms — if no valid command arrives within that window
 ## Arming
 
 Press the **BOOT button** (GPIO 0) to toggle arm/disarm. The car will not move until armed, even if all connectivity conditions are met. Arm state persists across transient connection drops.
+
+Arming is ignored during the first 3 s after boot — the ESC needs that window of steady neutral PWM to initialize. The press is logged as "ESC not ready yet" if it lands in that window.
 
 ## Network / UDP protocol
 
@@ -58,10 +60,14 @@ Press the **BOOT button** (GPIO 0) to toggle arm/disarm. The car will not move u
 | `throttle`  | float  | −1.0 … 1.0    | Reverse/brake (−1) to forward (+1)             |
 | `gyro_mode` | string | `soft`/`hard` | Gyro correction direction                      |
 | `gyro_gain` | float  | 0.0 … 1.0     | Gyro correction strength                       |
-| `seq`       | uint32 | —             | Sequence number (for debugging, not validated) |
+| `seq`       | uint32 | —             | Monotonically increasing sequence number       |
 
 Values outside the stated ranges are clamped silently.
 Send commands at ≥ 5 Hz to stay in `Receiving` state (timeout is 200 ms).
+
+Packets with a `seq` less than or equal to the most recently accepted `seq` are dropped as stale/duplicate. The first packet received after boot is always accepted.
+
+If no valid packet arrives for 2 s, the firmware considers the peer stale: it clears the status target (stops sending status replies into the void) and resets the `seq` window so a freshly-restarted sender with `seq=1` is accepted again. This is logged on Serial as `Peer stale, clearing sender and seq window.`.
 
 ### Status reply (ESP32 → PC)
 
@@ -99,22 +105,31 @@ The firmware tries networks in order, cycling every 8 s until one connects. Reco
 
 ## Dependencies (Arduino libraries)
 
-Libraries are declared in `sketch.yaml` and must be installed before compiling.
-They are not committed to the repository.
-
-With `arduino-cli`:
-```bash
-arduino-cli lib install "ArduinoJson@7.4.3" "ESP32Servo@3.2.0"
-```
-
-Or install via **Arduino IDE → Tools → Manage Libraries**.
-
 | Library     | Version | Purpose    |
 |-------------|---------|------------|
 | ArduinoJson | 7.4.3   | JSON parsing/serialization |
 | ESP32Servo  | 3.2.0   | PWM output via LEDC hardware |
 
-Board: *ESP32 Dev Module* (or equivalent). Flash via Arduino IDE or `arduino-cli`.
+Libraries are installed into `esp32_controller/libraries/` (gitignored, not committed):
+
+```bash
+cd esp32_controller
+arduino-cli lib install --git-url ... # or use the IDE's library manager pointed at this folder
+```
+
+Or simply `arduino-cli lib install "ArduinoJson@7.4.3" "ESP32Servo@3.2.0"` to install at the default location, then copy the resulting folders into `esp32_controller/libraries/`.
+
+## Build / flash
+
+Board FQBN: `esp32:esp32:esp32` (*ESP32 Dev Module*).
+
+```bash
+cd esp32_controller
+arduino-cli compile --fqbn esp32:esp32:esp32 --libraries ./libraries
+arduino-cli upload  --fqbn esp32:esp32:esp32 -p /dev/ttyUSB0
+```
+
+> Note: Arduino IDE 2.x does not handle a `libraries/` subdirectory inside a sketch folder and will refuse to open the `.ino` cleanly. Build via `arduino-cli` as above and use any editor (VS Code, etc.) to edit the source.
 
 ## Test script
 

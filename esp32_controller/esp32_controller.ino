@@ -19,5 +19,6 @@ void loop() {
   buttonUpdate();
   commsUpdate();
   stateMachineUpdate();
+  commsSendStatus(stateMachineGetStateName(), stateMachineIsArmed(), stateMachineGetLastSeq());
   ledUpdate();
 }

@@ -7,5 +7,6 @@
 void outputsBegin();
 void outputsApply(const Command& cmd);
 void outputsFailsafe();
+bool outputsReady();  // false during initial ESC arming window
 
 #endif

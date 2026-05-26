@@ -27,9 +27,6 @@ void ledUpdate() {
     case LedPattern::SlowBlink:
       on = (phase % 1000) < 500;
       break;
-    case LedPattern::FastBlink:
-      on = (phase % 250) < 125;
-      break;
     case LedPattern::DoublePulse:
       // 100ms on, 100ms off, 100ms on, 700ms off (1 s total)
       { unsigned long p = phase % 1000;
