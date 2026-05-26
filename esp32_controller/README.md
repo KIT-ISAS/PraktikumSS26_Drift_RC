@@ -51,23 +51,26 @@ Arming is ignored during the first 3 s after boot — the ESC needs that window 
 ### Command (PC → ESP32)
 
 ```json
-{"steering": 0.0, "throttle": 0.0, "gyro_mode": "soft", "gyro_gain": 0.0, "seq": 1}
+{"session_id": 12345, "steering": 0.0, "throttle": 0.0, "gyro_mode": "soft", "gyro_gain": 0.0, "seq": 1}
 ```
 
-| Field       | Type   | Range         | Description                                    |
-|-------------|--------|---------------|------------------------------------------------|
-| `steering`  | float  | −1.0 … 1.0    | Left (−1) to right (+1)                        |
-| `throttle`  | float  | −1.0 … 1.0    | Reverse/brake (−1) to forward (+1)             |
-| `gyro_mode` | string | `soft`/`hard` | Gyro correction direction                      |
-| `gyro_gain` | float  | 0.0 … 1.0     | Gyro correction strength                       |
-| `seq`       | uint32 | —             | Monotonically increasing sequence number       |
+| Field        | Type   | Range         | Description                                    |
+|--------------|--------|---------------|------------------------------------------------|
+| `session_id` | uint32 | —             | Random ID chosen by the sender at startup      |
+| `steering`   | float  | −1.0 … 1.0    | Left (−1) to right (+1)                        |
+| `throttle`   | float  | −1.0 … 1.0    | Reverse/brake (−1) to forward (+1)             |
+| `gyro_mode`  | string | `soft`/`hard` | Gyro correction direction                      |
+| `gyro_gain`  | float  | 0.0 … 1.0     | Gyro correction strength                       |
+| `seq`        | uint32 | —             | Monotonically increasing sequence number       |
 
 Values outside the stated ranges are clamped silently.
 Send commands at ≥ 5 Hz to stay in `Receiving` state (timeout is 200 ms).
 
-Packets with a `seq` less than or equal to the most recently accepted `seq` are dropped as stale/duplicate. The first packet received after boot is always accepted.
+Within a session, packets with a `seq` less than or equal to the most recently accepted `seq` are dropped as stale/duplicate. The first packet of any session is always accepted.
 
-If no valid packet arrives for 2 s, the firmware considers the peer stale: it clears the status target (stops sending status replies into the void) and resets the `seq` window so a freshly-restarted sender with `seq=1` is accepted again. This is logged on Serial as `Peer stale, clearing sender and seq window.`.
+When `session_id` changes (the sender restarted), the firmware resets its `seq` window immediately and accepts the new packet — no waiting for the stale-peer timeout. This is logged on Serial as `Session changed, resetting seq window. New session_id: ...`.
+
+If no valid packet arrives for 2 s, the firmware clears the status target so it stops sending replies to a peer that has gone away. This is logged as `Peer stale, clearing status target.`.
 
 ### Status reply (ESP32 → PC)
 

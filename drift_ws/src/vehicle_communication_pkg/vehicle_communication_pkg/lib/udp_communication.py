@@ -1,6 +1,7 @@
 """UDP client implementation for ESP32 communication."""
 
 import json
+import random
 import socket
 import threading
 import time
@@ -23,6 +24,9 @@ class UdpCommunicationClient(CommunicationInterface):
         self.port = port
         self._sock: socket.socket | None = None
         self._seq: int = 0
+        # Random per-process session id so the firmware can detect a sender
+        # restart and reset its seq window immediately.
+        self._session_id: int = random.getrandbits(32)
         self._rx_thread: threading.Thread | None = None
         self._running: bool = False
         self._status_lock = threading.Lock()
@@ -75,6 +79,7 @@ class UdpCommunicationClient(CommunicationInterface):
             raise RuntimeError("UDP socket not open. Call connect() first.")
         self._seq += 1
         message = {
+            "session_id": self._session_id,
             "steering": steering,
             "throttle": throttle,
             "gyro_mode": gyro_mode,

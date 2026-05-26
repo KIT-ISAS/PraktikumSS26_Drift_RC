@@ -32,6 +32,8 @@ static bool hasPendingCommand = false;
 static Command pendingCommand;
 static uint32_t lastAcceptedSeq = 0;
 static bool seenAnySeq = false;
+static uint32_t currentSessionId = 0;
+static bool seenAnySession = false;
 static unsigned long lastValidPacketMs = 0;
 
 static char rxBuf[512];
@@ -84,9 +86,21 @@ static bool processPacket(const char* data, int len) {
     return false;
   }
 
+  uint32_t sessionId = doc["session_id"] | 0u;
+  if (!seenAnySession || sessionId != currentSessionId) {
+    if (seenAnySession) {
+      Serial.print("Session changed, resetting seq window. New session_id: ");
+      Serial.println(sessionId);
+    }
+    currentSessionId = sessionId;
+    seenAnySession = true;
+    seenAnySeq = false;
+    lastAcceptedSeq = 0;
+  }
+
   uint32_t seq = doc["seq"] | 0u;
   if (seenAnySeq && seq <= lastAcceptedSeq) {
-    return false;  // stale or duplicate, ignore
+    return false;  // stale or duplicate within the current session, ignore
   }
 
   pendingCommand.steering = doc["steering"]  | 0.0f;
@@ -104,10 +118,8 @@ static bool processPacket(const char* data, int len) {
 static void expireStalePeer() {
   if (senderPort == 0) return;
   if ((millis() - lastValidPacketMs) < PEER_STALE_MS) return;
-  Serial.println("Peer stale, clearing sender and seq window.");
+  Serial.println("Peer stale, clearing status target.");
   senderPort = 0;
-  seenAnySeq = false;
-  lastAcceptedSeq = 0;
 }
 
 void commsBegin() {

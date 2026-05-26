@@ -20,6 +20,7 @@ Usage:
 import argparse
 import json
 import math
+import random
 import socket
 import sys
 import time
@@ -42,7 +43,8 @@ class Session:
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._sock.settimeout(0.1)
         self._seq = 0
-        print(f"  [UDP socket open, will send to {ip}:{port}]")
+        self._session_id = random.getrandbits(32)
+        print(f"  [UDP socket open, will send to {ip}:{port}, session_id={self._session_id}]")
 
     def send(
         self,
@@ -53,6 +55,7 @@ class Session:
     ) -> None:
         self._seq += 1
         msg = {
+            "session_id": self._session_id,
             "steering": steering,
             "throttle": throttle,
             "gyro_mode": gyro_mode,
