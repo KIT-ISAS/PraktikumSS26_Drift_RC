@@ -22,11 +22,15 @@ class CommunicationInterface(ABC):
         pass
 
     @abstractmethod
-    def is_connected(self) -> bool:
+    def is_open(self) -> bool:
         """
-        Check if the communication interface is currently connected.
+        Check if the underlying transport (e.g. socket) is open.
 
-        :returns: True if connected, False otherwise.
+        Note: this does not imply the peer is reachable. For connectionless
+        transports like UDP, callers should consult status replies (or an
+        equivalent liveness signal) to know if the peer is responding.
+
+        :returns: True if the transport is open, False otherwise.
 
         """
         pass

@@ -25,6 +25,7 @@ class UdpCommunicationClient(CommunicationInterface):
         self._seq: int = 0
         self._rx_thread: threading.Thread | None = None
         self._running: bool = False
+        self._status_lock = threading.Lock()
         self._last_status: dict | None = None
         self._last_status_time: float = 0.0
 
@@ -38,8 +39,8 @@ class UdpCommunicationClient(CommunicationInterface):
         self._rx_thread = threading.Thread(target=self._receive_loop, daemon=True)
         self._rx_thread.start()
 
-    def is_connected(self) -> bool:
-        """Return True if the socket is open."""
+    def is_open(self) -> bool:
+        """Return True if the socket is open. Does not imply peer reachability."""
         return self._sock is not None
 
     def close(self) -> None:
@@ -85,17 +86,19 @@ class UdpCommunicationClient(CommunicationInterface):
 
     def get_last_status(self) -> dict | None:
         """Return the most recently received status from the ESP32, or None."""
-        if time.monotonic() - self._last_status_time > self.STATUS_TIMEOUT_S:
-            return None
-        return self._last_status
+        with self._status_lock:
+            if time.monotonic() - self._last_status_time > self.STATUS_TIMEOUT_S:
+                return None
+            return self._last_status
 
     def _receive_loop(self) -> None:
         while self._running:
             try:
                 data, _ = self._sock.recvfrom(512)
                 status = json.loads(data.decode("utf-8"))
-                self._last_status = status
-                self._last_status_time = time.monotonic()
+                with self._status_lock:
+                    self._last_status = status
+                    self._last_status_time = time.monotonic()
             except socket.timeout:
                 continue
             except (json.JSONDecodeError, OSError):

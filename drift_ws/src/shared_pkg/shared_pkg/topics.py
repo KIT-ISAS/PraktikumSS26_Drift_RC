@@ -7,3 +7,4 @@ class Topics:
     # Car-related Topics
     CAR_BASE: str = "/car"
     VEHICLE_ACTION_REQUEST: str = CAR_BASE + "/vehicle_action_request"
+    VEHICLE_STATUS: str = CAR_BASE + "/vehicle_status"

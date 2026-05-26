@@ -4,7 +4,7 @@ import rclpy
 from rclpy.node import Node
 from std_srvs.srv import Trigger
 
-from shared_interfaces.msg import VehicleActionRequest
+from shared_interfaces.msg import VehicleActionRequest, VehicleStatus
 from shared_pkg import Topics
 
 from .lib import CommunicationInterface, UdpCommunicationClient
@@ -31,6 +31,10 @@ class VehicleCommunicationNode(Node):
             10,
         )
 
+        self.status_publisher = self.create_publisher(
+            VehicleStatus, Topics.VEHICLE_STATUS, 10
+        )
+
         self.connect_service = self.create_service(Trigger, "connect", self._handle_connect)
         self.disconnect_service = self.create_service(
             Trigger, "disconnect", self._handle_disconnect
@@ -38,8 +42,9 @@ class VehicleCommunicationNode(Node):
 
         self._last_logged_status: dict | None = None
 
-        # Log ESP32 status at 1 Hz
-        self.create_timer(1.0, self._log_status)
+        # Republish ESP32 status at the same rate the ESP32 sends it (10 Hz).
+        # Log only on change to avoid flooding.
+        self.create_timer(0.1, self._publish_status)
 
         try:
             self.interface.connect()
@@ -54,9 +59,23 @@ class VehicleCommunicationNode(Node):
         except Exception as e:
             self.get_logger().error(f"Failed to send command: {e}")
 
-    def _log_status(self) -> None:
-        """Log the latest ESP32 status if it changed or is newly absent."""
+    def _publish_status(self) -> None:
+        """Publish the latest ESP32 status and log on changes."""
         status = self.interface.get_last_status()
+
+        msg = VehicleStatus()
+        if status is None:
+            msg.connected = False
+            msg.state = ""
+            msg.armed = False
+            msg.last_seq = 0
+        else:
+            msg.connected = True
+            msg.state = str(status.get("state", ""))
+            msg.armed = bool(status.get("armed", False))
+            msg.last_seq = int(status.get("last_seq", 0))
+        self.status_publisher.publish(msg)
+
         if status != self._last_logged_status:
             if status is None:
                 self.get_logger().warn("ESP32 status timeout — no reply received.")
@@ -73,7 +92,7 @@ class VehicleCommunicationNode(Node):
     ) -> Trigger.Response:
         """Handle request to open the UDP socket."""
         try:
-            if self.interface.is_connected():
+            if self.interface.is_open():
                 response.success = True
                 response.message = "Already connected."
             else:
