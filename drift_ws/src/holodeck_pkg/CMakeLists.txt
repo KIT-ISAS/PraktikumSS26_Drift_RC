@@ -59,6 +59,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 # Universally add this components includes
 include_directories(include)
@@ -83,7 +84,8 @@ ament_target_dependencies(libsurvive_ros2_component
   geometry_msgs
   sensor_msgs
   tf2
-  tf2_ros)
+  tf2_ros
+  visualization_msgs)
 rclcpp_components_register_nodes(libsurvive_ros2_component "libsurvive_ros2::Component")
 
 # Export the library path because the package installs libraries without exporting them

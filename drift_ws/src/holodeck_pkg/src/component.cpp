@@ -26,6 +26,7 @@
 // Other
 #include "libsurvive_ros2/component.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
+#include "visualization_msgs/msg/marker.hpp"
 
 
 // Scale factor to move from G to m/s^2.
@@ -102,6 +103,14 @@ Component::Component(const rclcpp::NodeOptions & options)
   this->declare_parameter("cfg_topic", "cfg");
   this->get_parameter("cfg_topic", cfg_topic);
   cfg_publisher_ = this->create_publisher<diagnostic_msgs::msg::KeyValue>(cfg_topic, 10);
+
+  // Setup topic for visualization
+  std::string viz_topic;
+  this->declare_parameter("viz_topic", "visualization_marker");
+  this->get_parameter("viz_topic", viz_topic);
+  viz_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>(
+    viz_topic, rclcpp::QoS(1).transient_local());
+
 
   // Setup driver parameters.
   std::string driver_args;
@@ -186,6 +195,27 @@ void Component::work()
               pose_msg.child_frame_id = survive_simple_serial_number(pose_event->object);
               ros_from_pose(&pose_msg.transform, pose);
               tf_broadcaster_->sendTransform(pose_msg);
+
+              if (viz_publisher_) {
+                visualization_msgs::msg::Marker marker_msg;
+                marker_msg.header.stamp = this->get_clock()->now();
+                marker_msg.header.frame_id = tracking_frame_;
+                marker_msg.ns = "startup";
+                marker_msg.id = 0;
+                marker_msg.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
+                marker_msg.action = visualization_msgs::msg::Marker::ADD;
+                marker_msg.mesh_resource = "package://shared_pkg/meshes/mazda_rx-8.glb";
+                marker_msg.mesh_use_embedded_materials = true;
+                marker_msg.pose.position.x = 0.0;
+                marker_msg.pose.position.y = 0.0;
+                marker_msg.pose.position.z = 0.0;
+                marker_msg.pose.orientation.w = 1.0;
+                marker_msg.scale.x = 5.0;
+                marker_msg.scale.y = 5.0;
+                marker_msg.scale.z = 5.0;
+                marker_msg.color.a = 1.0f;
+                viz_publisher_->publish(marker_msg);
+              }
             }
           }
           break;

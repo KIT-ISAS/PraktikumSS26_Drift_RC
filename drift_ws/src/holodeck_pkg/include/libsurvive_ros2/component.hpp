@@ -43,6 +43,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/joy.hpp"
+#include "visualization_msgs/msg/marker.hpp"
 #include "tf2_ros/static_transform_broadcaster.h"
 #include "tf2_ros/transform_broadcaster.h"
 
@@ -65,6 +66,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr joy_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::KeyValue>::SharedPtr cfg_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr viz_publisher_;
   std::thread worker_thread_;
   rclcpp::Time last_base_station_update_;
   std::string tracking_frame_;

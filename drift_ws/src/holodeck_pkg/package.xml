@@ -19,6 +19,8 @@
   <depend>sensor_msgs</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
+  <depend>visualization_msgs</depend>
+  <exec_depend>shared_pkg</exec_depend>
   
   <exec_depend>rosbridge_suite</exec_depend>
   <exec_depend>foxglove_bridge</exec_depend>
