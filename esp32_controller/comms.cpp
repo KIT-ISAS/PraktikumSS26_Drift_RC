@@ -4,8 +4,8 @@
 #include <ArduinoJson.h>
 
 static const uint16_t LOCAL_PORT = 12345;
-static const char* WIFI_SSIDS[]     = {"JulianCar", "wifi_mid", "wifi_low"};
-static const char* WIFI_PASSWORDS[] = {"Hund1234",  "pass_mid", "pass_low"};
+static const char* WIFI_SSIDS[]     = {"JulianCar", "louis-Inspiron-7400", "wifi_low"};
+static const char* WIFI_PASSWORDS[] = {"Hund1234",  "kinect360", "pass_low"};
 static const size_t WIFI_COUNT = sizeof(WIFI_SSIDS) / sizeof(WIFI_SSIDS[0]);
 
 static const IPAddress STATIC_IP(10, 42, 0, 99);
