@@ -1,13 +1,63 @@
 # Joystick Package
-This package provides a ROS interface for controlling the car using a joystick controller (e.g. XBox). Its two main components are the `joy_node` and the `joystick_mapper_node`. 
 
-### Joy Node
-The `joy_node` is provided by the `joy` package of ROS2 (see: https://index.ros.org/p/joy/#jazzy). It reads the input from a joystick controller and publishes it as a `sensor_msgs/Joy` message on the `/joy` topic. The joystick in our case is mounted to `/dev/input/js0` and the `joy_node` is configured by default to read from this device (see `.devcontainer/docker-compose.yaml` where `/dev/input` is mounted). We don't have to do anything else to make it work, which is very convenient.
+Provides a ROS 2 interface for controlling the car with a joystick (e.g. Xbox One).
+Two nodes work together: `joy_node` reads raw hardware input, `joystick_mapper_node`
+converts it to car commands.
 
-### Joystick Mapper Node
-The `joystick_mapper_node` is a custom node that subscribes to the `/joy` topic that is published by the `joy_node` and maps the joystick inputs to control commands for the car. In our case we convert it to throttle and steering commands that are published on the `/car/vehicle_action_request` topic with a custom message. The mapping is defined in the `joystick_mapper_node` and can be customized to fit the specific joystick and control scheme you want to use by extending the abstract base class `JoystickMapper`. We currently use an XBox One controller.
+## Joy Node
 
-### Docker Configuration
-In order to access joystick devices from within the Docker container, we need to mount the `/dev/input` directory into the container. This is done in the `docker-compose.yaml` file. Additionally we need to ensure that the container has the necessary permissions to access the joystick device (device_cgroup_rules:
-      - "c 13:* rmw").
-To detect hot-plugging events, we need to mount `/run/udev` as well, which is also done in the `docker-compose.yaml` file. This allows the `joy_node` to detect when a joystick is connected or disconnected while the node is running.
+Provided by the ROS 2 `joy` package. Reads from `/dev/input/js0` and publishes
+`sensor_msgs/Joy` on `/joy`. The device is mounted into the Docker container via
+`docker-compose.yaml` — no extra setup needed. Hot-plugging is supported via `/run/udev`.
+
+## Joystick Mapper Node
+
+Subscribes to `/joy` and publishes `shared_interfaces/VehicleActionRequest` on
+`/car/vehicle_action_request`.
+
+Default axis mapping (configurable in `config/joystick_params.yaml`):
+
+| Axis | Index | Mapped to |
+|------|-------|-----------|
+| Left stick horizontal | 0 | `steering` |
+| Right trigger | 5 | `throttle` (forward) |
+| Left trigger  | 2 | `throttle` (brake/reverse) |
+
+Both triggers are combined into a single signed throttle value:
+positive = forward (right trigger), negative = brake/reverse (left trigger).
+
+### Gyro parameters
+
+Fixed gyro settings are loaded from `config/joystick_params.yaml` and sent with every command:
+
+```yaml
+joystick_mapper:
+  ros__parameters:
+    gyro_mode: "soft"   # "soft" or "hard"
+    gyro_gain: 0.0      # 0.0 (off) to 1.0 (full)
+```
+
+### Deadzone
+
+```yaml
+joy_node:
+  ros__parameters:
+    deadzone: 0.01
+```
+
+Axis values below this threshold are treated as zero.
+
+## Extending the mapper
+
+To support a different controller, subclass `JoystickMapper` (in
+`joystick_pkg/lib/joystick_mapper.py`) and implement the axis extraction methods.
+The current implementation (`XBoxOneMapper`, in `xbox_one_mapper.py`) handles
+Xbox One trigger normalization (triggers report +1 at rest, −1 at full press)
+and treats untouched triggers (reported as 0 by `joy_node` until first moved)
+as "released" so the car doesn't get a phantom half-throttle at startup.
+
+## Docker configuration
+
+- `/dev/input` is mounted for joystick access
+- `device_cgroup_rules: ["c 13:* rmw"]` grants permission
+- `/run/udev` is mounted for hot-plug detection
