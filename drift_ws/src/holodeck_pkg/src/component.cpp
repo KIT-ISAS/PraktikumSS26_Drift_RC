@@ -204,7 +204,7 @@ void Component::work()
                 marker_msg.id = 0;
                 marker_msg.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
                 marker_msg.action = visualization_msgs::msg::Marker::ADD;
-                marker_msg.mesh_resource = "package://shared_pkg/meshes/mazda_rx-8.glb";
+                marker_msg.mesh_resource = "package://shared_pkg/meshes/porsche.glb";
                 marker_msg.mesh_use_embedded_materials = true;
                 marker_msg.pose.position.x = 0.0;
                 marker_msg.pose.position.y = 0.0;
