@@ -2,14 +2,12 @@
 
 from math import atan2
 
+from geometry_msgs.msg import Point
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-
-from geometry_msgs.msg import Point
 from tf2_msgs.msg import TFMessage
 from visualization_msgs.msg import Marker
-
 
 TRANSIENT_LOCAL_QOS = QoSProfile(
     depth=10,
@@ -23,21 +21,21 @@ class TrackPublisherNode(Node):
 
     def __init__(self):
         """Initialize the node, subscriber, publisher, and parameters."""
-        super().__init__('track_publisher_node')
-        self.declare_parameter('tracking_frame', 'libsurvive_world')
+        super().__init__("track_publisher_node")
+        self.declare_parameter("tracking_frame", "libsurvive_world")
         self._tracking_frame = (
-            self.get_parameter('tracking_frame').get_parameter_value().string_value
+            self.get_parameter("tracking_frame").get_parameter_value().string_value
         )
 
         self._lighthouse_positions = {}
 
         self._sub = self.create_subscription(
-            TFMessage, '/tf_static', self._tf_static_callback, TRANSIENT_LOCAL_QOS
+            TFMessage, "/tf_static", self._tf_static_callback, TRANSIENT_LOCAL_QOS
         )
-        self._pub = self.create_publisher(Marker, '/track/boundary', TRANSIENT_LOCAL_QOS)
+        self._pub = self.create_publisher(Marker, "/track/boundary", TRANSIENT_LOCAL_QOS)
 
         self.get_logger().info(
-            f'Track publisher node started, tracking frame: {self._tracking_frame}'
+            f"Track publisher node started, tracking frame: {self._tracking_frame}"
         )
 
     def _tf_static_callback(self, msg: TFMessage):
@@ -53,7 +51,7 @@ class TrackPublisherNode(Node):
             if self._lighthouse_positions.get(frame) != (x, y, z):
                 self._lighthouse_positions[frame] = (x, y, z)
                 updated = True
-                self.get_logger().info(f'Lighthouse {frame} at ({x:.3f}, {y:.3f}, {z:.3f})')
+                self.get_logger().info(f"Lighthouse {frame} at ({x:.3f}, {y:.3f}, {z:.3f})")
 
         if updated and len(self._lighthouse_positions) >= 2:
             self._publish_boundary()
@@ -70,7 +68,7 @@ class TrackPublisherNode(Node):
         marker = Marker()
         marker.header.stamp = self.get_clock().now().to_msg()
         marker.header.frame_id = self._tracking_frame
-        marker.ns = 'track_boundary'
+        marker.ns = "track_boundary"
         marker.id = 0
         marker.type = Marker.LINE_STRIP
         marker.action = Marker.ADD
@@ -89,8 +87,8 @@ class TrackPublisherNode(Node):
         marker.color.a = 1.0
 
         self._pub.publish(marker)
-        corner_str = ', '.join(f'({p[0]:.2f}, {p[1]:.2f})' for p in corners)
-        self.get_logger().info(f'Published track boundary with corners: {corner_str}')
+        corner_str = ", ".join(f"({p[0]:.2f}, {p[1]:.2f})" for p in corners)
+        self.get_logger().info(f"Published track boundary with corners: {corner_str}")
 
 
 def main(args=None):
@@ -106,5 +104,5 @@ def main(args=None):
         rclpy.try_shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
