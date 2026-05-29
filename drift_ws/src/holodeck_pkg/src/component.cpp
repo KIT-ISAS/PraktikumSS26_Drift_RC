@@ -216,13 +216,16 @@ void Component::work()
                 marker_msg.action = visualization_msgs::msg::Marker::ADD;
                 marker_msg.mesh_resource = "package://shared_pkg/meshes/porsche.glb";
                 marker_msg.mesh_use_embedded_materials = true;
-                marker_msg.pose.position.x = 0.0;
-                marker_msg.pose.position.y = 0.0;
-                marker_msg.pose.position.z = 0.0;
-                marker_msg.pose.orientation.w = 1.0;
-                marker_msg.scale.x = 5.0;
-                marker_msg.scale.y = 5.0;
-                marker_msg.scale.z = 5.0;
+                marker_msg.pose.position.x = pose_msg.transform.translation.x;
+                marker_msg.pose.position.y = pose_msg.transform.translation.y;
+                marker_msg.pose.position.z = pose_msg.transform.translation.z;
+                marker_msg.pose.orientation.x = pose_msg.transform.rotation.x;
+                marker_msg.pose.orientation.y = pose_msg.transform.rotation.y;
+                marker_msg.pose.orientation.z = pose_msg.transform.rotation.z;
+                marker_msg.pose.orientation.w = pose_msg.transform.rotation.w;
+                marker_msg.scale.x = 20.0;
+                marker_msg.scale.y = 20.0;
+                marker_msg.scale.z = 20.0;
                 marker_msg.color.a = 1.0f;
                 viz_publisher_->publish(marker_msg);
               }
