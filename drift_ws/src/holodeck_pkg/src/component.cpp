@@ -317,10 +317,10 @@ void Component::work()
               tf_broadcaster_->sendTransform(pose_msg);
 
               // Publish the car pose in world coordinates.
+              geometry_msgs::msg::PoseStamped world_msg;
               if (car_pose_publisher_) {
                 geometry_msgs::msg::Pose tracker_pose = pose_from_survive(pose);
                 flip_upside_down(&tracker_pose.orientation);
-                geometry_msgs::msg::PoseStamped world_msg;
                 world_msg.header.stamp = pose_msg.header.stamp;
                 world_msg.header.frame_id = world_frame_;
                 world_msg.pose = to_world_pose(tracker_pose);
