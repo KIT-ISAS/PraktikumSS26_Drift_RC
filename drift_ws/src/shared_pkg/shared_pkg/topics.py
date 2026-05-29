@@ -4,8 +4,12 @@ class Topics:
     # ROS wide Topics
     JOY_NODE: str = "/joy"
 
+    # Transforms
+    TF_STATIC: str = "/tf_static"
+
     # Track-related Topics
-    TRACK_BOUNDARY: str = "/track/boundary"
+    TRACK_BASE: str = "/track"
+    TRACK_BOUNDARY: str = TRACK_BASE + "/boundary"
 
     # Car-related Topics
     CAR_BASE: str = "/car"

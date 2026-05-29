@@ -5,15 +5,10 @@ from math import atan2
 from geometry_msgs.msg import Point
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from tf2_msgs.msg import TFMessage
 from visualization_msgs.msg import Marker
 
-TRANSIENT_LOCAL_QOS = QoSProfile(
-    depth=10,
-    durability=DurabilityPolicy.TRANSIENT_LOCAL,
-    reliability=ReliabilityPolicy.RELIABLE,
-)
+from shared_pkg import Topics
 
 
 class TrackPublisherNode(Node):
@@ -30,9 +25,9 @@ class TrackPublisherNode(Node):
         self._lighthouse_positions = {}
 
         self._sub = self.create_subscription(
-            TFMessage, "/tf_static", self._tf_static_callback, TRANSIENT_LOCAL_QOS
+            TFMessage, Topics.TF_STATIC, self._tf_static_callback, 10
         )
-        self._pub = self.create_publisher(Marker, "/track/boundary", TRANSIENT_LOCAL_QOS)
+        self._pub = self.create_publisher(Marker, Topics.TRACK_BOUNDARY, 10)
 
         self.get_logger().info(
             f"Track publisher node started, tracking frame: {self._tracking_frame}"
