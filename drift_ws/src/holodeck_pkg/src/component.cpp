@@ -201,6 +201,25 @@ Component::Component(const rclcpp::NodeOptions & options)
   viz_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>(
     viz_topic, rclcpp::QoS(1).transient_local());
 
+  // Publish the static TF from world to the libsurvive tracking frame.
+  // This encodes the same rotation + offset applied in to_world_pose() so that
+  // downstream nodes can look up the transform via TF instead of inline math.
+  {
+    static const double cw = std::cos(WORLD_YAW * 0.5);
+    static const double sw = std::sin(WORLD_YAW * 0.5);
+    geometry_msgs::msg::TransformStamped world_to_tracking;
+    world_to_tracking.header.stamp = this->get_clock()->now();
+    world_to_tracking.header.frame_id = world_frame_;
+    world_to_tracking.child_frame_id = tracking_frame_;
+    world_to_tracking.transform.translation.x = WORLD_OFFSET_X;
+    world_to_tracking.transform.translation.y = WORLD_OFFSET_Y;
+    world_to_tracking.transform.translation.z = 0.0;
+    world_to_tracking.transform.rotation.w = cw;
+    world_to_tracking.transform.rotation.x = 0.0;
+    world_to_tracking.transform.rotation.y = 0.0;
+    world_to_tracking.transform.rotation.z = sw;
+    tf_static_broadcaster_->sendTransform(world_to_tracking);
+  }
 
   // Setup driver parameters.
   std::string driver_args;
@@ -311,20 +330,13 @@ void Component::work()
               if (viz_publisher_) {
                 visualization_msgs::msg::Marker marker_msg;
                 marker_msg.header.stamp = this->get_clock()->now();
-                marker_msg.header.frame_id = tracking_frame_;
-                marker_msg.ns = "startup";
+                marker_msg.header.frame_id = world_frame_;
                 marker_msg.id = 0;
                 marker_msg.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
                 marker_msg.action = visualization_msgs::msg::Marker::ADD;
                 marker_msg.mesh_resource = "package://shared_pkg/meshes/porsche.glb";
                 marker_msg.mesh_use_embedded_materials = true;
-                marker_msg.pose.position.x = pose_msg.transform.translation.x;
-                marker_msg.pose.position.y = pose_msg.transform.translation.y;
-                marker_msg.pose.position.z = pose_msg.transform.translation.z;
-                marker_msg.pose.orientation.x = pose_msg.transform.rotation.x;
-                marker_msg.pose.orientation.y = pose_msg.transform.rotation.y;
-                marker_msg.pose.orientation.z = pose_msg.transform.rotation.z;
-                marker_msg.pose.orientation.w = pose_msg.transform.rotation.w;
+                marker_msg.pose = world_msg.pose;
                 marker_msg.scale.x = 7.0;
                 marker_msg.scale.y = 7.0;
                 marker_msg.scale.z = 7.0;

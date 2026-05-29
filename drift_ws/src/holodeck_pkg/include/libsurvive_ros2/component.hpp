@@ -39,6 +39,7 @@
 #include "geometry_msgs/msg/point_stamped.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/transform_stamped.hpp"
 #include "libsurvive/survive_api.h"
 #include "libsurvive/survive.h"
 #include "rclcpp/rclcpp.hpp"
