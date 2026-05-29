@@ -7,6 +7,10 @@ class Topics:
     # Transforms
     TF_STATIC: str = "/tf_static"
 
+    # Map
+    MAP_BASE: str = "/map"
+    LIGHTHOUSE_POSES: str = MAP_BASE + "/lighthouses"
+
     # Track-related Topics
     TRACK_BASE: str = "/track"
     TRACK_BOUNDARY: str = TRACK_BASE + "/boundary"

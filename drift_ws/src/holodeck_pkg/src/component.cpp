@@ -171,7 +171,7 @@ Component::Component(const rclcpp::NodeOptions & options)
   // Setup topic for the lighthouse poses in world coordinates. The base stations
   // are static, so we latch the latest sample for late-joining subscribers.
   std::string lighthouse_poses_topic;
-  this->declare_parameter("lighthouse_poses_topic", "lighthouse_poses");
+  this->declare_parameter("lighthouse_poses_topic", "/map/lighthouses");
   this->get_parameter("lighthouse_poses_topic", lighthouse_poses_topic);
   lighthouse_poses_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>(
     lighthouse_poses_topic, rclcpp::QoS(1).transient_local());
