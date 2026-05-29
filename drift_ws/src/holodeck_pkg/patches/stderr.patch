@@ -1,0 +1,172 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 71f0e93..a0dc056 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -20,7 +20,7 @@ endif()
+ 
+ macro(VERBOSE_OPTION ARG DESC)
+     option(${ARG} ${DESC} ${ARGN})
+-    message("-- Option: ${ARG}: ${ARGN}")
++    message(STATUS "-- Option: ${ARG}: ${ARGN}")
+ endmacro()
+ 
+ VERBOSE_OPTION(DO_CORE_BUILD "Only build essentials by default" ${CORE_BUILD_DEFAULT})
+diff --git a/libs/cnkalman/CMakeLists.txt b/libs/cnkalman/CMakeLists.txt
+index 816c759..abb0300 100644
+--- a/libs/cnkalman/CMakeLists.txt
++++ b/libs/cnkalman/CMakeLists.txt
+@@ -24,13 +24,13 @@ if(UNIX)
+   endif()
+ endif()
+ 
+-find_package(sciplot 0.3.1)
+-if(sciplot_FOUND)
+-  add_compile_definitions(HAS_SCIPLOT)
+-  message("Using sciplot")
+-else()
+-  message("Could not find sciplot")
+-endif()
++# find_package(sciplot 0.3.1)
++# if(sciplot_FOUND)
++#   add_compile_definitions(HAS_SCIPLOT)
++#   message(STATUS "Using sciplot")
++# else()
++#   message(STATUS "Could not find sciplot")
++# endif()
+ 
+ add_subdirectory(src)
+ 
+@@ -48,7 +48,7 @@ function(cnkalman_generate_code FILE)
+             DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${FILE} ${cnkalman_root_source_dir}/cnkalman/codegen.py
+             COMMENT "Generating ${DIR}/${NAME}.gen.h...")
+   else()
+-    message("Using provided ${DIR}/${NAME}.gen.h")
++    message(STATUS "Using provided ${DIR}/${NAME}.gen.h")
+   endif()
+ endfunction()
+ 
+diff --git a/libs/cnmatrix/CMakeLists.txt b/libs/cnmatrix/CMakeLists.txt
+index add8771..daa4dae 100644
+--- a/libs/cnmatrix/CMakeLists.txt
++++ b/libs/cnmatrix/CMakeLists.txt
+@@ -15,7 +15,7 @@ include (CheckSymbolExists)
+ macro(CNMATRIX_OPTION ARG DESC)
+   option(${ARG} ${DESC} ${ARGN})
+   SET(${ARG} ${ARGN})
+-  message("-- CNMatrix option: ${ARG}: ${ARGN}")
++  message(STATUS "-- CNMatrix option: ${ARG}: ${ARGN}")
+ endmacro()
+ 
+ CNMATRIX_OPTION(DOWNLOAD_EIGEN "Download eigen if it isn't installed on the system" ON)
+@@ -39,7 +39,7 @@ if(NOT EIGEN3_FOUND)
+     set(USE_EIGEN OFF)
+   endif()
+ else()
+-  MESSAGE("Found system eigen")
++  MESSAGE(STATUS "Found system eigen")
+ endif()
+ 
+ IF(USE_EIGEN)
+diff --git a/libs/cnmatrix/src/CMakeLists.txt b/libs/cnmatrix/src/CMakeLists.txt
+index c238feb..0a04e0b 100644
+--- a/libs/cnmatrix/src/CMakeLists.txt
++++ b/libs/cnmatrix/src/CMakeLists.txt
+@@ -17,9 +17,9 @@ macro(find_library_path var pkg)
+   find_library(${var}_RAWFIND ${pkg} ${ARGN})
+   if(${var}_RAWFIND)
+     set(${var} ${${var}_RAWFIND})
+-    message("Found ${pkg} at ${${var}}")
++    message(STATUS "Found ${pkg} at ${${var}}")
+   else()
+-    message("Could not find ${pkg}")
++    message(STATUS "Could not find ${pkg}")
+     set(${var} ${pkg})
+   endif()
+ endmacro()
+@@ -33,7 +33,7 @@ if(USE_OPENBLAS OR WIN32)
+ else()
+   set(BLAS_BACKEND "${CBLAS_LOCATION}")  
+   find_file(CBLAS_FULL_PATH cblas.h HINT "/usr/local/opt/openblas/include")
+-  message("Searching for 'cblas.h'; found at ${CBLAS_FULL_PATH}")
++  message(STATUS "Searching for 'cblas.h'; found at ${CBLAS_FULL_PATH}")
+   IF(CBLAS_FULL_PATH)
+     get_filename_component(CBLAS_PATH ${CBLAS_FULL_PATH} DIRECTORY)
+     include_directories( ${CBLAS_PATH})
+@@ -47,7 +47,7 @@ if(LAPACKE_FILE)
+ endif()
+ 
+ if(USE_EIGEN)
+-    message("Using eigen backend")
++    message(STATUS "Using eigen backend")
+ else()
+     message("Using blas backend ${BLAS_BACKEND}")
+ endif()
+diff --git a/redist/CMakeLists.txt b/redist/CMakeLists.txt
+index e983ad2..3f0b0c8 100644
+--- a/redist/CMakeLists.txt
++++ b/redist/CMakeLists.txt
+@@ -28,9 +28,9 @@ macro(find_library_path var pkg)
+   find_library(${var}_RAWFIND ${pkg} ${ARGN})
+   if(${var}_RAWFIND)
+     set(${var} ${${var}_RAWFIND})
+-    message("Found ${pkg} at ${${var}}")
++    message(STATUS "Found ${pkg} at ${${var}}")
+   else()
+-    message("Could not find ${pkg}")
++    message(STATUS "Could not find ${pkg}")
+     set(${var} ${pkg})
+   endif()
+ endmacro()
+@@ -44,7 +44,7 @@ if(USE_OPENBLAS OR WIN32)
+ else()
+   set(BLAS_BACKEND "${CBLAS_LOCATION}")  
+   find_file(CBLAS_FULL_PATH cblas.h HINT "/usr/local/opt/openblas/include")
+-  message("Searching for 'cblas.h'; found at ${CBLAS_FULL_PATH}")
++  message(STATUS "Searching for 'cblas.h'; found at ${CBLAS_FULL_PATH}")
+   IF(CBLAS_FULL_PATH)
+     get_filename_component(CBLAS_PATH ${CBLAS_FULL_PATH} DIRECTORY)
+     include_directories( ${CBLAS_PATH})
+@@ -58,7 +58,7 @@ if(LAPACKE_FILE)
+ endif()
+ 
+ if(USE_EIGEN)
+-    message("Using eigen backend")
++    message(STATUS "Using eigen backend")
+ else()
+     message("Using blas backend ${BLAS_BACKEND}")
+ endif()
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index c56c053..bbcbbb1 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -155,7 +155,7 @@ IF(NOT USE_HIDAPI)
+     message("Using no dir in libusb path")
+     add_definitions(-DSURVIVE_LIBUSB_NO_DIR)
+   elseif(LIBUSB_VER)
+-    message("Using versioned libusb dir")
++    message(STATUS "Using versioned libusb dir")
+     add_definitions(-DSURVIVE_LIBUSB_VER_DIR)
+   elseif(LIBUSB_NO_VER)
+     message("Using non-versioned libusb dir")
+diff --git a/src/survive_optimizer.c b/src/survive_optimizer.c
+index 896c4e4..1617106 100644
+--- a/src/survive_optimizer.c
++++ b/src/survive_optimizer.c
+@@ -1841,7 +1841,7 @@ SURVIVE_EXPORT FLT *survive_optimizer_cam_up_vector(survive_optimizer *ctx, int
+ 	return 0;
+ }
+ 
+-void survive_optimizer_set_cam_up_vector(survive_optimizer *ctx, int i, FLT variance, const FLT *up) {
++void survive_optimizer_set_cam_up_vector(survive_optimizer *ctx, int i, FLT variance, const LinmathVec3d up) {
+ 	FLT n = norm3d(up);
+ 	if (!isfinite(n) || n == 0)
+ 		return;
+@@ -1856,7 +1856,7 @@ void survive_optimizer_set_cam_up_vector(survive_optimizer *ctx, int i, FLT vari
+ 	}
+ }
+ 
+-void survive_optimizer_set_obj_up_vector(survive_optimizer *ctx, int i, FLT variance, const FLT *up) {
++void survive_optimizer_set_obj_up_vector(survive_optimizer *ctx, int i, FLT variance, const LinmathVec3d up) {
+ 	FLT *storage = survive_optimizer_obj_up_vector(ctx, i);
+ 	if (storage == 0 && variance > 0) {
+ 		survive_optimizer_measurement *meas =
