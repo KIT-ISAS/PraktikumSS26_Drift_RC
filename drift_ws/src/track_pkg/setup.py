@@ -22,6 +22,8 @@ setup(
         ],
     },
     entry_points={
-        "console_scripts": [],
+        "console_scripts": [
+            "track_publisher_node = track_pkg.track_publisher_node:main",
+        ],
     },
 )
