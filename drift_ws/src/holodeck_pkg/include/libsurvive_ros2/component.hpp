@@ -37,6 +37,7 @@
 // Other
 #include "diagnostic_msgs/msg/key_value.hpp"
 #include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "libsurvive/survive_api.h"
 #include "libsurvive/survive.h"
@@ -67,9 +68,12 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::KeyValue>::SharedPtr cfg_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr viz_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr car_pose_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr lighthouse_poses_publisher_;
   std::thread worker_thread_;
   rclcpp::Time last_base_station_update_;
   std::string tracking_frame_;
+  std::string world_frame_;
   double lighthouse_rate_;
 };
 
