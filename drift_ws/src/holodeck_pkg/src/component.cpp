@@ -114,13 +114,20 @@ Component::Component(const rclcpp::NodeOptions & options)
 
   // Setup driver parameters.
   std::string driver_args;
-  this->declare_parameter("driver_args", "--force-recalibrate 1");
+  this->declare_parameter("driver_args", "--disable-calibrate 1");
   this->get_parameter("driver_args", driver_args);
-  std::vector<const char *> args;
+  std::vector<std::string> tokens;
   std::stringstream driver_ss(driver_args);
   std::string token;
   while (getline(driver_ss, token, ' ')) {
-    args.emplace_back(token.c_str());
+    tokens.push_back(token);
+  }
+  std::vector<const char *> args;
+  // libsurvive's parser treats argv[0] as the program name and skips it,
+  // so prepend a placeholder to keep the first real flag from being dropped.
+  args.push_back("holodeck");
+  for (const auto & t : tokens) {
+    args.push_back(t.c_str());
   }
 
   // Try and initialize survive with the arguments supplied.
@@ -136,6 +143,9 @@ Component::Component(const rclcpp::NodeOptions & options)
 
   // Initialize the survive thread.
   survive_simple_start_thread(actx_);
+
+  int disableCalibrate = survive_configi(ctx, "disable-calibrate", 0, 0);
+  RCLCPP_INFO(this->get_logger(), "Libsurvive driver initialized with disable-calibrate=%d", disableCalibrate);
 
   // Start the work thread
   worker_thread_ = std::thread(&Component::work, this);
