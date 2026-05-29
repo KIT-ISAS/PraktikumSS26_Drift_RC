@@ -236,9 +236,9 @@ void Component::work()
                 marker_msg.pose.orientation.y = pose_msg.transform.rotation.y;
                 marker_msg.pose.orientation.z = pose_msg.transform.rotation.z;
                 marker_msg.pose.orientation.w = pose_msg.transform.rotation.w;
-                marker_msg.scale.x = 20.0;
-                marker_msg.scale.y = 20.0;
-                marker_msg.scale.z = 20.0;
+                marker_msg.scale.x = 7.0;
+                marker_msg.scale.y = 7.0;
+                marker_msg.scale.z = 7.0;
                 marker_msg.color.a = 1.0f;
                 viz_publisher_->publish(marker_msg);
               }
