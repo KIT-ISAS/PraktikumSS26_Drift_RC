@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-venv \
     python3-colcon-common-extensions \
+    python-is-python3 \
     git \
     openssh-client \
     vim \
@@ -44,7 +45,7 @@ RUN sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' ~/.bashrc
 ########## Environment Variables ##########
 # Activate venv automatically and make installed packages available for ROS
 # see documentation/Python.md for details
-# ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="$PATH:/opt/venv/bin"
 ENV PYTHONPATH="$PYTHONPATH:/opt/venv/lib/python3.12/site-packages" 
 
 RUN source /opt/ros/jazzy/setup.bash

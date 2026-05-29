@@ -26,6 +26,7 @@ endif()
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/VehicleActionRequest.msg"
+  "msg/VehicleStatus.msg"
   "srv/ConnectionRequest.srv"
   DEPENDENCIES # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
 )
