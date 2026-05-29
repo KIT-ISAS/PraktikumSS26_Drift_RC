@@ -68,6 +68,18 @@ static void ros_from_pose(
   tx->rotation.z = pose.Rot[3];
 }
 
+// Flips the orientation 180 degrees about its own forward (X) axis, turning an
+// upside-down pose right-side up while keeping the heading unchanged.
+// Equivalent to the Hamilton product q * (w=0, x=1, y=0, z=0).
+static void flip_upside_down(geometry_msgs::msg::Quaternion * const q)
+{
+  const double w = q->w, x = q->x, y = q->y, z = q->z;
+  q->w = -x;
+  q->x = w;
+  q->y = z;
+  q->z = -y;
+}
+
 namespace libsurvive_ros2
 {
 
@@ -204,6 +216,7 @@ void Component::work()
               pose_msg.header.frame_id = tracking_frame_;
               pose_msg.child_frame_id = survive_simple_serial_number(pose_event->object);
               ros_from_pose(&pose_msg.transform, pose);
+              flip_upside_down(&pose_msg.transform.rotation);
               tf_broadcaster_->sendTransform(pose_msg);
 
               if (viz_publisher_) {
