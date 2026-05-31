@@ -32,11 +32,12 @@ class UdpCommunicationClient(CommunicationInterface):
         self._status_lock = threading.Lock()
         self._last_status: dict | None = None
         self._last_status_time: float = 0.0
+        self._consecutive_send_errors: int = 0
 
     def connect(self) -> None:
         """Open the UDP socket and start the status receiver thread."""
         if self._sock is not None:
-            return
+            self.close()
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._sock.settimeout(1.0)
         self._running = True
@@ -56,6 +57,13 @@ class UdpCommunicationClient(CommunicationInterface):
         if self._sock is not None:
             self._sock.close()
             self._sock = None
+
+    _MAX_CONSECUTIVE_SEND_ERRORS = 10
+
+    def _recreate_socket(self) -> None:
+        """Close and reopen the socket to recover from a broken socket state."""
+        self.connect()
+        self._consecutive_send_errors = 0
 
     def send_value(
         self,
@@ -87,7 +95,14 @@ class UdpCommunicationClient(CommunicationInterface):
             "seq": self._seq,
         }
         data = json.dumps(message).encode("utf-8")
-        self._sock.sendto(data, (self.ip, self.port))
+        try:
+            self._sock.sendto(data, (self.ip, self.port))
+            self._consecutive_send_errors = 0
+        except OSError:
+            self._consecutive_send_errors += 1
+            if self._consecutive_send_errors >= self._MAX_CONSECUTIVE_SEND_ERRORS:
+                self._recreate_socket()
+            raise
 
     def get_last_status(self) -> dict | None:
         """Return the most recently received status from the ESP32, or None."""
@@ -109,3 +124,5 @@ class UdpCommunicationClient(CommunicationInterface):
             except (json.JSONDecodeError, OSError):
                 if not self._running:
                     break
+                time.sleep(0.05)
+                continue
