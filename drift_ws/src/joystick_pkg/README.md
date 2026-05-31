@@ -17,24 +17,38 @@ Subscribes to `/joy` and publishes `shared_interfaces/VehicleActionRequest` on
 
 Default axis mapping (configurable in `config/joystick_params.yaml`):
 
-| Axis | Index | Mapped to |
-|------|-------|-----------|
-| Left stick horizontal | 0 | `steering` |
-| Right trigger | 5 | `throttle` (forward) |
-| Left trigger  | 2 | `throttle` (brake/reverse) |
+| Input | Axis/Index | Mapped to |
+|-------|------------|-----------|
+| Left stick horizontal | axis 0 | `steering` |
+| Right trigger | axis 5 | `throttle` (forward) |
+| Left trigger  | axis 2 | `throttle` (brake/reverse) |
+| D-pad up/down | axis 7 | gyro gain (+/− `gyro_gain_step`) |
+| D-pad left/right | axis 6 | gyro mode (soft / hard) |
 
 Both triggers are combined into a single signed throttle value:
 positive = forward (right trigger), negative = brake/reverse (left trigger).
 
+The d-pad is exposed by the driver as hat axes (not buttons), so the node uses
+rising-edge detection to fire once per press regardless of how long it is held.
+
 ### Gyro parameters
 
-Fixed gyro settings are loaded from `config/joystick_params.yaml` and sent with every command:
+Gyro settings start from the values in `config/joystick_params.yaml` and can be
+adjusted at runtime via the d-pad:
+
+| D-pad | Effect |
+|-------|--------|
+| Up | increase `gyro_gain` by `gyro_gain_step` (max 1.0) |
+| Down | decrease `gyro_gain` by `gyro_gain_step` (min 0.0) |
+| Left | set `gyro_mode` to `"soft"` |
+| Right | set `gyro_mode` to `"hard"` |
 
 ```yaml
 joystick_mapper:
   ros__parameters:
-    gyro_mode: "soft"   # "soft" or "hard"
-    gyro_gain: 0.0      # 0.0 (off) to 1.0 (full)
+    gyro_mode: "soft"      # "soft" or "hard"
+    gyro_gain: 1.0         # 0.0 (off) to 1.0 (full)
+    gyro_gain_step: 0.1    # increment/decrement per d-pad up/down press
 ```
 
 ### Deadzone

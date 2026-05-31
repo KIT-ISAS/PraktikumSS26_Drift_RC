@@ -2,11 +2,14 @@ joystick_mapper:
   ros__parameters:
     # Mapping of joystick axes to VehicleActionRequest fields
     axis_mapping:
-      steering: 0  # Left stick horizontal
-      throttle: 5  # Right trigger
-      brake: 2     # Left trigger
-    gyro_mode: "soft"   # "soft" or "hard"
-    gyro_gain: 1.0      # 0.0 (off) to 1.0 (full)
+      steering: 0    # Left stick horizontal
+      throttle: 5    # Right trigger
+      brake: 2       # Left trigger
+      dpad_h: 6      # D-pad horizontal (left=+1, right=-1)
+      dpad_v: 7      # D-pad vertical   (up=+1, down=-1)
+    gyro_mode: "soft"      # "soft" or "hard"
+    gyro_gain: 1.0         # 0.0 (off) to 1.0 (full)
+    gyro_gain_step: 0.1    # increment/decrement per d-pad up/down press
 
 joy_node:
   ros__parameters:
