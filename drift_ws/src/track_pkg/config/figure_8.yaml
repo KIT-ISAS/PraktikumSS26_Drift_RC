@@ -1,17 +1,35 @@
-# Figure-8 track: right loop CW around (1,0) then left loop CCW around (-1,0).
-# Both loops share the origin as the crossing point and are G1 continuous throughout.
-# Bezier control points use k = 4/3 * tan(pi/8) ≈ 0.5523 for circle approximation.
-# Coordinates are in metres; frame is declared separately via the frame_id field.
+# Figure-8 drift track: two 1 m circular loops joined by straights that cross
+# in the middle (an X crossing at the origin), instead of two circles glued
+# at a single point.
+#
+# Geometry: right loop centred at (1.3, 0), left loop centred at (-1.3, 0),
+# both radius 1 m. The straights are the internal tangents of the two circles,
+# so they meet each loop tangentially (G1 continuous) and cross at the origin
+# (~50 deg crossing). Each loop is the ~280 deg outer arc between its tangent
+# points (+/-0.531, +/-0.639), split into four equal cubic-bezier sub-arcs.
+#
+# Path direction: right loop CCW, left loop CW (opposite senses, as a figure-8
+# requires). Straight length ~1.66 m.
+#
+# Fit: the curve spans x in [-2.30, 2.30], y in [-1.00, 1.00], inside the
+# published track boundary (x in [-2.67, 2.74], y in [-2.31, 2.35]) with
+# >=0.37 m margin on every edge. Loop separation (the 1.3 centre offset) sets
+# the width; reduce it to gain margin, increase it for longer straights.
+# Coordinates are in metres; frame is declared via frame_id.
 name: figure_8
 frame_id: world
 segments:
-  # Right loop (clockwise, centre at (1, 0), radius 1 m)
-  - [[0.0, 0.0], [0.0, 0.5523], [0.4477, 1.0], [1.0, 1.0]]
-  - [[1.0, 1.0], [1.5523, 1.0], [2.0, 0.5523], [2.0, 0.0]]
-  - [[2.0, 0.0], [2.0, -0.5523], [1.5523, -1.0], [1.0, -1.0]]
-  - [[1.0, -1.0], [0.4477, -1.0], [0.0, -0.5523], [0.0, 0.0]]
-  # Left loop (counter-clockwise, centre at (-1, 0), radius 1 m)
-  - [[0.0, 0.0], [0.0, 0.5523], [-0.4477, 1.0], [-1.0, 1.0]]
-  - [[-1.0, 1.0], [-1.5523, 1.0], [-2.0, 0.5523], [-2.0, 0.0]]
-  - [[-2.0, 0.0], [-2.0, -0.5523], [-1.5523, -1.0], [-1.0, -1.0]]
-  - [[-1.0, -1.0], [-0.4477, -1.0], [0.0, -0.5523], [0.0, 0.0]]
+  # Right loop (CCW, centre (1.3, 0), radius 1 m): lower tangent -> outer -> upper
+  - [[0.53077, -0.63897], [0.79997, -0.96306], [1.24342, -1.08365], [1.63968, -0.94054]]
+  - [[1.63968, -0.94054], [2.03594, -0.79743], [2.30000, -0.42131], [2.30000, 0.0]]
+  - [[2.30000, 0.0], [2.30000, 0.42131], [2.03594, 0.79743], [1.63968, 0.94054]]
+  - [[1.63968, 0.94054], [1.24342, 1.08365], [0.79997, 0.96306], [0.53077, 0.63897]]
+  # Crossing straight: right loop top -> left loop bottom (through origin)
+  - [[0.53077, 0.63897], [0.17692, 0.21299], [-0.17692, -0.21299], [-0.53077, -0.63897]]
+  # Left loop (CW, centre (-1.3, 0), radius 1 m): lower tangent -> outer -> upper
+  - [[-0.53077, -0.63897], [-0.79997, -0.96306], [-1.24342, -1.08365], [-1.63968, -0.94054]]
+  - [[-1.63968, -0.94054], [-2.03594, -0.79743], [-2.30000, -0.42131], [-2.30000, 0.0]]
+  - [[-2.30000, 0.0], [-2.30000, 0.42131], [-2.03594, 0.79743], [-1.63968, 0.94054]]
+  - [[-1.63968, 0.94054], [-1.24342, 1.08365], [-0.79997, 0.96306], [-0.53077, 0.63897]]
+  # Crossing straight: left loop top -> right loop bottom (through origin)
+  - [[-0.53077, 0.63897], [-0.17692, 0.21299], [0.17692, -0.21299], [0.53077, -0.63897]]
