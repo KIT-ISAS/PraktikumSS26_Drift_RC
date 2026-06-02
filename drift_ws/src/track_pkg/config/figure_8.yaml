@@ -1,0 +1,17 @@
+# Figure-8 track: right loop CW around (1,0) then left loop CCW around (-1,0).
+# Both loops share the origin as the crossing point and are G1 continuous throughout.
+# Bezier control points use k = 4/3 * tan(pi/8) ≈ 0.5523 for circle approximation.
+# Coordinates are in metres; frame is declared separately via the frame_id field.
+name: figure_8
+frame_id: world
+segments:
+  # Right loop (clockwise, centre at (1, 0), radius 1 m)
+  - [[0.0, 0.0], [0.0, 0.5523], [0.4477, 1.0], [1.0, 1.0]]
+  - [[1.0, 1.0], [1.5523, 1.0], [2.0, 0.5523], [2.0, 0.0]]
+  - [[2.0, 0.0], [2.0, -0.5523], [1.5523, -1.0], [1.0, -1.0]]
+  - [[1.0, -1.0], [0.4477, -1.0], [0.0, -0.5523], [0.0, 0.0]]
+  # Left loop (counter-clockwise, centre at (-1, 0), radius 1 m)
+  - [[0.0, 0.0], [0.0, 0.5523], [-0.4477, 1.0], [-1.0, 1.0]]
+  - [[-1.0, 1.0], [-1.5523, 1.0], [-2.0, 0.5523], [-2.0, 0.0]]
+  - [[-2.0, 0.0], [-2.0, -0.5523], [-1.5523, -1.0], [-1.0, -1.0]]
+  - [[-1.0, -1.0], [-0.4477, -1.0], [0.0, -0.5523], [0.0, 0.0]]

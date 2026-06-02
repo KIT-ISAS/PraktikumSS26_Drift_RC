@@ -14,6 +14,8 @@ class Topics:
     # Track-related Topics
     TRACK_BASE: str = "/track"
     TRACK_BOUNDARY: str = TRACK_BASE + "/boundary"
+    TRACK_CENTERLINE: str = TRACK_BASE + "/centerline"
+    TRACK_VISUALIZATION: str = TRACK_BASE + "/visualization"
 
     # Car-related Topics
     CAR_BASE: str = "/car"
