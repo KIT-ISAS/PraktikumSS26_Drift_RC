@@ -111,7 +111,7 @@
     "3D!2nekybg": {
       "cameraState": {
         "perspective": false,
-        "distance": 6.470670899473323,
+        "distance": 6.470670899473156,
         "phi": 52.17697031003335,
         "thetaOffset": 0,
         "targetOffset": [
@@ -158,6 +158,9 @@
           "visible": true
         },
         "/track/visualization": {
+          "visible": true
+        },
+        "/track/progress_visualization": {
           "visible": true
         }
       },
