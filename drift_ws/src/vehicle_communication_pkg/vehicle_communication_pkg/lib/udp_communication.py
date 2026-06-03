@@ -62,7 +62,11 @@ class UdpCommunicationClient(CommunicationInterface):
     _MAX_CONSECUTIVE_SEND_ERRORS = 10
 
     def _recreate_socket(self) -> None:
-        """Non-blocking socket recovery: swap in a new socket without joining the old receiver thread."""
+        """
+        Non-blocking socket recovery.
+
+        Swap in a new socket without joining the old receiver thread.
+        """
         old_sock = self._sock
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(1.0)
