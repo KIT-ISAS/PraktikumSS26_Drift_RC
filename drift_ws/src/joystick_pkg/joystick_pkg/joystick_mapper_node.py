@@ -17,6 +17,8 @@ class JoystickMapperNode(Node):
         """Initialize the joystick mapper node."""
         super().__init__("joystick_mapper")
         self._load_params()
+        self._dpad_prev_h: float | None = None
+        self._dpad_prev_v: float | None = None
         self._mapper: JoystickMapper = XBoxOneMapper(self.axis_mapping)
 
         # Create publisher for vehicle action requests
@@ -50,20 +52,21 @@ class JoystickMapperNode(Node):
         dpad_h = msg.axes[self.axis_mapping["dpad_h"]]
         dpad_v = msg.axes[self.axis_mapping["dpad_v"]]
 
-        # Rising-edge detection: only act on the frame the button becomes pressed.
-        if dpad_v > 0.5 and self._dpad_prev_v <= 0.5:
-            self.gyro_gain = round(min(1.0, self.gyro_gain + self.gyro_gain_step), 10)
-            self.get_logger().info(f"Gyro gain: {self.gyro_gain:.2f}")
-        elif dpad_v < -0.5 and self._dpad_prev_v >= -0.5:
-            self.gyro_gain = round(max(0.0, self.gyro_gain - self.gyro_gain_step), 10)
-            self.get_logger().info(f"Gyro gain: {self.gyro_gain:.2f}")
+        if self._dpad_prev_h is not None and self._dpad_prev_v is not None:
+            # Rising-edge detection: only act on the frame the button becomes pressed.
+            if dpad_v > 0.5 and self._dpad_prev_v <= 0.5:
+                self.gyro_gain = round(min(1.0, self.gyro_gain + self.gyro_gain_step), 10)
+                self.get_logger().info(f"Gyro gain: {self.gyro_gain:.2f}")
+            elif dpad_v < -0.5 and self._dpad_prev_v >= -0.5:
+                self.gyro_gain = round(max(0.0, self.gyro_gain - self.gyro_gain_step), 10)
+                self.get_logger().info(f"Gyro gain: {self.gyro_gain:.2f}")
 
-        if dpad_h > 0.5 and self._dpad_prev_h <= 0.5:
-            self.gyro_mode = "soft"
-            self.get_logger().info("Gyro mode: soft")
-        elif dpad_h < -0.5 and self._dpad_prev_h >= -0.5:
-            self.gyro_mode = "hard"
-            self.get_logger().info("Gyro mode: hard")
+            if dpad_h > 0.5 and self._dpad_prev_h <= 0.5:
+                self.gyro_mode = "soft"
+                self.get_logger().info("Gyro mode: soft")
+            elif dpad_h < -0.5 and self._dpad_prev_h >= -0.5:
+                self.gyro_mode = "hard"
+                self.get_logger().info("Gyro mode: hard")
 
         self._dpad_prev_h = dpad_h
         self._dpad_prev_v = dpad_v
@@ -86,9 +89,6 @@ class JoystickMapperNode(Node):
         self.gyro_mode = self.get_parameter("gyro_mode").value
         self.gyro_gain = float(self.get_parameter("gyro_gain").value)
         self.gyro_gain_step = float(self.get_parameter("gyro_gain_step").value)
-
-        self._dpad_prev_h = 0.0
-        self._dpad_prev_v = 0.0
 
 
 def main(args=None):
