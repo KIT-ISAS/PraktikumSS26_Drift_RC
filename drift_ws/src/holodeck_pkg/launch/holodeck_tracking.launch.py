@@ -37,7 +37,7 @@ CFG_FILE = os.path.join(get_package_share_directory("holodeck_pkg"), "config", "
 
 # Sow we don't have to repeat for composable and non-composable versions.
 PARAMETERS = [
-    {"driver_args": f"--init-configfile {CFG_FILE}"},
+    {"driver_args": f"--disable-calibrate --init-configfile {CFG_FILE}"},
     # {"driver_args": f"--force-calibrate 1 --init-configfile {CFG_FILE}"},
     {"tracking_frame": "libsurvive_world"},
     # Absolute path so the node namespace does not prefix it; matches Topics.CAR_POSE.
