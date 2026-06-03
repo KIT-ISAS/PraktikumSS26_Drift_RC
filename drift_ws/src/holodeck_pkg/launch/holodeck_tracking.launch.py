@@ -40,6 +40,8 @@ PARAMETERS = [
     {"driver_args": f"--init-configfile {CFG_FILE}"},
     # {"driver_args": f"--force-calibrate 1 --init-configfile {CFG_FILE}"},
     {"tracking_frame": "libsurvive_world"},
+    # Absolute path so the node namespace does not prefix it; matches Topics.CAR_POSE.
+    {"car_pose_topic": "/car/pose"},
     {"imu_topic": "imu"},
     {"joy_topic": "joy"},
     {"cfg_topic": "cfg"},

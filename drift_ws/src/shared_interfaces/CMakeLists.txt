@@ -30,6 +30,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/VehicleActionRequest.msg"
   "msg/VehicleStatus.msg"
   "msg/Track.msg"
+  "msg/TrackProgress.msg"
   "srv/ConnectionRequest.srv"
   DEPENDENCIES geometry_msgs std_msgs
 )
