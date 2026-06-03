@@ -254,7 +254,8 @@ Component::Component(const rclcpp::NodeOptions & options)
   survive_simple_start_thread(actx_);
 
   int disableCalibrate = survive_configi(ctx, "disable-calibrate", 0, 0);
-  RCLCPP_INFO(this->get_logger(), "Libsurvive driver initialized with disable-calibrate=%d", disableCalibrate);
+  RCLCPP_INFO(this->get_logger(), "Libsurvive driver initialized with disable-calibrate=%d",
+      disableCalibrate);
 
   // Start the work thread
   worker_thread_ = std::thread(&Component::work, this);

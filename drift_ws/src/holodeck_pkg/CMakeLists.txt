@@ -38,13 +38,17 @@ endif()
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 # Find the core interface library
-# Patch 
 include(ExternalProject)
+set(PATCH_FILE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/patches/stderr.patch")
+string(CONCAT PATCH_SH_CMD
+  "git apply --reverse --check '${PATCH_FILE_PATH}'"
+  " >/dev/null 2>&1 && exit 0 ||"
+  " git apply --whitespace=nowarn --ignore-whitespace '${PATCH_FILE_PATH}'")
 externalproject_add(libsurvive
   GIT_REPOSITORY https://github.com/cntools/libsurvive.git
   GIT_TAG 32cf62c52744fdc32003ef8169e8b81f6f31526b
   GIT_PROGRESS FALSE
-  PATCH_COMMAND ${CMAKE_COMMAND} -E chdir <SOURCE_DIR> sh -c "git apply --reverse --check '${CMAKE_CURRENT_SOURCE_DIR}/patches/stderr.patch' >/dev/null 2>&1 && exit 0 || git apply --whitespace=nowarn --ignore-whitespace '${CMAKE_CURRENT_SOURCE_DIR}/patches/stderr.patch'"
+  PATCH_COMMAND ${CMAKE_COMMAND} -E chdir <SOURCE_DIR> sh -c "${PATCH_SH_CMD}"
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/libsurvive-install
     -DCMAKE_BUILD_TYPE=Release
