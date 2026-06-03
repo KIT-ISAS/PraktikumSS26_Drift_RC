@@ -12,17 +12,20 @@ static const IPAddress STATIC_IP(10, 42, 0, 99);
 static const IPAddress GATEWAY(10, 42, 0, 1);
 static const IPAddress SUBNET(255, 255, 255, 0);
 
-static const unsigned long RECONNECT_INTERVAL_MS = 3000;
-static const unsigned long CONNECT_TIMEOUT_MS    = 8000;
-static const unsigned long STATUS_INTERVAL_MS    = 100;
-static const unsigned long PEER_STALE_MS         = 2000;
+static const unsigned long SCAN_START_DELAY_MS  = 3000;
+static const unsigned long SCAN_TIMEOUT_MS      = 8000;
+static const unsigned long CONNECT_TIMEOUT_MS   = 10000;
+static const unsigned long STATUS_INTERVAL_MS   = 100;
+static const unsigned long PEER_STALE_MS        = 2000;
+
+enum class WifiPhase { Idle, Scanning, Connecting };
 
 static WiFiUDP udp;
 static bool wasWifiConnected = false;
-static bool wifiConnecting = false;
-static size_t wifiCandidateIdx = 0;
+static WifiPhase wifiPhase = WifiPhase::Idle;
 static unsigned long wifiPhaseStartMs = 0;
 static unsigned long lastReconnectAttemptMs = 0;
+static int8_t connectingIdx = -1;
 
 static IPAddress senderIp;
 static uint16_t  senderPort = 0;
@@ -38,31 +41,70 @@ static unsigned long lastValidPacketMs = 0;
 
 static char rxBuf[512];
 
-static void handleWifiReconnect(bool isConnected) {
-  unsigned long now = millis();
-
-  if (isConnected) {
-    wifiConnecting = false;
-    return;
+static int findBestKnownNetwork() {
+  int n = WiFi.scanComplete();
+  if (n < 0) return -1;
+  int bestIdx = -1;
+  int32_t bestRssi = INT32_MIN;
+  for (int i = 0; i < n; i++) {
+    for (size_t k = 0; k < WIFI_COUNT; k++) {
+      if (WiFi.SSID(i) == WIFI_SSIDS[k] && WiFi.RSSI(i) > bestRssi) {
+        bestRssi = WiFi.RSSI(i);
+        bestIdx = (int)k;
+      }
+    }
   }
+  return bestIdx;
+}
 
-  if (wifiConnecting) {
-    if (now - wifiPhaseStartMs >= CONNECT_TIMEOUT_MS) {
-      WiFi.disconnect(true);
-      wifiConnecting = false;
-      wifiCandidateIdx = (wifiCandidateIdx + 1) % WIFI_COUNT;
-      lastReconnectAttemptMs = now;
+static void handleWifiReconnect(bool isConnected) {
+  if (isConnected) {
+    if (wifiPhase != WifiPhase::Idle) {
+      WiFi.scanDelete();
+      wifiPhase = WifiPhase::Idle;
     }
     return;
   }
 
-  if (now - lastReconnectAttemptMs >= RECONNECT_INTERVAL_MS) {
-    lastReconnectAttemptMs = now;
-    wifiPhaseStartMs = now;
-    wifiConnecting = true;
-    Serial.print("Trying ");
-    Serial.println(WIFI_SSIDS[wifiCandidateIdx]);
-    WiFi.begin(WIFI_SSIDS[wifiCandidateIdx], WIFI_PASSWORDS[wifiCandidateIdx]);
+  unsigned long now = millis();
+  switch (wifiPhase) {
+    case WifiPhase::Idle:
+      if (now - lastReconnectAttemptMs >= SCAN_START_DELAY_MS) {
+        WiFi.scanNetworks(/*async=*/true);
+        wifiPhaseStartMs = now;
+        wifiPhase = WifiPhase::Scanning;
+        Serial.println("WiFi scan started.");
+      }
+      break;
+
+    case WifiPhase::Scanning: {
+      int bestIdx = findBestKnownNetwork();
+      if (bestIdx >= 0) {
+        WiFi.scanDelete();
+        connectingIdx = (int8_t)bestIdx;
+        Serial.print("Connecting to best network: ");
+        Serial.println(WIFI_SSIDS[connectingIdx]);
+        WiFi.begin(WIFI_SSIDS[connectingIdx], WIFI_PASSWORDS[connectingIdx]);
+        wifiPhaseStartMs = now;
+        wifiPhase = WifiPhase::Connecting;
+      } else if (WiFi.scanComplete() == WIFI_SCAN_FAILED ||
+                 now - wifiPhaseStartMs >= SCAN_TIMEOUT_MS) {
+        WiFi.scanDelete();
+        lastReconnectAttemptMs = now;
+        wifiPhase = WifiPhase::Idle;
+        Serial.println("Scan complete — no known networks found.");
+      }
+      break;
+    }
+
+    case WifiPhase::Connecting:
+      if (now - wifiPhaseStartMs >= CONNECT_TIMEOUT_MS) {
+        WiFi.disconnect(false);
+        lastReconnectAttemptMs = now;
+        wifiPhase = WifiPhase::Idle;
+        Serial.println("Connection timeout, will rescan.");
+      }
+      break;
   }
 }
 
@@ -125,19 +167,24 @@ static void expireStalePeer() {
 void commsBegin() {
   WiFi.mode(WIFI_STA);
   WiFi.config(STATIC_IP, GATEWAY, SUBNET);
-  lastReconnectAttemptMs = millis() - RECONNECT_INTERVAL_MS;
+  WiFi.setAutoReconnect(false);
+  lastReconnectAttemptMs = millis() - SCAN_START_DELAY_MS;
 }
 
 void commsUpdate() {
   bool isConnected = (WiFi.status() == WL_CONNECTED);
   handleWifiReconnect(isConnected);
 
+  if (wasWifiConnected && !isConnected) {
+    udp.stop();
+    senderPort = 0;
+    Serial.println("WiFi lost. UDP stopped.");
+  }
   if (isConnected && !wasWifiConnected) {
-    Serial.print("Connected. IP: ");
+    Serial.print("WiFi connected. IP: ");
     Serial.println(WiFi.localIP());
     udp.begin(LOCAL_PORT);
-    Serial.print("UDP listening on port ");
-    Serial.println(LOCAL_PORT);
+    Serial.println("UDP listening on port 12345.");
   }
   wasWifiConnected = isConnected;
 

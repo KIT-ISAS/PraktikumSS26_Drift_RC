@@ -95,7 +95,7 @@ Most RC ESCs require a double-tap to engage reverse:
 
 When driving with the joystick, this happens naturally. Automated scripts must perform this sequence explicitly (see `test_esp32.py`, Phase 3a–3c).
 
-## WiFi networks (priority order)
+## WiFi networks
 
 Edit the arrays in `comms.cpp` to change credentials or add networks:
 
@@ -104,7 +104,27 @@ static const char* WIFI_SSIDS[]     = {"JulianCar", "wifi_mid", "wifi_low"};
 static const char* WIFI_PASSWORDS[] = {"...",        "...",      "..."};
 ```
 
-The firmware tries networks in order, cycling every 8 s until one connects. Reconnection is non-blocking — the LED and button keep working while connecting.
+### Reconnection behaviour
+
+Whenever WiFi is not connected the firmware runs a non-blocking reconnect loop — the LED and button keep working throughout:
+
+1. Wait 3 s after the last drop/timeout.
+2. Start an async WiFi scan.
+3. Once the scan completes (≤ 8 s), pick the **known SSID with the strongest signal** (highest RSSI).
+4. Connect to it (up to 10 s). On success → UDP socket opens and communication resumes. On timeout → go back to step 1.
+
+Once connected, the firmware never switches networks on its own — roaming only happens after a drop.
+
+The firmware also disables the ESP32 WiFi library's built-in auto-reconnect so the manual logic above has exclusive control over reconnection.
+
+### Automatic scenarios
+
+| What happened | What the firmware does |
+|---|---|
+| Hotspot turned off then back on | Detects WiFi drop, tears down UDP socket, rescans, reconnects to best available network |
+| WiFi connection lost (interference, range) | Same as above |
+| ROS node restarted | Detects new `session_id` → resets seq window; communication resumes with first received packet |
+| ESP32 restarted | Fresh boot: `seenAnySeq = false`, accepts first packet from any active sender |
 
 ## Dependencies (Arduino libraries)
 

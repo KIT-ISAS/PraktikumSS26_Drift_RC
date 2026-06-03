@@ -43,8 +43,10 @@ state and arm status (received via status replies) whenever it changes.
 Each command is a JSON datagram sent to the ESP32:
 
 ```json
-{"steering": 0.0, "throttle": 0.0, "gyro_mode": "soft", "gyro_gain": 0.0, "seq": 1}
+{"session_id": 12345, "steering": 0.0, "throttle": 0.0, "gyro_mode": "soft", "gyro_gain": 0.0, "seq": 1}
 ```
+
+`session_id` is a random 32-bit integer chosen once per process. When the ESP32 sees a new `session_id` it immediately resets its sequence window, so communication resumes with the very first packet after a node restart.
 
 The ESP32 replies to the sender at 10 Hz:
 
@@ -55,6 +57,12 @@ The ESP32 replies to the sender at 10 Hz:
 Status replies time out after 500 ms of silence — the node logs a warning when
 this happens.
 
+## Reconnection
+
+The node uses a connectionless UDP socket, so no explicit reconnect is needed for normal WiFi drops — `sendto` simply resumes once the network is restored.
+
+For persistent socket failures (e.g. `ENETDOWN`), `UdpCommunicationClient` tracks consecutive send errors and automatically recreates the socket after 10 consecutive failures (~0.5 s at 20 Hz send rate).
+
 ## Communication library
 
 `vehicle_communication_pkg/lib/` contains:
@@ -62,4 +70,4 @@ this happens.
 | Module                    | Description                            |
 |---------------------------|----------------------------------------|
 | `communication_interface` | Abstract base class                    |
-| `udp_communication`       | UDP client with background status receiver thread |
+| `udp_communication`       | UDP client with background status receiver thread and automatic socket recovery |

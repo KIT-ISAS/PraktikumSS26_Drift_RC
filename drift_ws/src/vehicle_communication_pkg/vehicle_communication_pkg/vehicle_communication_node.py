@@ -42,7 +42,8 @@ class VehicleCommunicationNode(Node):
             Trigger, "disconnect", self._handle_disconnect
         )
 
-        self._last_logged_status: dict | None = None
+        self._last_logged_status_key: tuple | None = None
+        self._send_error_active: bool = False
 
         # Republish ESP32 status at the same rate the ESP32 sends it (10 Hz).
         # Log only on change to avoid flooding.
@@ -58,8 +59,13 @@ class VehicleCommunicationNode(Node):
         """Forward a VehicleActionRequest to the vehicle."""
         try:
             self.interface.send_value(msg.steering, msg.throttle, msg.gyro_mode, msg.gyro_gain)
+            if self._send_error_active:
+                self._send_error_active = False
+                self.get_logger().info("Send recovered — commands forwarded successfully.")
         except Exception as e:
-            self.get_logger().error(f"Failed to send command: {e}")
+            if not self._send_error_active:
+                self._send_error_active = True
+                self.get_logger().error(f"Failed to send command: {e}")
 
     def _publish_status(self) -> None:
         """Publish the latest ESP32 status and log on changes."""
@@ -78,16 +84,15 @@ class VehicleCommunicationNode(Node):
             msg.last_seq = int(status.get("last_seq", 0))
         self.status_publisher.publish(msg)
 
-        if status != self._last_logged_status:
+        status_key = None if status is None else (status.get("state"), status.get("armed"))
+        if status_key != self._last_logged_status_key:
             if status is None:
                 self.get_logger().warn("ESP32 status timeout — no reply received.")
             else:
                 self.get_logger().info(
-                    f"ESP32: state={status.get('state', '?')} "
-                    f"armed={status.get('armed', '?')} "
-                    f"last_seq={status.get('last_seq', '?')}"
+                    f"ESP32: state={status.get('state', '?')} armed={status.get('armed', '?')}"
                 )
-            self._last_logged_status = status
+            self._last_logged_status_key = status_key
 
     def _handle_connect(
         self, request: Trigger.Request, response: Trigger.Response
