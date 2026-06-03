@@ -38,10 +38,11 @@ class UdpCommunicationClient(CommunicationInterface):
         """Open the UDP socket and start the status receiver thread."""
         if self._sock is not None:
             self.close()
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._sock.settimeout(1.0)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(1.0)
+        self._sock = sock
         self._running = True
-        self._rx_thread = threading.Thread(target=self._receive_loop, daemon=True)
+        self._rx_thread = threading.Thread(target=self._receive_loop, args=(sock,), daemon=True)
         self._rx_thread.start()
 
     def is_open(self) -> bool:
@@ -51,18 +52,25 @@ class UdpCommunicationClient(CommunicationInterface):
     def close(self) -> None:
         """Stop the receiver thread and close the socket."""
         self._running = False
-        if self._rx_thread is not None:
-            self._rx_thread.join(timeout=2.0)
-            self._rx_thread = None
         if self._sock is not None:
             self._sock.close()
             self._sock = None
+        if self._rx_thread is not None:
+            self._rx_thread.join(timeout=2.0)
+            self._rx_thread = None
 
     _MAX_CONSECUTIVE_SEND_ERRORS = 10
 
     def _recreate_socket(self) -> None:
-        """Close and reopen the socket to recover from a broken socket state."""
-        self.connect()
+        """Non-blocking socket recovery: swap in a new socket without joining the old receiver thread."""
+        old_sock = self._sock
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(1.0)
+        self._sock = sock
+        self._rx_thread = threading.Thread(target=self._receive_loop, args=(sock,), daemon=True)
+        self._rx_thread.start()
+        if old_sock is not None:
+            old_sock.close()  # unblocks old receiver thread; it exits via OSError
         self._consecutive_send_errors = 0
 
     def send_value(
@@ -111,10 +119,10 @@ class UdpCommunicationClient(CommunicationInterface):
                 return None
             return self._last_status
 
-    def _receive_loop(self) -> None:
+    def _receive_loop(self, sock: socket.socket) -> None:
         while self._running:
             try:
-                data, _ = self._sock.recvfrom(512)
+                data, _ = sock.recvfrom(512)
                 status = json.loads(data.decode("utf-8"))
                 with self._status_lock:
                     self._last_status = status
@@ -122,7 +130,7 @@ class UdpCommunicationClient(CommunicationInterface):
             except socket.timeout:
                 continue
             except (json.JSONDecodeError, OSError):
-                if not self._running:
-                    break
+                if sock.fileno() == -1:
+                    break  # socket was closed externally
                 time.sleep(0.05)
                 continue
