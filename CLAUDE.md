@@ -28,7 +28,8 @@ colcon build [--packages-select <pkg>]
 
 # Run a node / launch
 ros2 run <pkg> <executable>
-ros2 launch drift_ws/launch/manual_driving.launch.py   # joystick + vehicle comms
+ros2 launch drift_ws/launch/manual_driving.launch.py              # joystick + vehicle comms
+ros2 launch drift_ws/launch/manual_driving_with_viz.launch.py     # + holodeck + track viz
 
 # Tests (includes auto-generated linter tests)
 colcon test --event-handlers console_direct+
@@ -52,22 +53,35 @@ ROS 2 packages live in `drift_ws/src/`:
 
 | Package | Build type | Role |
 |---------|-----------|------|
-| `shared_interfaces` | ament_cmake | Custom msgs/srvs: `VehicleActionRequest`, `VehicleStatus`, `ConnectionRequest` |
+| `shared_interfaces` | ament_cmake | Custom msgs/srvs: `VehicleActionRequest`, `VehicleStatus`, `ConnectionRequest`, `Track`, `TrackProgress` |
 | `shared_pkg` | ament_python | Cross-package constants — notably the `Topics` class (topic name registry) |
 | `joystick_pkg` | ament_python | Reads controller via ROS `joy` node, maps inputs (`xbox_one_mapper`) to `VehicleActionRequest` |
 | `vehicle_communication_pkg` | ament_python | Bridges ROS ↔ car: forwards `VehicleActionRequest` to the ESP32, republishes `VehicleStatus` |
-| `holodeck_pkg` | ament_cmake (C++) | Thin wrapper around the `libsurvive_ros2` driver for Vive lighthouse tracking |
-| `track_pkg` | ament_python | Publishes track boundary geometry |
+| `holodeck_pkg` | ament_cmake (C++) | Thin wrapper around the `libsurvive_ros2` driver; publishes vehicle and lighthouse poses in the world frame via TF and on `/car/pose` |
+| `track_pkg` | ament_python | Bezier track representation, lap progress tracking, and centerline publisher |
 | `example_pkg` | ament_python | Template/reference package |
 
 **Control data flow:** `joystick_pkg` → `VehicleActionRequest` topic → `vehicle_communication_pkg` → UDP/JSON → ESP32 firmware → PWM (servo/ESC). Status flows back: ESP32 → UDP → `vehicle_communication_pkg` → `VehicleStatus` topic.
 
-**Tracking data flow:** Vive lighthouses → `holodeck_pkg`/libsurvive → vehicle & lighthouse poses published in the **world frame** via TF.
+**Tracking data flow:** Vive lighthouses → `holodeck_pkg`/libsurvive → vehicle & lighthouse poses published in the **world frame** via TF and on `/car/pose` → `track_pkg` projects the car onto the centerline and publishes `TrackProgress` (lap count, lateral error, arc-length distance).
 
 ### Conventions
 
 - **Never hardcode topic names.** Import them from `shared_pkg`'s `Topics` class (e.g. `Topics.VEHICLE_ACTION_REQUEST`). Add new topics there.
 - `vehicle_communication_pkg` talks to the car through a pluggable `CommunicationInterface` (`lib/`), with `UdpCommunicationClient` as the concrete implementation — keep transport details behind that interface.
+
+## Track package (`track_pkg`)
+
+Track geometry is defined as closed cubic Bézier splines in YAML files under `track_pkg/config/` (e.g. `figure_8.yaml`). The pipeline is:
+
+1. **`BezierTrack`** (`bezier_track.py`) — loads a YAML file and `discretize()`s it into `(x, y, heading)` waypoints plus curvature and cumulative arc-length arrays.
+2. **`TrackProjector`** (`track_projector.py`) — projects a 2D car position onto the closed centerline, returns a `Projection` (arc-length distance, lateral error, lap count, lap progress). ROS-free; unit-testable in isolation. Uses a sliding search window to disambiguate crossings (e.g. the figure-8 origin).
+3. **`track_publisher_node`** — subscribes to `/car/pose`, runs the projector, and publishes:
+   - `Track` on `/track/centerline` (latched, on startup)
+   - `TrackProgress` on `/track/progress` (each car pose update)
+   - Marker arrays on `/track/visualization` and `/track/progress_visualization` for Foxglove
+
+To add a new track, create a YAML file with `name`, `frame_id`, and a `segments` list (each segment is four `[x, y]` control points), then point the node's `track_config` parameter at it.
 
 ## ESP32 firmware (`esp32_controller/`)
 
