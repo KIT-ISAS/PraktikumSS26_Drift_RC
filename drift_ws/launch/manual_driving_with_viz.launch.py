@@ -17,9 +17,7 @@ def generate_launch_description():
     this_dir = os.path.dirname(__file__)
     src_dir = os.path.abspath(os.path.join(this_dir, "..", "src"))
 
-    joystick_launch = os.path.join(
-        src_dir, "joystick_pkg", "launch", "joystick_mapper.launch.py"
-    )
+    joystick_launch = os.path.join(src_dir, "joystick_pkg", "launch", "joystick_mapper.launch.py")
     vehicle_launch = os.path.join(
         src_dir, "vehicle_communication_pkg", "launch", "vehicle_communication.launch.py"
     )

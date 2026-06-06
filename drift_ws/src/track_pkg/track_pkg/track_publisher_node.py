@@ -109,9 +109,7 @@ class TrackPublisherNode(Node):
             f"total length {cumul[-1]:.2f} m"
         )
 
-    def _publish_track_visualization(
-        self, waypoints: list, frame_id: str
-    ) -> None:
+    def _publish_track_visualization(self, waypoints: list, frame_id: str) -> None:
         """Publish a cyan LINE_STRIP MarkerArray for the track centerline."""
         marker = Marker()
         marker.header.stamp = self.get_clock().now().to_msg()

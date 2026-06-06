@@ -72,11 +72,7 @@ class BezierTrack:
                 dx, dy = _deriv(seg, t)
                 d2x, d2y = _second_deriv(seg, t)
                 speed_sq = dx * dx + dy * dy
-                kappa = (
-                    (dx * d2y - dy * d2x) / (speed_sq**1.5)
-                    if speed_sq > 1e-9
-                    else 0.0
-                )
+                kappa = (dx * d2y - dy * d2x) / (speed_sq**1.5) if speed_sq > 1e-9 else 0.0
                 xs.append(x)
                 ys.append(y)
                 headings.append(math.atan2(dy, dx))
