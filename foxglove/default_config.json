@@ -1,0 +1,322 @@
+{
+  "configById": {
+    "bar-display.Bar Display!5achrz": {
+      "topicField": "/car/vehicle_action_request.throttle",
+      "minValue": 0,
+      "maxValue": 1,
+      "barColor": "#00ff00",
+      "orientation": "vertical",
+      "fillBehavior": "ignore",
+      "negateValue": false,
+      "foxglovePanelTitle": "Throttle Request"
+    },
+    "bar-display.Bar Display!32p8jw6": {
+      "topicField": "/car/vehicle_action_request.throttle",
+      "minValue": 0,
+      "maxValue": 1,
+      "barColor": "#ff0000",
+      "orientation": "vertical",
+      "fillBehavior": "ignore",
+      "negateValue": true,
+      "foxglovePanelTitle": "Brake Request"
+    },
+    "bar-display.Bar Display!1je62um": {
+      "topicField": "/car/vehicle_action_request.steering",
+      "minValue": -1,
+      "maxValue": 1,
+      "barColor": "#000eff",
+      "orientation": "horizontal",
+      "fillBehavior": "clamp",
+      "negateValue": false,
+      "foxglovePanelTitle": "SteeringRequest"
+    },
+    "Indicator!2fy27z9": {
+      "path": "/car/vehicle_status.connected",
+      "style": "background",
+      "fontSize": 16,
+      "fallbackColor": "#ff0000",
+      "fallbackLabel": "Disconnected",
+      "rules": [
+        {
+          "operator": "=",
+          "rawValue": "true",
+          "color": "#68e24a",
+          "label": "Connected"
+        }
+      ],
+      "foxglovePanelTitle": "Connected"
+    },
+    "Indicator!4dxnqz1": {
+      "path": "/car/vehicle_status.armed",
+      "style": "background",
+      "fontSize": 16,
+      "fallbackColor": "#ff0000",
+      "fallbackLabel": "Disarmed",
+      "rules": [
+        {
+          "operator": "=",
+          "rawValue": "true",
+          "color": "#68e24a",
+          "label": "Armed"
+        }
+      ],
+      "foxglovePanelTitle": "Armed"
+    },
+    "Indicator!qh6zm8": {
+      "path": "/car/vehicle_status.state",
+      "style": "background",
+      "fontSize": 16,
+      "fallbackColor": "#ff0000",
+      "fallbackLabel": "No State",
+      "rules": [
+        {
+          "operator": "=",
+          "rawValue": "Receiving",
+          "color": "#68e24a",
+          "label": "Receiving"
+        },
+        {
+          "operator": "=",
+          "rawValue": "WifiConnected",
+          "color": "#0604db",
+          "label": "WifiConnected"
+        },
+        {
+          "operator": "=",
+          "rawValue": "NoWifi",
+          "color": "#ff7300",
+          "label": "NoWifi"
+        }
+      ],
+      "foxglovePanelTitle": "State"
+    },
+    "Tab!3y9wyd3": {
+      "tabs": [
+        {
+          "layout": {
+            "first": {
+              "first": "bar-display.Bar Display!5achrz",
+              "second": "bar-display.Bar Display!32p8jw6",
+              "direction": "row"
+            },
+            "second": "bar-display.Bar Display!1je62um",
+            "direction": "column",
+            "splitPercentage": 89.54546862606058
+          },
+          "title": ""
+        }
+      ],
+      "activeTabIdx": 0
+    },
+    "3D!2nekybg": {
+      "cameraState": {
+        "perspective": false,
+        "distance": 6.470670899473156,
+        "phi": 52.17697031003335,
+        "thetaOffset": 0,
+        "targetOffset": [
+          0,
+          0,
+          0
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "fixedFrame": "world",
+      "scene": {
+        "transforms": {
+          "visible": false
+        }
+      },
+      "transforms": {},
+      "topics": {
+        "/libsurvive/visualization_marker": {
+          "visible": true,
+          "showOutlines": false
+        },
+        "/libsurvive/car_pose": {
+          "visible": false
+        },
+        "/track/boundary": {
+          "visible": true,
+          "showOutlines": true
+        },
+        "/map/lighthouses": {
+          "visible": true
+        },
+        "/track/visualization": {
+          "visible": true
+        },
+        "/track/progress_visualization": {
+          "visible": true
+        }
+      },
+      "layers": {
+        "grid": {
+          "visible": false,
+          "drawBehind": false,
+          "instanceId": "773c12f3-8c1a-46d9-aab8-56fbcf0a5eca",
+          "layerId": "foxglove.Grid",
+          "size": 10,
+          "divisions": 10,
+          "lineWidth": 1,
+          "color": "#248eff",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "synchronize": false,
+      "imageMode": {}
+    },
+    "Plot!1c58pzm": {
+      "paths": [
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/libsurvive/imu.linear_acceleration.x",
+          "enabled": true,
+          "color": "#4e98e2",
+          "id": "6cfd4e76-5584-4a52-aa39-8f805ffb799d",
+          "label": "Accel_X"
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/libsurvive/imu.linear_acceleration.y",
+          "enabled": true,
+          "color": "#f5774d",
+          "id": "8dcb4623-704b-4e03-b06f-00a23cbe9fa6",
+          "label": "Accel_Y"
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/libsurvive/imu.linear_acceleration.z",
+          "enabled": true,
+          "color": "#f7df71",
+          "id": "2a4ecb90-7975-48dc-9fd4-7aade1f65cd5",
+          "label": "Accel_Z"
+        }
+      ]
+    },
+    "Plot!c2huyw": {
+      "paths": [
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/libsurvive/imu.angular_velocity.z",
+          "enabled": true,
+          "color": "#4e98e2",
+          "id": "6cfd4e76-5584-4a52-aa39-8f805ffb799d",
+          "label": "Yaw Rate"
+        }
+      ]
+    }
+  },
+  "globalVariables": {
+    "globalVariable": 0
+  },
+  "userNodes": {
+    "ce787c0b-92ae-4fa7-bd91-9dbc0785e1d5": {
+      "sourceCode": "// This example shows how to subscribe to multiple input topics.\n//\n// NOTE:\n// User Scripts can subscribe to multiple input topics, but can only publish on a single topic.\n\nimport { Input, Header, Pose } from \"./types\";\nimport { MessageTypeBySchemaName } from \"./generatedTypes\";\n\ntype Path = MessageTypeBySchemaName[\"nav_msgs/Path\"];\n\ntype Output = {\n  header: MessageTypeBySchemaName[\"std_msgs/Header\"];\n  poses: MessageTypeBySchemaName[\"geometry_msgs/PoseStamped\"][];\n};\ntype GlobalVariables = { id: number };\n\n// List all the input topics in the `input` array\nexport const inputs = [\"/viz/trajectory/raceline\"];\nexport const output = \"/userscripts/viz/trajectory/raceline\";\n\n// Make an InputEvent type alias. Since our script will get a message from either input topic, we need to enumerate the topics.\ntype InputEvent = Input<\"/viz/trajectory/raceline\">;\n\n// Function to process a single message\nfunction processMessage(message: any) {\n  // Check if the message has a frame_id field and if it is an empty string\n  if (message.header.frame_id === \"\") {\n    // Set frame_id to \"world\"\n    message.header.frame_id = \"world\";\n  }\n  // If the message has sub-messages, process them recursively\n  if (Array.isArray(message.poses)) {\n    message.poses = message.poses.map(processMessage);\n  }\n  // Return the modified message\n  return message;\n}\n\nexport default function script(\n  event: InputEvent,\n  globalVars: GlobalVariables,\n): Path {\n  return processMessage(event.message);\n}\n",
+      "name": "raceline-fix"
+    },
+    "0cbda3cd-7885-4aa9-b008-984b9667b97f": {
+      "sourceCode": "// This example shows how to publish a Marker message from a User Script.\n//\n// Publishing Marker messages with a User Script is a good way to visualize non-visual\n// data.\n//\n// For example, if your robot calculates some projected paths and publishes them between two\n// subsystems as a message, you can make a script that visualizes the path as a line list marker and view it in the 3D\n// panel.\n\nimport { Input, Message } from \"./types\";\n\n// The `./markers` utility provides a helper function to build a Marker.\nimport { buildRosMarker, MarkerTypes } from \"./markers\";\n\ntype GlobalVariables = { id: number };\n\nexport const inputs = [\"/slam/map\"];\nexport const output = \"/userscripts/slam/map\";\n\n// Our script will output a Marker message.\ntype Marker = Message<\"visualization_msgs/Marker\">;\n\n// If you want to output multiple markers for a single input message, use a MarkerArray.\n// The marker array message has one field, `markers`, which is an array of Marker messaages.\ntype MarkerArray = Message<\"visualization_msgs/MarkerArray\">;\n\ntype Point = Message<\"geometry_msgs/Point\">;\n\nfunction convert_cones_to_points(cones: any) {\n  var points: Point[] = [];\n  cones.forEach((cone: any) =>\n    points.push({ x: cone.location.x, y: cone.location.y, z: cone.location.z }),\n  );\n  return points;\n}\n\nfunction convert_cones_to_markers(message: any) {\n  var markers: Marker[] = [];\n  let m_id = 10;\n  message.cones.forEach((cone: any) => {\n    markers.push(\n      buildRosMarker({\n        type: MarkerTypes.MESH,\n        header: message.header,\n        pose: {\n          position: {\n            x: cone.location.x,\n            y: cone.location.y,\n            z: cone.location.z,\n          },\n          orientation: {\n            x: 0,\n            y: 0,\n            z: 0,\n            w: 1,\n          },\n        },\n        scale: { x: 0.015, y: 0.015, z: 0.015 },\n        id: m_id,\n        mesh_resource: \"package://as_utilities_pkg/models/cone_small.stl\",\n      }),\n    );\n    m_id++;\n  });\n  return markers;\n}\n\nexport default function slam_vis(\n  event: Input<\"/slam/map\">,\n  globalVars: GlobalVariables,\n): MarkerArray {\n  return {\n    markers: convert_cones_to_markers(event.message),\n  };\n}\n",
+      "name": "Slam Map"
+    },
+    "efe6037d-ed9e-4b46-af80-738aaa48d988": {
+      "sourceCode": "// The ./types module provides helper types for your Input events and messages.\nimport { Input, Message } from \"./types\";\n\n// Your script can output well-known message types, any of your custom message types, or\n// complete custom message types.\n//\n// Use `Message` to access types from the schemas defined in your data source:\n// type Twist = Message<\"geometry_msgs/Twist\">;\n//\n// Import from the @foxglove/schemas package to use foxglove schema types:\n// import { Pose, LocationFix } from \"@foxglove/schemas\";\n//\n// Conventionally, it's common to make a _type alias_ for your script's output type\n// and use that type name as the return type for your script function.\n// Here we've called the type `Output` but you can pick any type name.\ntype Output = {\n  front: number;\n  rear: number;\n};\n\n// These are the topics your script \"subscribes\" to. Studio will invoke your script function\n// when any message is received on one of these topics.\nexport const inputs = [\"/controller/torque_request\"];\n\n// Any output your script produces is \"published\" to this topic. Published messages are only visible within Studio, not to your original data source.\nexport const output = \"/studio_script/torque_diffs\";\n\n// This function is called with messages from your input topics.\n// The first argument is an event with the topic, receive time, and message.\n// Use the `Input<...>` helper to get the correct event type for your input topic messages.\nexport default function script(event: any): Output {\n  return {\n    front: -event.message.front_left + event.message.front_right,\n    rear: -event.message.rear_left + event.message.rear_right,\n  };\n}\n",
+      "name": "Torque Diffs"
+    },
+    "6ebfb971-4313-4dc2-a307-2795c5bf3467": {
+      "sourceCode": "// This example shows how to publish a Marker message from a User Script.\n//\n// Publishing Marker messages with a User Script is a good way to visualize non-visual\n// data.\n//\n// For example, if your robot calculates some projected paths and publishes them between two\n// subsystems as a message, you can make a script that visualizes the path as a line list marker and view it in the 3D\n// panel.\n\nimport { Input, Message } from \"./types\";\n\n// The `./markers` utility provides a helper function to build a Marker.\n\ntype GlobalVariables = { id: number };\n\nexport const inputs = [\"/slam/laptime\"];\nexport const output = \"/studio_script/lap_time_table\";\n\n// If you want to output multiple markers for a single input message, use a MarkerArray.\n// The marker array message has one field, `markers`, which is an array of Marker messaages.\n// type MarkerArray = Message<\"visualization_msgs/MarkerArray\">;\n\nvar laps: Object[] = [];\n\nexport default function script(\n  event: Input<\"/slam/laptime\">,\n  globalVars: GlobalVariables,\n): Object[] {\n  if (event.message.lap == 1) laps = [];\n  laps.push({ lap: event.message.lap, laptime: event.message.laptime });\n  return laps;\n}\n",
+      "name": "Lap Time Table"
+    },
+    "17d2e388-cfd9-44f7-b57c-cebbd0896ca3": {
+      "sourceCode": "// This example shows how to publish a Marker message from a User Script.\n//\n// Publishing Marker messages with a User Script is a good way to visualize non-visual\n// data.\n//\n// For example, if your robot calculates some projected paths and publishes them between two\n// subsystems as a message, you can make a script that visualizes the path as a line list marker and view it in the 3D\n// panel.\n\nimport { Input, Message } from \"./types\";\n\n// The `./markers` utility provides a helper function to build a Marker.\nimport { buildRosMarker, MarkerTypes } from \"./markers\";\n\ntype GlobalVariables = { id: number };\n\nexport const inputs = [\"/viz/slam/matched_cones\"];\nexport const output = \"/userscripts/viz/slam/matched_cones\";\n\n// Our script will output a Marker message.\ntype Marker = Message<\"visualization_msgs/Marker\">;\ntype RGBA = Message<\"std_msgs/ColorRGBA\">;\n\n// If you want to output multiple markers for a single input message, use a MarkerArray.\n// The marker array message has one field, `markers`, which is an array of Marker messaages.\ntype MarkerArray = Message<\"visualization_msgs/MarkerArray\">;\n\ntype Point = Message<\"geometry_msgs/Point\">;\n\nfunction convert_cones_to_points(message: any): Marker {\n  var points: Point[] = [];\n  var colors: RGBA[] = [];\n  message.cones.forEach((cone: any) => {\n    points.push({\n      x: cone.location.x,\n      y: cone.location.y,\n      z: cone.location.z,\n    });\n    colors.push({ r: 0, g: 255, b: 0, a: 1 });\n  });\n  return buildRosMarker({\n    type: MarkerTypes.SPHERE_LIST,\n\n    header: message.header,\n    scale: { x: 1, y: 1, z: 1 },\n    id: 0,\n    points: points,\n    colors: colors,\n  });\n}\n\nexport default function slam_vis(\n  event: any,\n  globalVars: GlobalVariables,\n): Marker {\n  return convert_cones_to_points(event.message);\n}\n",
+      "name": "Matched Cones"
+    },
+    "db10499c-7aa7-43e1-ba74-d85552dd3fb7": {
+      "sourceCode": "import { Input, Message } from \"./types\";\n\ntype Output = {\n  v_x_ms: number;\n  v_y_ms: number;\n};\n\nexport const inputs = [\"/sensor/kistler\"];\nexport const output = \"/studio_script/ms_vel\";\n\nexport default function script(event: Input<\"/sensor/kistler\">): Output {\n  const msg = event.message;\n  return {\n    v_x_ms: msg.v_x_kmph / 3.6,\n    v_y_ms: msg.v_y_kmph / 3.6,\n  };\n}\n",
+      "name": "kistler_ms"
+    },
+    "17d7080f-c38d-43f3-b7d1-d468c6469675": {
+      "sourceCode": "// This example shows how to publish a Marker message from a User Script.\n//\n// Publishing Marker messages with a User Script is a good way to visualize non-visual\n// data.\n//\n// For example, if your robot calculates some projected paths and publishes them between two\n// subsystems as a message, you can make a script that visualizes the path as a line list marker and view it in the 3D\n// panel.\n\nimport { Input, Message } from \"./types\";\n\n// The `./markers` utility provides a helper function to build a Marker.\nimport { buildRosMarker, MarkerTypes } from \"./markers\";\n\ntype GlobalVariables = { id: number };\n\nexport const inputs = [\"/viz/slam/unmatched_cones\"];\nexport const output = \"/userscripts/viz/slam/unmatched_cones\";\n\n// Our script will output a Marker message.\ntype Marker = Message<\"visualization_msgs/Marker\">;\ntype RGBA = Message<\"std_msgs/ColorRGBA\">;\n\n// If you want to output multiple markers for a single input message, use a MarkerArray.\n// The marker array message has one field, `markers`, which is an array of Marker messaages.\ntype MarkerArray = Message<\"visualization_msgs/MarkerArray\">;\n\ntype Point = Message<\"geometry_msgs/Point\">;\n\nfunction convert_cones_to_points(message: any): Marker {\n  var points: Point[] = [];\n  var colors: RGBA[] = [];\n  message.cones.forEach((cone: any) => {\n    points.push({\n      x: cone.location.x,\n      y: cone.location.y,\n      z: cone.location.z,\n    });\n    colors.push({ r: 255, g: 0, b: 0, a: 1 });\n  });\n  return buildRosMarker({\n    type: MarkerTypes.SPHERE_LIST,\n\n    header: message.header,\n    scale: { x: 0.8, y: 0.8, z: 0.8 },\n    id: 0,\n    points: points,\n    colors: colors,\n  });\n}\n\nexport default function slam_vis(\n  event: any,\n  globalVars: GlobalVariables,\n): Marker {\n  return convert_cones_to_points(event.message);\n}\n",
+      "name": "Unmatched Cones"
+    },
+    "c1651ed4-c721-46b4-b321-a53ee07b3acd": {
+      "sourceCode": "// This example shows how to publish a Marker message from a User Script.\n//\n// Publishing Marker messages with a User Script is a good way to visualize non-visual\n// data.\n//\n// For example, if your robot calculates some projected paths and publishes them between two\n// subsystems as a message, you can make a script that visualizes the path as a line list marker and view it in the 3D\n// panel.\n\nimport { Input, Message } from \"./types\";\n\n// The `./markers` utility provides a helper function to build a Marker.\nimport { buildRosMarker, MarkerTypes } from \"./markers\";\n\ntype GlobalVariables = { id: number };\n\nexport const inputs = [\"/lidar/cones\"];\nexport const output = \"/userscripts/lidar/cones\";\n\n// Our script will output a Marker message.\ntype Marker = Message<\"visualization_msgs/Marker\">;\n\n// If you want to output multiple markers for a single input message, use a MarkerArray.\n// The marker array message has one field, `markers`, which is an array of Marker messaages.\ntype MarkerArray = Message<\"visualization_msgs/MarkerArray\">;\n\ntype Point = Message<\"geometry_msgs/Point\">;\n\nfunction convert_cones_to_points(cones: any) {\n  var points: Point[] = [];\n  cones.forEach((cone: any) =>\n    points.push({ x: cone.location.x, y: cone.location.y, z: cone.location.z }),\n  );\n  return points;\n}\n\nfunction convert_cones_to_markers(message: any) {\n  var markers: Marker[] = [];\n  markers.push(\n    buildRosMarker({\n      type: MarkerTypes.MESH, // or MarkerTypes.MESH_RESOURCE\n      header: message.header,\n      action: 3, // Delete all\n      id: 0,\n    })\n  );\n  let m_id = 10;\n  message.cones.forEach((cone: any) => {\n    markers.push(\n      buildRosMarker({\n        type: MarkerTypes.MESH,\n        header: message.header,\n        pose: {\n          position: {\n            x: cone.location.x,\n            y: cone.location.y,\n            z: cone.location.z,\n          },\n          orientation: {\n            x: 0,\n            y: 0,\n            z: 0,\n            w: 1,\n          },\n        },\n        scale: { x: 0.01, y: 0.01, z: 0.01 },\n        id: m_id,\n        mesh_resource: \"package://as_utilities_pkg/models/cone_small.stl\",\n      }),\n    );\n    m_id++;\n  });\n  return markers;\n}\n\nexport default function slam_vis(\n  event: Input<\"/lidar/cones\">,\n  globalVars: GlobalVariables,\n): MarkerArray {\n  return {\n    markers: convert_cones_to_markers(event.message),\n  };\n}\n",
+      "name": "Lidar Cones"
+    },
+    "18b1fa99-a113-4ce0-8b97-09671c3fdae0": {
+      "sourceCode": "// The ./types.ts module provides helper types for your Input events and messages.\nimport { Input, Message } from \"./types.ts\";\n\n// Your script can output well-known message types, any of your custom message types, or\n// complete custom message types.\n//\n// Use `Message` to access types from the schemas defined in your data source:\n// type Twist = Message<\"geometry_msgs/Twist\">;\n//\n// Import from the @foxglove/schemas package to use foxglove schema types:\n// import { Pose, LocationFix } from \"@foxglove/schemas\";\n//\n// Conventionally, it's common to make a _type alias_ for your script's output type\n// and use that type name as the return type for your script function.\n// Here we've called the type `Output` but you can pick any type name.\ntype Output = {\n  hello: string;\n};\n\n// These are the topics your script \"subscribes\" to. Foxglove will invoke your script function\n// when any message is received on one of these topics.\nexport const inputs = [\"/input/topic\"];\n\n// Any output your script produces is \"published\" to this topic. Published messages are only visible within Foxglove, not to your original data source.\nexport const output = \"/foxglove_script/output_topic\";\n\n// This function is called with messages from your input topics.\n// The first argument is an event with the topic, receive time, and message.\n// Use the `Input<...>` helper to get the correct event type for your input topic messages.\nexport default function script(event: Input<\"/input/topic\">): Output {\n  return {\n    hello: \"world!\",\n  };\n};",
+      "name": "18b1fa99"
+    },
+    "9c52e90f-aa45-42c1-a184-479733d82880": {
+      "sourceCode": "import { Input, Message } from \"./types\";\nimport { buildRosMarker, MarkerTypes } from \"./markers\";\n\ntype GlobalVariables = {\n  steering: number;\n};\n\nexport const inputs = [\"/slam/vehicle_state\", \"/sensor/steering\"];\nexport const output = \"/userscripts/slam/vehicle_state\";\n\ntype Marker = Message<\"visualization_msgs/Marker\">;\ntype MarkerArray = Message<\"visualization_msgs/MarkerArray\">;\n\n// === VEHICLE PARAMS (TUNE THESE) ===\nconst LIDAR_X_POSITION = 0.75;\nconst WHEELBASE = 1.525;\nconst TRACK = 1.0;\n\nconst LIDAR_TO_REAR_AXLE = 1.7; // tune this\n\nconst OFFSETS = {\n  rear: { x: -LIDAR_TO_REAR_AXLE, y: 0 },\n  fl:   { x: -LIDAR_TO_REAR_AXLE + WHEELBASE, y: TRACK / 2 },\n  fr:   { x: -LIDAR_TO_REAR_AXLE + WHEELBASE, y: -TRACK / 2 },\n};\n\n// meshes\nconst MESH = {\n  monocoque: \"package://as_utilities_pkg/models/20D_main.stl\",\n  rear: \"package://as_utilities_pkg/models/20D_wheel_rear_r_l.stl\",\n  fl: \"package://as_utilities_pkg/models/20D_wheel_front_l.stl\",\n  fr: \"package://as_utilities_pkg/models/20D_wheel_front_r.stl\",\n};\n\nfunction yawToQuat(yaw: number) {\n  return {\n    x: 0,\n    y: 0,\n    z: Math.sin(yaw / 2),\n    w: Math.cos(yaw / 2),\n  };\n}\n\nfunction rotate2D(x: number, y: number, yaw: number) {\n  return {\n    x: Math.cos(yaw) * x - Math.sin(yaw) * y,\n    y: Math.sin(yaw) * x + Math.cos(yaw) * y,\n  };\n}\n\nfunction applyOffset(x: number, y: number, yaw: number) {\n  const offsetLocal = [-LIDAR_X_POSITION, 0];\n  const rot = rotate2D(offsetLocal[0], offsetLocal[1], yaw);\n  return { x: x + rot.x, y: y + rot.y };\n}\n\n// === ACKERMANN ===\nfunction computeAckermann(steering: number) {\n  if (Math.abs(steering) < 1e-6) {\n    return { left: 0, right: 0 };\n  }\n\n  const R = WHEELBASE / Math.tan(steering);\n\n  return {\n    left: Math.atan(WHEELBASE / (R - TRACK / 2)),\n    right: Math.atan(WHEELBASE / (R + TRACK / 2)),\n  };\n}\n\nexport default function slam_vis(\n  event: Input<\"/slam/vehicle_state\"> | Input<\"/sensor/steering\">,\n  globalVars: GlobalVariables,\n): MarkerArray | undefined {\n  // store steering\n  if (event.topic === \"/sensor/steering\") {\n    globalVars.steering = event.message.data ?? 0;\n    return;\n  }\n\n  if (event.topic !== \"/slam/vehicle_state\") return;\n\n  const msg = event.message;\n  const yaw = msg.pose.z;\n  const steering = globalVars.steering ?? 0;\n\n  const pos = applyOffset(msg.pose.x, msg.pose.y, yaw);\n\n  const ack = computeAckermann(steering);\n\n  function worldPos(local: { x: number; y: number }) {\n    const rot = rotate2D(local.x, local.y, yaw);\n    return {\n      x: pos.x + rot.x,\n      y: pos.y + rot.y,\n    };\n  }\n\n  const markers: Marker[] = [];\n\n  // === MONOCOQUE ===\n  markers.push(\n    buildRosMarker({\n      header: msg.header,\n      ns: \"Vehicle\",\n      id: 0,\n      type: MarkerTypes.MESH,\n      pose: {\n        position: { x: pos.x, y: pos.y, z: 0 },\n        orientation: yawToQuat(yaw),\n      },\n      scale: { x: 1, y: 1, z: 1 },\n      mesh_resource: MESH.monocoque,\n    }),\n  );\n\n  // === REAR (no steering) ===\n  const rearPos = pos;\n  markers.push(\n    buildRosMarker({\n      header: msg.header,\n      ns: \"Vehicle\",\n      id: 1,\n      type: MarkerTypes.MESH,\n      pose: {\n        position: { x: rearPos.x, y: rearPos.y, z: 0 },\n        orientation: yawToQuat(yaw),\n      },\n      scale: { x: 1, y: 1, z: 1 },\n      mesh_resource: MESH.rear,\n    }),\n  );\n\n  // === FRONT LEFT ===\n  const flPos = pos;\n  markers.push(\n    buildRosMarker({\n      header: msg.header,\n      ns: \"Vehicle\",\n      id: 2,\n      type: MarkerTypes.MESH,\n      pose: {\n        position: { x: flPos.x, y: flPos.y, z: 0 },\n        orientation: yawToQuat(yaw + ack.left),\n      },\n      scale: { x: 1, y: 1, z: 1 },\n      mesh_resource: MESH.fl,\n    }),\n  );\n\n  // === FRONT RIGHT ===\n  const frPos = pos;\n  markers.push(\n    buildRosMarker({\n      header: msg.header,\n      ns: \"Vehicle\",\n      id: 3,\n      type: MarkerTypes.MESH,\n      pose: {\n        position: { x: frPos.x, y: frPos.y, z: 0 },\n        orientation: yawToQuat(yaw + ack.right),\n      },\n      scale: { x: 1, y: 1, z: 1 },\n      mesh_resource: MESH.fr,\n      action: 0\n    }),\n  );\n\n  return {markers: markers};\n}",
+      "name": "Slam Vehicle State Viz"
+    },
+    "9dbf3c35-64d4-4e14-92bd-3774fb075f65": {
+      "sourceCode": "import { Input, Message } from \"./types\";\n\nexport const inputs = [\"/viz/slam/path_corrected\"];\nexport const output = \"/userscripts/cog/path\";\n\ntype Path = Message<\"nav_msgs/Path\">;\n\n// ==== 🔧 DISTANCE CoG → LiDAR (meters) ====\nconst distanceCogToLidar = 1.2;\n\n// ==== Quaternion → yaw ====\nfunction getYaw(q: { x: number; y: number; z: number; w: number }) {\n  return Math.atan2(\n    2.0 * (q.w * q.z + q.x * q.y),\n    1.0 - 2.0 * (q.y * q.y + q.z * q.z),\n  );\n}\n\n// ==== Transform path ====\nfunction transformPath(path: Path): Path {\n  const transformedPoses = path.poses.map((pose) => {\n    const p = pose.pose.position;\n    const q = pose.pose.orientation;\n\n    const yaw = getYaw(q);\n\n    return {\n      ...pose,\n      pose: {\n        ...pose.pose,\n        position: {\n          x: p.x - distanceCogToLidar * Math.cos(yaw),\n          y: p.y - distanceCogToLidar * Math.sin(yaw),\n          z: p.z,\n        },\n      },\n    };\n  });\n\n  return {\n    ...path,\n    header: {\n      ...path.header,\n      frame_id: \"world\", // adjust if needed\n    },\n    poses: transformedPoses,\n  };\n}\n\n// ==== Main ====\nexport default function transform_path(\n  event: Input<\"/viz/slam/path_corrected\">,\n): Path {\n  return transformPath(event.message);\n}",
+      "name": "Driven Path Lidar to COG"
+    }
+  },
+  "playbackConfig": {
+    "speed": 1
+  },
+  "layout": {
+    "direction": "row",
+    "first": {
+      "first": {
+        "first": {
+          "first": {
+            "first": "Indicator!2fy27z9",
+            "second": "Indicator!4dxnqz1",
+            "direction": "row"
+          },
+          "second": "Indicator!qh6zm8",
+          "direction": "column"
+        },
+        "second": "Tab!3y9wyd3",
+        "direction": "column",
+        "splitPercentage": 15.630912389508586
+      },
+      "second": "3D!2nekybg",
+      "direction": "row",
+      "splitPercentage": 15.10204081632653
+    },
+    "second": {
+      "first": "Plot!1c58pzm",
+      "second": "Plot!c2huyw",
+      "direction": "column"
+    },
+    "splitPercentage": 67.19119165471902
+  }
+}
