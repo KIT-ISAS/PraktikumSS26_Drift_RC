@@ -34,6 +34,7 @@ SEND_RATE_HZ = 20
 # Session helper
 # ---------------------------------------------------------------------------
 
+
 class Session:
     """UDP session for sending commands and receiving status from the ESP32."""
 
@@ -94,6 +95,7 @@ class Session:
 # Utilities
 # ---------------------------------------------------------------------------
 
+
 def stream(
     session: Session,
     duration_s: float,
@@ -145,6 +147,7 @@ def probe_bad_packet(ip: str, label: str, probe_fn) -> None:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 def test_normal(ip: str) -> None:
     header(
         "normal — full range sweep",
@@ -183,34 +186,40 @@ def test_normal(ip: str) -> None:
                 time.sleep(remaining)
 
     run_phase(
-        "Phase 1: steering sweep", 8.0,
+        "Phase 1: steering sweep",
+        8.0,
         lambda t: lerp(-1.0, 1.0, t / 4.0) if t < 4.0 else lerp(1.0, -1.0, (t - 4.0) / 4.0),
         lambda _: 0.0,
     )
     run_phase(
-        "Phase 2: forward throttle ramp", 8.0,
+        "Phase 2: forward throttle ramp",
+        8.0,
         lambda _: 0.0,
         lambda t: lerp(0.0, 1.0, t / 4.0) if t < 4.0 else lerp(1.0, 0.0, (t - 4.0) / 4.0),
     )
     # ESC requires brake→neutral→brake again to arm reverse.
     # Phase 3a: brake to full, 3b: back to neutral (blip), 3c: ramp into reverse and back.
     run_phase(
-        "Phase 3a: brake to arm", 2.0,
+        "Phase 3a: brake to arm",
+        2.0,
         lambda _: 0.0,
         lambda t: lerp(0.0, -1.0, t / 2.0),
     )
     run_phase(
-        "Phase 3b: neutral blip", 0.3,
+        "Phase 3b: neutral blip",
+        0.3,
         lambda _: 0.0,
         lambda _: 0.0,
     )
     run_phase(
-        "Phase 3c: reverse ramp", 5.7,
+        "Phase 3c: reverse ramp",
+        5.7,
         lambda _: 0.0,
         lambda t: lerp(0.0, -1.0, t / 2.85) if t < 2.85 else lerp(-1.0, 0.0, (t - 2.85) / 2.85),
     )
     run_phase(
-        "Phase 4: combined steering + throttle", 8.0,
+        "Phase 4: combined steering + throttle",
+        8.0,
         lambda t: math.sin(2 * math.pi * t / 4.0),
         lambda t: math.sin(2 * math.pi * t / 8.0) * 0.5,
     )
@@ -274,9 +283,11 @@ def test_invalid_json(ip: str) -> None:
         '"JSON parse error." — no state change, command ignored.',
         "No LED change (state stays wherever it was).",
     )
+
     def probe(s):
         s.send_raw(b"{bad json}")
         time.sleep(0.2)
+
     probe_bad_packet(ip, "Sending invalid JSON datagram", probe)
 
 
@@ -287,10 +298,15 @@ def test_invalid_gyro_mode(ip: str) -> None:
         '"Invalid gyro_mode." — command rejected, no state change.',
         "No LED change.",
     )
+
     def probe(s):
-        s.send_raw(json.dumps({"steering": 0, "throttle": 0, "gyro_mode": "turbo",
-                               "gyro_gain": 0, "seq": 999}).encode())
+        s.send_raw(
+            json.dumps(
+                {"steering": 0, "throttle": 0, "gyro_mode": "turbo", "gyro_gain": 0, "seq": 999}
+            ).encode()
+        )
         time.sleep(0.2)
+
     probe_bad_packet(ip, "Sending bad gyro_mode", probe)
 
 
@@ -301,10 +317,12 @@ def test_out_of_range(ip: str) -> None:
         "No error — firmware clamps to ±1 / [0,1] silently.",
         "No LED change, outputs clamped to limits.",
     )
+
     def probe(s):
         for _ in range(10):
             s.send(steering=5.0, throttle=-3.0, gyro_mode="soft", gyro_gain=2.0)
             time.sleep(0.05)
+
     probe_bad_packet(ip, "Sending out-of-range values", probe)
 
 
@@ -315,9 +333,11 @@ def test_overflow(ip: str) -> None:
         '"Packet too large, discarded." — no state change.',
         "No LED change. Stream functional afterwards.",
     )
+
     def probe(s):
         s.send_raw(b"x" * 600)
         time.sleep(0.1)
+
     probe_bad_packet(ip, "Sending 600-byte datagram", probe)
 
 
@@ -380,16 +400,16 @@ def test_wifi_loss(ip: str) -> None:
 # ---------------------------------------------------------------------------
 
 TESTS: dict[str, tuple[str, object]] = {
-    "normal":           ("Steady 20 Hz command stream, full sweep",     test_normal),
-    "status":           ("Print bidirectional status replies at 10 Hz", test_status),
-    "timeout":          ("Stop sending → failsafe → resume",            test_timeout),
-    "reconnect":        ("New sender socket after silence",             test_reconnect),
-    "invalid_json":     ("Malformed JSON datagram",                     test_invalid_json),
-    "invalid_gyro_mode":("Unknown gyro_mode string",                    test_invalid_gyro_mode),
-    "out_of_range":     ("Values outside [-1, 1]",                      test_out_of_range),
-    "overflow":         ("Datagram >511 bytes discarded",               test_overflow),
-    "multiple_senders": ("Two UDP sockets alternating",                 test_multiple_senders),
-    "wifi_loss":        ("Manually disable/enable AP mid-stream",       test_wifi_loss),
+    "normal": ("Steady 20 Hz command stream, full sweep", test_normal),
+    "status": ("Print bidirectional status replies at 10 Hz", test_status),
+    "timeout": ("Stop sending → failsafe → resume", test_timeout),
+    "reconnect": ("New sender socket after silence", test_reconnect),
+    "invalid_json": ("Malformed JSON datagram", test_invalid_json),
+    "invalid_gyro_mode": ("Unknown gyro_mode string", test_invalid_gyro_mode),
+    "out_of_range": ("Values outside [-1, 1]", test_out_of_range),
+    "overflow": ("Datagram >511 bytes discarded", test_overflow),
+    "multiple_senders": ("Two UDP sockets alternating", test_multiple_senders),
+    "wifi_loss": ("Manually disable/enable AP mid-stream", test_wifi_loss),
 }
 
 
@@ -416,8 +436,9 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("ip", help="ESP32 IP address")
-    parser.add_argument("tests", nargs="*",
-                        help="Test name(s) or 'all'. Omit for interactive menu.")
+    parser.add_argument(
+        "tests", nargs="*", help="Test name(s) or 'all'. Omit for interactive menu."
+    )
     args = parser.parse_args()
 
     if args.tests and args.tests[0] == "all":

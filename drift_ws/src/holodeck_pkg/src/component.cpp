@@ -19,6 +19,7 @@
 // THE SOFTWARE.
 
 // C++ system
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,6 +32,27 @@
 
 // Scale factor to move from G to m/s^2.
 constexpr double SI_GRAVITY = 9.80665;
+
+// Rigid transform that maps a pose from the libsurvive tracking frame into a
+// physically meaningful, axis-aligned world frame.
+//
+// It is derived from the known base-station layout in config.json. The four
+// lighthouses sit at the following libsurvive XY positions, and we want them to
+// land on the physical world rectangle:
+//
+//   config        libsurvive XY        world XY
+//   lighthouse0   ( 0.00,  3.59)  ->  (-2.70, -2.33)
+//   lighthouse1   ( 3.54,  0.49)  ->  (-2.70,  2.33)
+//   lighthouse2   (-0.02, -3.56)  ->  ( 2.80,  2.33)
+//   lighthouse3   (-3.54, -0.56)  ->  ( 2.80, -2.33)
+//
+// That correspondence is a pure rotation about the (gravity-aligned) Z axis by
+// ~130.9 degrees at unit scale, plus a small XY offset of the origin. We do not
+// touch Z, since libsurvive's frame is already gravity-aligned via floor-offset.
+constexpr double WORLD_PI = 3.14159265358979323846;
+constexpr double WORLD_YAW = 130.9 * WORLD_PI / 180.0;
+constexpr double WORLD_OFFSET_X = 0.037;
+constexpr double WORLD_OFFSET_Y = -0.005;
 
 // We can only ever load one version of the driver, so we store a pointer to the instance of the
 // driver here, so the IMU callback can push data to it.
@@ -80,6 +102,45 @@ static void flip_upside_down(geometry_msgs::msg::Quaternion * const q)
   q->z = -y;
 }
 
+// Converts a raw libsurvive pose into a ROS pose (still in the tracking frame).
+static geometry_msgs::msg::Pose pose_from_survive(const SurvivePose & pose)
+{
+  geometry_msgs::msg::Pose p;
+  p.position.x = pose.Pos[0];
+  p.position.y = pose.Pos[1];
+  p.position.z = pose.Pos[2];
+  p.orientation.w = pose.Rot[0];
+  p.orientation.x = pose.Rot[1];
+  p.orientation.y = pose.Rot[2];
+  p.orientation.z = pose.Rot[3];
+  return p;
+}
+
+// Maps a pose expressed in the libsurvive tracking frame into the world frame,
+// applying the rotation about Z and origin offset described above (see
+// WORLD_YAW). Both the position and the orientation are rotated.
+static geometry_msgs::msg::Pose to_world_pose(const geometry_msgs::msg::Pose & in)
+{
+  static const double cy = std::cos(WORLD_YAW);
+  static const double sy = std::sin(WORLD_YAW);
+  static const double cw = std::cos(WORLD_YAW * 0.5);
+  static const double sw = std::sin(WORLD_YAW * 0.5);
+
+  geometry_msgs::msg::Pose out;
+  out.position.x = cy * in.position.x - sy * in.position.y + WORLD_OFFSET_X;
+  out.position.y = sy * in.position.x + cy * in.position.y + WORLD_OFFSET_Y;
+  out.position.z = in.position.z;
+
+  // out_orientation = q_yaw * in_orientation, where q_yaw is a rotation of
+  // WORLD_YAW about the Z axis: q_yaw = (cw, 0, 0, sw).
+  const auto & q = in.orientation;
+  out.orientation.w = cw * q.w - sw * q.z;
+  out.orientation.x = cw * q.x - sw * q.y;
+  out.orientation.y = cw * q.y + sw * q.x;
+  out.orientation.z = cw * q.z + sw * q.w;
+  return out;
+}
+
 namespace libsurvive_ros2
 {
 
@@ -95,8 +156,25 @@ Component::Component(const rclcpp::NodeOptions & options)
   // Global parameters
   this->declare_parameter("tracking_frame", "libsurvive_frame");
   this->get_parameter("tracking_frame", tracking_frame_);
+  this->declare_parameter("world_frame", "world");
+  this->get_parameter("world_frame", world_frame_);
   this->declare_parameter("lighthouse_rate", 4.0);
   this->get_parameter("lighthouse_rate", lighthouse_rate_);
+
+  // Setup topic for the car pose in world coordinates.
+  std::string car_pose_topic;
+  this->declare_parameter("car_pose_topic", "car_pose");
+  this->get_parameter("car_pose_topic", car_pose_topic);
+  car_pose_publisher_ =
+    this->create_publisher<geometry_msgs::msg::PoseStamped>(car_pose_topic, 10);
+
+  // Setup topic for the lighthouse poses in world coordinates. The base stations
+  // are static, so we latch the latest sample for late-joining subscribers.
+  std::string lighthouse_poses_topic;
+  this->declare_parameter("lighthouse_poses_topic", "/map/lighthouses");
+  this->get_parameter("lighthouse_poses_topic", lighthouse_poses_topic);
+  lighthouse_poses_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>(
+    lighthouse_poses_topic, rclcpp::QoS(1).transient_local());
 
   // Setup topic for IMU.
   std::string imu_topic;
@@ -123,6 +201,25 @@ Component::Component(const rclcpp::NodeOptions & options)
   viz_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>(
     viz_topic, rclcpp::QoS(1).transient_local());
 
+  // Publish the static TF from world to the libsurvive tracking frame.
+  // This encodes the same rotation + offset applied in to_world_pose() so that
+  // downstream nodes can look up the transform via TF instead of inline math.
+  {
+    static const double cw = std::cos(WORLD_YAW * 0.5);
+    static const double sw = std::sin(WORLD_YAW * 0.5);
+    geometry_msgs::msg::TransformStamped world_to_tracking;
+    world_to_tracking.header.stamp = this->get_clock()->now();
+    world_to_tracking.header.frame_id = world_frame_;
+    world_to_tracking.child_frame_id = tracking_frame_;
+    world_to_tracking.transform.translation.x = WORLD_OFFSET_X;
+    world_to_tracking.transform.translation.y = WORLD_OFFSET_Y;
+    world_to_tracking.transform.translation.z = 0.0;
+    world_to_tracking.transform.rotation.w = cw;
+    world_to_tracking.transform.rotation.x = 0.0;
+    world_to_tracking.transform.rotation.y = 0.0;
+    world_to_tracking.transform.rotation.z = sw;
+    tf_static_broadcaster_->sendTransform(world_to_tracking);
+  }
 
   // Setup driver parameters.
   std::string driver_args;
@@ -220,23 +317,27 @@ void Component::work()
               flip_upside_down(&pose_msg.transform.rotation);
               tf_broadcaster_->sendTransform(pose_msg);
 
+              // Publish the car pose in world coordinates.
+              geometry_msgs::msg::PoseStamped world_msg;
+              if (car_pose_publisher_) {
+                geometry_msgs::msg::Pose tracker_pose = pose_from_survive(pose);
+                flip_upside_down(&tracker_pose.orientation);
+                world_msg.header.stamp = pose_msg.header.stamp;
+                world_msg.header.frame_id = world_frame_;
+                world_msg.pose = to_world_pose(tracker_pose);
+                car_pose_publisher_->publish(world_msg);
+              }
+
               if (viz_publisher_) {
                 visualization_msgs::msg::Marker marker_msg;
                 marker_msg.header.stamp = this->get_clock()->now();
-                marker_msg.header.frame_id = tracking_frame_;
-                marker_msg.ns = "startup";
+                marker_msg.header.frame_id = world_frame_;
                 marker_msg.id = 0;
                 marker_msg.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
                 marker_msg.action = visualization_msgs::msg::Marker::ADD;
                 marker_msg.mesh_resource = "package://shared_pkg/meshes/porsche.glb";
                 marker_msg.mesh_use_embedded_materials = true;
-                marker_msg.pose.position.x = pose_msg.transform.translation.x;
-                marker_msg.pose.position.y = pose_msg.transform.translation.y;
-                marker_msg.pose.position.z = pose_msg.transform.translation.z;
-                marker_msg.pose.orientation.x = pose_msg.transform.rotation.x;
-                marker_msg.pose.orientation.y = pose_msg.transform.rotation.y;
-                marker_msg.pose.orientation.z = pose_msg.transform.rotation.z;
-                marker_msg.pose.orientation.w = pose_msg.transform.rotation.w;
+                marker_msg.pose = world_msg.pose;
                 marker_msg.scale.x = 7.0;
                 marker_msg.scale.y = 7.0;
                 marker_msg.scale.z = 7.0;
@@ -309,6 +410,9 @@ void Component::work()
     auto time_now = this->get_clock()->now();
     if (time_now.seconds() - last_base_station_update_.seconds() > lighthouse_rate_) {
       last_base_station_update_ = time_now;
+      geometry_msgs::msg::PoseArray lighthouse_msg;
+      lighthouse_msg.header.stamp = time_now;
+      lighthouse_msg.header.frame_id = world_frame_;
       for (const SurviveSimpleObject * it = survive_simple_get_first_object(actx_); it != 0;
         it = survive_simple_get_next_object(actx_, it))
       {
@@ -322,8 +426,14 @@ void Component::work()
             pose_msg.child_frame_id = survive_simple_serial_number(it);
             ros_from_pose(&pose_msg.transform, pose);
             tf_static_broadcaster_->sendTransform(pose_msg);
+
+            // Collect the lighthouse pose in world coordinates.
+            lighthouse_msg.poses.push_back(to_world_pose(pose_from_survive(pose)));
           }
         }
+      }
+      if (lighthouse_poses_publisher_ && !lighthouse_msg.poses.empty()) {
+        lighthouse_poses_publisher_->publish(lighthouse_msg);
       }
     }
   }
