@@ -34,4 +34,4 @@ convention = "pep257"
 [tool.ruff.lint.isort]
 combine-as-imports = true
 force-sort-within-sections = true
-known-first-party = ["example_pkg","holodeck_pkg","joystick_pkg","shared_interfaces","shared_pkg","vehicle_communication_pkg"]
+known-first-party = ["example_pkg","holodeck_pkg","joystick_pkg","shared_interfaces","shared_pkg","track_pkg","vehicle_communication_pkg"]

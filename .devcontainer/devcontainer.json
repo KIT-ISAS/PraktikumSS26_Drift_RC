@@ -10,7 +10,8 @@
                 "charliermarsh.ruff",
                 "Ranch-Hand-Robotics.rde-pack",
                 "ms-python.vscode-pylance",
-                "ms-vscode.cmake-tools"
+                "ms-vscode.cmake-tools",
+                "Anthropic.claude-code"
             ],
             "settings": {
                 "python.defaultInterpreterPath": "/usr/bin/python3",
