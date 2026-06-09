@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y \
     libx11-dev \
     zlib1g-dev \
     libsciplot-dev \
+    gh \
     && rm -rf /var/lib/apt/lists/*
 
 

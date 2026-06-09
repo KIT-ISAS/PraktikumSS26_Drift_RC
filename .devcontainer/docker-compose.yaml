@@ -30,6 +30,7 @@ services:
 
     environment:
       - ROS_DOMAIN_ID=0
+      - GH_TOKEN=${GH_TOKEN} # Pass the GitHub token from the host environment
 
     post_start:
       - command: /bin/bash -c ". /root/repo/.devcontainer/scripts/post_start.sh"
