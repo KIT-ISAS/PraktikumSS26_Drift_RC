@@ -145,6 +145,12 @@ install(
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
+
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_index_cpp REQUIRED)
+  ament_add_gtest(test_component_registered test/test_component_registered.cpp)
+  target_link_libraries(test_component_registered
+    ament_index_cpp::ament_index_cpp)
 endif()
 
 # Export all include directories and declare the package
