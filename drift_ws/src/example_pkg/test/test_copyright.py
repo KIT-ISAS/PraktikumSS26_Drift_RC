@@ -15,7 +15,6 @@
 """Tests for validating copyright headers in source files."""
 
 from ament_copyright.main import main
-
 import pytest
 
 

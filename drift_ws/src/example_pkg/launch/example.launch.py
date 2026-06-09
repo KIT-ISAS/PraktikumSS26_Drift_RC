@@ -1,7 +1,6 @@
 """Launch description for example ROS 2 nodes."""
 
 from launch import LaunchDescription
-
 from launch_ros.actions import Node
 
 

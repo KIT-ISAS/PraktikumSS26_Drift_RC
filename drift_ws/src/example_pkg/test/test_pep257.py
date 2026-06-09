@@ -15,7 +15,6 @@
 """Tests for running pep257 docstring lint checks."""
 
 from ament_pep257.main import main
-
 import pytest
 
 
