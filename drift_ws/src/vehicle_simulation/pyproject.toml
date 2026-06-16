@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vehicle_simulation"
+version = "0.1.0"
+requires-python = ">=3.10"
+# Base deps keep the core lightweight: track geometry, kinematic model, and the
+# rosbag-based data pipeline. Heavy / optional pieces live in the extras below so
+# a thin ROS node (e.g. track_pkg) or a kinematic-only sim never pulls in torch.
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "pyyaml",
+    "rosbags",
+]
+
+[project.optional-dependencies]
+neural = ["torch"]                          # NeuralDynamicsModel / model training
+rl = ["gymnasium", "stable-baselines3"]     # DriftEnv / agent training
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vehicle_simulation*"]
+
+[tool.setuptools.package-data]
+vehicle_simulation = ["tracks/*.yaml"]

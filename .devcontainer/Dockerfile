@@ -47,13 +47,27 @@ RUN sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' ~/.bashrc
 # Activate venv automatically and make installed packages available for ROS
 # see documentation/Python.md for details
 ENV PATH="$PATH:/opt/venv/bin"
-ENV PYTHONPATH="$PYTHONPATH:/opt/venv/lib/python3.12/site-packages" 
+ENV PYTHONPATH="$PYTHONPATH:/opt/venv/lib/python3.12/site-packages"
+# Make the ROS-free core lib importable by the system python3 that ROS nodes run
+# under. The venv site-packages above is only *appended* to PYTHONPATH, so pip's
+# editable (.pth-based) install is not picked up there; putting the package source
+# on PYTHONPATH gives editable imports for both system and venv python.
+ENV PYTHONPATH="$PYTHONPATH:/root/repo/drift_ws/src/vehicle_simulation"
 
 RUN source /opt/ros/jazzy/setup.bash
 
 # RUN echo "source /opt/venv/bin/activate" >> ~/.bashrc
 RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc && \
     echo "source /root/repo/drift_ws/install/setup.bash" >> ~/.bashrc
+
+# Persist shell history on the bash-history named volume (mounted at /commandhistory
+# in docker-compose.yaml). `history -a` flushes after every command so history
+# survives even an unclean container shutdown, not just a normal exit.
+RUN mkdir -p /commandhistory && \
+    echo "export HISTFILE=/commandhistory/.bash_history" >> ~/.bashrc && \
+    echo "export HISTSIZE=10000" >> ~/.bashrc && \
+    echo "export HISTFILESIZE=20000" >> ~/.bashrc && \
+    echo 'export PROMPT_COMMAND="history -a; ${PROMPT_COMMAND:-}"' >> ~/.bashrc
 
 COPY .devcontainer/scripts/.bash_aliases /root/.bash_aliases
 
