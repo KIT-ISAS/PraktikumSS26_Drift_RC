@@ -26,4 +26,4 @@ where = ["."]
 include = ["vehicle_simulation*"]
 
 [tool.setuptools.package-data]
-vehicle_simulation = ["tracks/*.yaml"]
+vehicle_simulation = ["tracks/*.yaml", "cars/*.yaml"]
