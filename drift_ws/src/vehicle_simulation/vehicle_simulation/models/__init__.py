@@ -21,8 +21,8 @@ def build_model(
     Build a vehicle model by name.
 
     Args:
-        model_type: ``"kinematic"`` or ``"neural"``.
-        config: optional YAML params path for the kinematic model.
+        model_type: ``"kinematic"``, ``"arcade"``, or ``"neural"``.
+        config: optional YAML params path for the kinematic / arcade models.
         weights: ``.pt`` checkpoint path; required for the neural model.
         kwargs: forwarded to the concrete model constructor.
 
@@ -36,6 +36,13 @@ def build_model(
         if config:
             return KinematicBicycleModel.from_config(config)
         return KinematicBicycleModel(**kwargs)
+
+    if model_type == "arcade":
+        from .arcade import ArcadeDriftModel
+
+        if config:
+            return ArcadeDriftModel.from_config(config)
+        return ArcadeDriftModel(**kwargs)
 
     if model_type == "neural":
         if not weights:

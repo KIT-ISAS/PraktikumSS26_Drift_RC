@@ -121,6 +121,32 @@ cd drift_ws && colcon build --packages-select track_pkg simulation_pkg \
 Install heavy extras on a training / GPU machine:
 `pip install -e drift_ws/src/vehicle_simulation[neural,rl]`
 
+## Demo model & sim driving (DONE)
+
+A simple, game-like model to demo the sim (drive the car, watch it in Foxglove)
+without needing real data, a trained model, or the Xbox controller:
+
+- **`models/arcade.py::ArcadeDriftModel`** — velocity-space "arcade" car, registered
+  as `model_type="arcade"` in `build_model`. ROS-free, math-only. Drift emerges from
+  a single `grip` param (low grip = longer slides). Tunable via `from_config` YAML.
+  Tests: `vehicle_simulation/tests/test_arcade.py`.
+- **`simulation_pkg/keyboard_control_node.py`** (entry point `keyboard_control`) —
+  termios-based WASD/arrow teleop publishing `VehicleActionRequest`. Needs a real
+  TTY, so run it in its own terminal: `ros2 run simulation_pkg keyboard_control`.
+- **`simulation_pkg/launch/simulation_demo.launch.py`** — brings up `simulation_node`
+  (default model `arcade`) + `track_publisher_node` + `foxglove_bridge` (port 8765).
+  `joystick:=true` adds the gamepad stack; `model_type:=` / `track_file:=` also args.
+  This covers the first Phase-3 bullet (live ROS viz for sim driving).
+
+Three input options into the running demo (all feed `/car/vehicle_action_request`):
+keyboard node, gamepad (`joystick:=true`), or replay a recorded bag —
+`ros2 bag play drift_ws/rosbag2_<...> --topics /car/vehicle_action_request`
+(play **only** that topic so the bag's recorded `/car/pose` doesn't fight the sim's).
+
+> Runtime caveat still applies: ROS nodes need `vehicle_simulation` on `PYTHONPATH`
+> (the Dockerfile change → **container rebuild**), or export it manually as in the
+> "How to verify" section.
+
 ## OPEN STEPS (not started)
 
 ### Operational (one-time, by the user)
@@ -149,8 +175,9 @@ Install heavy extras on a training / GPU machine:
       pose topics + per-agent markers/reward for side-by-side Foxglove comparison.
 
 ### Phase 3 — live ROS viz & deployment
-- [ ] Extend `simulation_pkg`'s launch to optionally bring up `track_publisher_node` + `foxglove_bridge`
-      so Xbox sim-driving is visible live in Foxglove.
+- [x] Extend `simulation_pkg`'s launch to optionally bring up `track_publisher_node` + `foxglove_bridge`
+      so Xbox sim-driving is visible live in Foxglove. (Done — `simulation_demo.launch.py`; see
+      "Demo model & sim driving" above.)
 - [ ] Agent **playback** ROS node: load an agent, step a core model, publish `/car/pose` (optionally
       namespaced for live multi-agent compare).
 - [ ] **Deployment** node: subscribe `/car/pose` (+ `/track/progress`), build the observation via the

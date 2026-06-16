@@ -31,6 +31,7 @@ setup(
     entry_points={
         "console_scripts": [
             "simulation_node = simulation_pkg.simulation_node:main",
+            "keyboard_control = simulation_pkg.keyboard_control_node:main",
         ],
     },
 )
