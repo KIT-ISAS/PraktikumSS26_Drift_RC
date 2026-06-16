@@ -1,0 +1,19 @@
+simulation_node:
+  ros__parameters:
+    # "kinematic" uses KinematicBicycleModel (no weights needed)
+    # "neural"    uses NeuralDynamicsModel (requires model_weights)
+    model_type: "kinematic"
+
+    # Path to a YAML config for the kinematic model (leave empty for defaults)
+    model_config: ""
+
+    # Path to a .pt checkpoint file (required when model_type = "neural")
+    model_weights: ""
+
+    # Simulation timestep in seconds (also controls /car/pose publish rate)
+    dt: 0.02
+
+    # Initial pose of the simulated vehicle
+    initial_x: 0.53077
+    initial_y: -0.63897
+    initial_heading: 2.094  # ~120 deg — figure-8 start tangent direction
