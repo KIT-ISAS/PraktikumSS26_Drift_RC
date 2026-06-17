@@ -40,6 +40,7 @@ comparing models is the core experiment loop.
 | `arcade` | game-like, velocity-space | no | yes (tunable `grip`) | demos / feel-test in sim |
 | `old_standard` | predecessor (WS 25/26) kinematic bicycle | no | no (`vy ≡ 0`) | comparison with predecessor sim |
 | `old_slip_angle` | predecessor (WS 25/26) scripted drift model | no | yes (drift state machine) | comparison with predecessor sim |
+| `neural` | fully data-driven MLP | yes | learned from data | learning the real car's dynamics from rosbags |
 
 ### `kinematic` — `KinematicBicycleModel`
 No-slip rear-wheel bicycle. Speed from `throttle·max_accel − drag·speed` (clamped to
@@ -75,8 +76,19 @@ enters a drifting mode (velocity lags the heading), slip angles past 90° trigge
 a spin-out. The drift state machine lives *inside* the model instance, so step
 one instance sequentially. Details and the list of fixed bugs: `old/README.md`.
 
-> Learned / physical models (`neural`, `dynamic`, `hybrid`) are documented in the
-> sections added with their respective PRs.
+### `neural` — `NeuralDynamicsModel`
+Fully data-driven. An MLP maps `[vx, vy, yaw_rate, steering, throttle]` to the
+**per-second derivative** of `(vx, vy, yaw_rate)` — its `derivative(...)`, the
+differentiable source of truth used by training; `step` is inherited from
+`TrainableModel`, which integrates it. An optional **stochastic** variant adds a
+`log_std` head returning a per-second covariance (trained with NLL; the framework
+applies `dt` Euler–Maruyama-style). Trained via the Trainer and loaded with
+`build_model(run_dir)` (or, for a bare checkpoint, `build_model("neural",
+weights=...)`). Requires the `[neural]` extra (torch). Key knobs: `hidden_dim`,
+`stochastic`.
+
+> Physical models (`dynamic`, `hybrid`) are documented in the sections added with
+> their respective PRs.
 
 ## Adding a new model
 
