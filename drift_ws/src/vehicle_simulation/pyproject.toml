@@ -17,6 +17,9 @@ dependencies = [
     "rosbags",
 ]
 
+[project.optional-dependencies]
+neural = ["torch"]  # torch-based models (neural/dynamic/hybrid) + training
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["vehicle_simulation*"]

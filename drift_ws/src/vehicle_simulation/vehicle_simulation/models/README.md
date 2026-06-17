@@ -38,6 +38,7 @@ comparing models is the core experiment loop.
 |------|------|-------|---------|---------|
 | `kinematic` | kinematic bicycle (no slip) | no | no (`vy ≡ 0`) | fast baseline / RL bootstrap / sanity |
 | `arcade` | game-like, velocity-space | no | yes (tunable `grip`) | demos / feel-test in sim |
+| `neural` | fully data-driven MLP | yes | learned from data | learning the real car's dynamics from rosbags |
 
 ### `kinematic` — `KinematicBicycleModel`
 No-slip rear-wheel bicycle. Speed from `throttle·max_accel − drag·speed` (clamped to
@@ -56,8 +57,19 @@ turning faster than the velocity follows is what creates the sideways slide — 
 `grip` ≈ kinematic. Deterministic. Params: `max_speed, max_reverse_speed,
 max_accel, drag, max_yaw_rate, steer_speed_full, grip, lateral_drag`.
 
-> Learned / physical models (`neural`, `dynamic`, `hybrid`) are documented in the
-> sections added with their respective PRs.
+### `neural` — `NeuralDynamicsModel`
+Fully data-driven. An MLP maps `[vx, vy, yaw_rate, steering, throttle]` to the
+**per-second derivative** of `(vx, vy, yaw_rate)` — its `derivative(...)`, the
+differentiable source of truth used by training; `step` is inherited from
+`TrainableModel`, which integrates it. An optional **stochastic** variant adds a
+`log_std` head returning a per-second covariance (trained with NLL; the framework
+applies `dt` Euler–Maruyama-style). Trained via the Trainer and loaded with
+`build_model(run_dir)` (or, for a bare checkpoint, `build_model("neural",
+weights=...)`). Requires the `[neural]` extra (torch). Key knobs: `hidden_dim`,
+`stochastic`.
+
+> Physical models (`dynamic`, `hybrid`) are documented in the sections added with
+> their respective PRs.
 
 ## Adding a new model
 
