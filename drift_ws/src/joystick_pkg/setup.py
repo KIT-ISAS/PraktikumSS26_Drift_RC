@@ -35,6 +35,7 @@ setup(
     entry_points={
         "console_scripts": [
             "joystick_mapper = joystick_pkg.joystick_mapper_node:main",
+            "keyboard_control = joystick_pkg.keyboard_control_node:main",
         ],
     },
 )
