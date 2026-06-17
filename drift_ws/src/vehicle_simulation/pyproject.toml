@@ -19,6 +19,8 @@ dependencies = [
 
 [project.optional-dependencies]
 neural = ["torch"]  # torch-based models (neural/dynamic/hybrid) + training
+eval = ["matplotlib"]  # loss curves / evaluation plots
+all = ["torch", "matplotlib"]
 
 [tool.setuptools.packages.find]
 where = ["."]
