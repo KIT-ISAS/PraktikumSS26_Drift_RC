@@ -19,8 +19,9 @@ dependencies = [
 
 [project.optional-dependencies]
 neural = ["torch"]  # torch-based models (neural/dynamic/hybrid) + training
+rl = ["gymnasium", "stable-baselines3"]  # DriftEnv / RL-agent training (scaffold)
 eval = ["matplotlib"]  # loss curves / evaluation plots
-all = ["torch", "matplotlib"]
+all = ["torch", "gymnasium", "stable-baselines3", "matplotlib"]
 
 [tool.setuptools.packages.find]
 where = ["."]
