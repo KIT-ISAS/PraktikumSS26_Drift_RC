@@ -1,9 +1,7 @@
 """Track boundary publisher node."""
 
 from math import atan2, cos, sin
-import os
 
-from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import Point, Pose, PoseArray, PoseStamped
 import rclpy
 from rclpy.node import Node
@@ -12,8 +10,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 
 from shared_interfaces.msg import Track, TrackProgress
 from shared_pkg import Topics
-from track_pkg.bezier_track import BezierTrack
-from track_pkg.track_projector import TrackProjector
+from vehicle_simulation.track import TrackProjector, load_track
 
 
 class TrackPublisherNode(Node):
@@ -44,10 +41,7 @@ class TrackPublisherNode(Node):
             MarkerArray, Topics.TRACK_PROGRESS_VISUALIZATION, 10
         )
 
-        default_track = os.path.join(
-            get_package_share_directory("track_pkg"), "config", "figure_8.yaml"
-        )
-        self.declare_parameter("track_file", default_track)
+        self.declare_parameter("track_file", "figure_8")
         self.declare_parameter("points_per_segment", 20)
         self.declare_parameter("car_pose_topic", Topics.CAR_POSE)
         self.declare_parameter("search_window_m", 0.6)
@@ -63,13 +57,13 @@ class TrackPublisherNode(Node):
         self.get_logger().info("Track publisher node started")
 
     def _load_and_publish_track(self) -> None:
-        """Load the bezier track from YAML and publish it once on the latched topics."""
+        """Load the bezier track (by packaged name or path) and publish it on latched topics."""
         track_file = self.get_parameter("track_file").get_parameter_value().string_value
         points_per_segment = (
             self.get_parameter("points_per_segment").get_parameter_value().integer_value
         )
 
-        bezier = BezierTrack.from_yaml(track_file)
+        bezier = load_track(track_file)
         waypoints, curvatures, cumul = bezier.discretize(points_per_segment)
 
         self._track_frame_id = bezier.frame_id

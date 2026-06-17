@@ -18,6 +18,9 @@ services:
 
     volumes:
       - ..:/root/repo # This workspace here is mounted to /root/repo in the container
+      - ~/.claude:/root/.claude # Persist Claude Code auth and session history across container rebuilds
+      - ~/.config/gh:/root/.config/gh # Share host's GitHub CLI auth (gh) with the container
+      - bash-history:/commandhistory # Persist shell history across container rebuilds
       - /dev/input:/dev/input # For input devices (Joystick) access
       - /run/udev:/run/udev:ro # To detect plugging-in/out events for input devices
 
@@ -36,3 +39,6 @@ services:
       - command: /bin/bash -c ". /root/repo/.devcontainer/scripts/post_start.sh"
         user: root
     command: bash
+
+volumes:
+  bash-history: # Named volume backing /commandhistory so shell history outlives rebuilds
