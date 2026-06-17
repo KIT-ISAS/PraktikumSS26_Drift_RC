@@ -52,10 +52,10 @@ def build_model(
        -> load the trained model via :func:`models.loader.load_model_from_run`.
     2. ``model_type`` is a registry name. Basic models: ``"kinematic"``,
        ``"arcade"``, and the predecessor ports ``"old_standard"`` /
-       ``"old_slip_angle"`` (all accept an optional YAML ``config``). The
-       trainable ``"neural"`` model is built from a ``.pt`` checkpoint
-       (``weights``); the remaining trainable models (``"dynamic"``,
-       ``"hybrid"``) are added in later PRs.
+       ``"old_slip_angle"`` (all accept an optional YAML ``config``). ``"dynamic"``
+       (physics bicycle) builds an untrained baseline by default. The data-driven
+       ``"neural"`` and ``"hybrid"`` models require a trained checkpoint
+       (``weights`` / ``run_dir``).
 
     Args:
         model_type: registry name, run-directory path, or ``.pt`` path.
@@ -118,6 +118,27 @@ def build_model(
 
         return NeuralDynamicsModel.from_weights(weights, device=device, stochastic=stochastic)
 
-    # Remaining trainable (torch) models — dynamic / hybrid — register their own
-    # build_model branches in the PRs that add them.
+    if model_type == "dynamic":
+        from .dynamic import DynamicBicycleModel
+
+        # The physics bicycle has physically-motivated initial parameters, so it is
+        # usable untrained as a baseline; pass a run_dir / weights to load a fitted one.
+        if weights:
+            from .loader import load_model_from_run
+
+            return load_model_from_run(weights, device=device, stochastic=stochastic)
+        return DynamicBicycleModel.new(device=device, **kwargs)
+
+    if model_type == "hybrid":
+        # The hybrid's residual net needs training (and dataset normalization), so it
+        # is only built from a trained checkpoint.
+        if not weights:
+            raise ValueError(
+                "build_model('hybrid', ...) needs a trained checkpoint: pass "
+                "weights='<path.pt>' or a run_dir / run-dir path."
+            )
+        from .loader import load_model_from_run
+
+        return load_model_from_run(weights, device=device, stochastic=stochastic)
+
     raise ValueError(f"Unknown model_type: {model_type!r}")

@@ -71,12 +71,21 @@ def test_build_model_neural_requires_weights():
         build_model("neural")
 
 
-def test_build_model_unimplemented_models_fail_cleanly():
-    # Trainable models dynamic/hybrid are added in later PRs; on this PR they must
-    # raise a clean ValueError, never an ImportError.
-    for name in ("dynamic", "hybrid"):
-        with pytest.raises(ValueError):
-            build_model(name)
+def test_build_model_dynamic_baseline():
+    # The physics bicycle has physically-motivated initial params, so it builds
+    # (untrained) as a baseline with no checkpoint.
+    pytest.importorskip("torch")
+    from vehicle_simulation.models.dynamic import DynamicBicycleModel
+
+    assert isinstance(build_model("dynamic"), DynamicBicycleModel)
+
+
+def test_build_model_hybrid_requires_weights():
+    # The hybrid's residual net needs training, so without weights/run_dir it must
+    # raise a clean ValueError (not ImportError) pointing at the checkpoint.
+    pytest.importorskip("torch")
+    with pytest.raises(ValueError, match="weights"):
+        build_model("hybrid")
 
 
 def test_kinematic_path_imports_without_torch():
