@@ -1,8 +1,9 @@
 """
 Top-level launch for manual driving with visualization.
 
-Brings up joystick mapper, vehicle communication, holodeck tracking,
-and the track publisher node.
+Brings up joystick mapper, vehicle communication, holodeck tracking (which now
+only publishes the raw tracker TF + IMU), the car_localization subgraph that
+derives the canonical /car/pose, /car/odom and /car/imu, and the track publisher.
 """
 
 import os
@@ -24,12 +25,21 @@ def generate_launch_description():
     holodeck_launch = os.path.join(
         src_dir, "holodeck_pkg", "launch", "holodeck_tracking.launch.py"
     )
+    localization_launch = os.path.join(
+        src_dir, "car_localization_pkg", "launch", "car_localization.launch.py"
+    )
 
     joystick_include = IncludeLaunchDescription(PythonLaunchDescriptionSource(joystick_launch))
     vehicle_include = IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))
     holodeck_include = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(holodeck_launch),
         launch_arguments={"foxbridge": "true"}.items(),
+    )
+    # Derives the canonical CoG/ISO-8855 state from holodeck's raw tracker TF.
+    # holodeck publishes its IMU under its own namespace, so point at /libsurvive/imu.
+    localization_include = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(localization_launch),
+        launch_arguments={"raw_imu_topic": "/libsurvive/imu"}.items(),
     )
 
     track_publisher_node = Node(
@@ -40,5 +50,11 @@ def generate_launch_description():
     )
 
     return LaunchDescription(
-        [joystick_include, vehicle_include, holodeck_include, track_publisher_node]
+        [
+            joystick_include,
+            vehicle_include,
+            holodeck_include,
+            localization_include,
+            track_publisher_node,
+        ]
     )

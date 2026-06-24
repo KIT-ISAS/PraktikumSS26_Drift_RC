@@ -59,6 +59,7 @@ public:
   virtual ~Component();
   rclcpp::Time get_ros_time(const std::string & str, FLT timecode);
   void publish_imu(const sensor_msgs::msg::Imu & msg);
+  const std::string & imu_frame() const {return imu_frame_;}
 
 private:
   void work();
@@ -68,13 +69,13 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr joy_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::KeyValue>::SharedPtr cfg_publisher_;
-  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr viz_publisher_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr car_pose_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr lighthouse_poses_publisher_;
   std::thread worker_thread_;
   rclcpp::Time last_base_station_update_;
   std::string tracking_frame_;
   std::string world_frame_;
+  std::string tracker_frame_;
+  std::string imu_frame_;
   double lighthouse_rate_;
 };
 
