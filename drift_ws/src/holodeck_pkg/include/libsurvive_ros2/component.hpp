@@ -61,6 +61,12 @@ public:
   rclcpp::Time get_ros_time(const std::string & str, FLT timecode);
   void publish_imu(const sensor_msgs::msg::Imu & msg);
   const std::string & imu_frame() const {return imu_frame_;}
+  // Whether `serial` is the car's tracker. claimTrackerFrame() also latches the
+  // first matching object as the car tracker when it is not yet decided (auto
+  // mode); isActiveTracker() is read-only. Both are thread-safe: pose updates run
+  // on the worker thread, IMU on a libsurvive thread.
+  bool claimTrackerFrame(const std::string & serial);
+  bool isActiveTracker(const std::string & serial);
 
 private:
   void work();
@@ -87,6 +93,14 @@ private:
   std::string world_frame_;
   std::string tracker_frame_;
   std::string imu_frame_;
+  // Which tracked object is the car. `tracker_serial_` is the configured serial
+  // ("" = auto-pick the first object that reports a pose); `active_tracker_serial_`
+  // is the latched winner that owns the canonical tracker_link/imu_link frames.
+  // Other objects (controllers, extra trackers) keep their own serial frames so
+  // they never collide on tracker_link. Guarded by the mutex (worker + IMU thread).
+  std::string tracker_serial_;
+  std::string active_tracker_serial_;
+  std::mutex tracker_serial_mutex_;
   double lighthouse_rate_;
 };
 

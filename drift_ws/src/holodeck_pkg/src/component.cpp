@@ -63,6 +63,12 @@ static void imu_func(
 {
   if (_singleton) {
     survive_default_imu_process(so, mask, accelgyromag, rawtime, id);
+    // Only publish the car tracker's IMU on imu_link; other objects' IMUs would
+    // otherwise be mixed onto the same topic/frame. (Pose updates latch which
+    // serial is the car, so this drops samples until the first pose arrives.)
+    if (!_singleton->isActiveTracker(so->serial_number)) {
+      return;
+    }
     FLT timecode = SurviveSensorActivations_runtime(
       &so->activations, so->activations.last_imu) / FLT(1e6);
     sensor_msgs::msg::Imu imu_msg;
@@ -157,6 +163,12 @@ Component::Component(const rclcpp::NodeOptions & options)
   this->get_parameter("tracker_frame", tracker_frame_);
   this->declare_parameter("imu_frame", "imu_link");
   this->get_parameter("imu_frame", imu_frame_);
+
+  // Serial of the car's tracker. Empty (default) auto-picks the first object that
+  // reports a pose; set it when more than one object (e.g. a controller) is
+  // tracked, so only the car owns the canonical tracker_link/imu_link frames.
+  this->declare_parameter("tracker_serial", "");
+  this->get_parameter("tracker_serial", tracker_serial_);
 
   // Setup topic for the lighthouse poses in world coordinates. The base stations
   // are static, so we latch the latest sample for late-joining subscribers.
@@ -279,6 +291,23 @@ rclcpp::Time Component::get_ros_time(const std::string & /*str*/, FLT timecode)
   return survive_time + time_offset_;
 }
 
+bool Component::claimTrackerFrame(const std::string & serial)
+{
+  std::lock_guard<std::mutex> lock(tracker_serial_mutex_);
+  if (active_tracker_serial_.empty() &&
+    (tracker_serial_.empty() || serial == tracker_serial_))
+  {
+    active_tracker_serial_ = serial;
+  }
+  return serial == active_tracker_serial_;
+}
+
+bool Component::isActiveTracker(const std::string & serial)
+{
+  std::lock_guard<std::mutex> lock(tracker_serial_mutex_);
+  return !active_tracker_serial_.empty() && serial == active_tracker_serial_;
+}
+
 void Component::publish_imu(const sensor_msgs::msg::Imu & msg)
 {
   if (imu_publisher_) {
@@ -308,11 +337,14 @@ void Component::work()
             SurvivePose pose = {};
             auto timecode = survive_simple_object_get_latest_pose(pose_event->object, &pose);
             if (timecode > 0) {
-              // Raw tracker pose; mount correction is applied downstream.
+              // Raw tracker pose; mount correction is applied downstream. Only the
+              // car's tracker owns the canonical tracker_link frame; any other
+              // tracked object keeps its own serial frame so they never collide.
+              std::string serial = survive_simple_serial_number(pose_event->object);
               geometry_msgs::msg::TransformStamped pose_msg;
               pose_msg.header.stamp = this->get_ros_time("tracker", timecode);
               pose_msg.header.frame_id = tracking_frame_;
-              pose_msg.child_frame_id = tracker_frame_;
+              pose_msg.child_frame_id = claimTrackerFrame(serial) ? tracker_frame_ : serial;
               ros_from_pose(&pose_msg.transform, pose);
               tf_broadcaster_->sendTransform(pose_msg);
             }

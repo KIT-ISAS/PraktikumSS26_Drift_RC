@@ -45,6 +45,10 @@ PARAMETERS = [
     # car_localization_pkg.
     {"tracker_frame": "tracker_link"},
     {"imu_frame": "imu_link"},
+    # Serial of the car's tracker. Empty auto-picks the first object that reports
+    # a pose; set it when a controller / second tracker is also live so only the
+    # car owns tracker_link/imu_link.
+    {"tracker_serial": ""},
     {"imu_topic": "imu"},
     {"joy_topic": "joy"},
     {"cfg_topic": "cfg"},
