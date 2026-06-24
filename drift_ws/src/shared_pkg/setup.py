@@ -1,3 +1,5 @@
+from glob import glob
+
 from setuptools import find_packages, setup
 
 package_name = "shared_pkg"
@@ -9,6 +11,9 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
+        # Install the mesh assets so package:// URLs (e.g. the car marker's
+        # porsche.glb) resolve to the install tree for RViz / Foxglove.
+        ("share/" + package_name + "/meshes", glob("meshes/*")),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
