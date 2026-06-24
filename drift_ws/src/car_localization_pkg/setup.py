@@ -33,6 +33,7 @@ setup(
     entry_points={
         "console_scripts": [
             "mount_tf_node = car_localization_pkg.mount_tf_node:main",
+            "car_state_node = car_localization_pkg.car_state_node:main",
         ],
     },
 )
