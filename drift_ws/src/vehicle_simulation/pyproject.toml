@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vehicle_simulation"
+version = "0.1.0"
+requires-python = ">=3.10"
+# Base deps keep the core lightweight (track geometry + ROS-free utilities).
+# Heavier, optional pieces (torch models, RL, plots) are added as extras in the
+# feature PRs that introduce them.
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "pyyaml",
+    "rosbags",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vehicle_simulation*"]
+
+[tool.setuptools.package-data]
+vehicle_simulation = ["tracks/*.yaml"]

@@ -5,7 +5,8 @@ import math
 import pytest
 import yaml
 
-from track_pkg.bezier_track import BezierTrack, _deriv, _eval, _second_deriv
+from vehicle_simulation.track import BezierTrack
+from vehicle_simulation.track.bezier_track import _deriv, _eval, _second_deriv
 
 # A non-degenerate segment with hand-computable values.
 SEGMENT = [[0.0, 0.0], [1.0, 2.0], [3.0, 3.0], [4.0, 0.0]]
@@ -116,3 +117,24 @@ class TestFromYaml:
 
         track = BezierTrack.from_yaml(str(path))
         assert track.frame_id == "world"
+
+
+class TestLoadTrack:
+    """Loading packaged tracks by name and explicit YAML paths."""
+
+    def test_packaged_track_by_name(self):
+        from vehicle_simulation.track import list_tracks, load_track
+
+        assert "figure_8" in list_tracks()
+        track = load_track("figure_8")
+        assert track.name == "figure_8"
+        assert len(track.segments) > 0
+
+    def test_explicit_path(self, tmp_path):
+        from vehicle_simulation.track import load_track
+
+        config = {"name": "minimal", "segments": [SEGMENT]}
+        path = tmp_path / "track.yaml"
+        path.write_text(yaml.safe_dump(config))
+        track = load_track(str(path))
+        assert track.name == "minimal"

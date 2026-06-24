@@ -46,7 +46,11 @@ class BezierTrack:
     def from_yaml(path: str) -> "BezierTrack":
         """Load from a YAML file produced by the track config format."""
         with open(path) as f:
-            data = yaml.safe_load(f)
+            return BezierTrack.from_dict(yaml.safe_load(f))
+
+    @staticmethod
+    def from_dict(data: dict) -> "BezierTrack":
+        """Build from an already-parsed track config mapping."""
         return BezierTrack(
             name=data["name"],
             segments=data["segments"],
