@@ -1,0 +1,68 @@
+# =============================================================================
+# Measured / calculated physical parameters of the RC drift car ("drift_rc").
+# =============================================================================
+#
+# This file is the single source of truth for the car's measured properties.
+# It is BOTH human-readable (you are reading it) and machine-readable:
+#
+#     from vehicle_simulation.car_parameters import load_car_parameters
+#     car = load_car_parameters("drift_rc")
+#     car.wheelbase_m       # -> 0.256
+#     car.tire_radius_m     # -> derived: 0.03015
+#     car.cog_position_m    # -> derived from axle loads, (x, y, z)
+#
+# Conventions:
+#   * All stored values are SI units (metres, kilograms). The original
+#     measurement is shown in a comment after each value for traceability.
+#   * Keys map 1:1 onto the CarParameters dataclass; DERIVED quantities
+#     (tire radius, total mass, CoG position, gear ratio, load distribution)
+#     are NOT stored here — they are computed as properties so they can never
+#     drift out of sync with the measurements below.
+#   * Positions are (x, y, z) coordinates in the VEHICLE frame: origin at the
+#     FRONT-axle centre, x forward, y left, z up (ISO 8855). Points behind the
+#     front axle have a negative x. Using coordinates (not scalar "offset" /
+#     "distance" values) keeps the signs unambiguous.
+#
+# Measured by: Julian Bihl, 2026-06-16.
+# =============================================================================
+
+name: drift_rc
+description: 1/10-ish RC drift car tracked by an HTC Vive tracker.
+
+# --- Chassis geometry -------------------------------------------------------
+wheelbase_m: 0.256          # 25.6 cm, front axle to rear axle
+track_width_front_m: 0.208  # 20.8 cm, lateral distance between front wheels
+track_width_rear_m: 0.195   # 19.5 cm, lateral distance between rear wheels
+
+# --- Tires ------------------------------------------------------------------
+tire_diameter_m: 0.0603     # 6.03 cm outer diameter (radius is derived)
+tire_width_full_m: 0.026    # 2.6 cm, full moulded tread width
+tire_width_contact_m: 0.019 # 1.9 cm, width actually contacting the ground
+
+# --- Drivetrain -------------------------------------------------------------
+# Reduction is expressed as output/input. Primary stage is the motor pinion
+# meshing the spur gear (24 -> 83 teeth); secondary is the gearbox/diff stage.
+# Total reduction (motor rev -> wheel rev) is the derived total_gear_reduction.
+primary_reduction_teeth: [24, 83]  # pinion : spur
+secondary_reduction: 2.6           # 1 : 2.6
+
+# --- Vive tracker mounting --------------------------------------------------
+# Position of the tracker in the vehicle frame (x rearward of the front axle is
+# negative; y centred; z is the mounting-hole height above ground).
+tracker_position_m: [-0.134, 0.0, 0.067]  # 13.4 cm behind front axle, 6.7 cm up
+
+# --- Mass ------------------------------------------------------------------
+# Only the per-axle loads are stored; total mass is derived as their sum
+# (mass_total_kg property). The axle loads also give the longitudinal weight
+# distribution / centre of gravity.
+mass_front_axle_kg: 0.445   # 445 g carried by the front axle
+mass_rear_axle_kg: 1.011    # 1011 g carried by the rear axle
+
+# --- Bounding dimensions ----------------------------------------------------
+# Overall width is effectively the front track width plus tire width; use the
+# track_width_* values above for anything geometric.
+length_total_m: 0.42              # 42 cm, including cables
+length_without_cables_m: 0.388    # 38.8 cm, body without trailing cables
+length_base_plate_m: 0.363        # 36.3 cm, bare chassis base plate
+height_with_cover_mount_m: 0.163  # 16.3 cm, including the body-cover mount
+height_without_cover_mount_m: 0.121  # 12.1 cm, chassis without the cover mount

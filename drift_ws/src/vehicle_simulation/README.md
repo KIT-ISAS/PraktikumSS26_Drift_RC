@@ -40,7 +40,7 @@ vehicle_simulation/
                    kinematic, arcade  (basic, torch-free)
                    neural, dynamic (physics), hybrid (physics + neural residual)
   cars/          measured car parameters (drift_rc.yaml)
-  car_parameters.py   load_car_parameters() + derived quantities (CoM, inertia, ...)
+  car_parameters.py   load_car_parameters() + derived quantities (CoG, mass, gearing, ...)
   data/          rosbag reader, preprocessing, localization-jump sanity checks,
                  regime labelling, variable-dt multi-step window datasets, DatasetSpec
   training/      config-driven Trainer, file-based run dirs, train_model CLI
