@@ -1,8 +1,8 @@
 """Track boundary publisher node."""
 
-from math import atan2, cos, sin
+from math import cos, sin
 
-from geometry_msgs.msg import Point, Pose, PoseArray, PoseStamped
+from geometry_msgs.msg import Point, Pose, PoseStamped
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
@@ -14,24 +14,19 @@ from vehicle_simulation.track import TrackProjector, load_track
 
 
 class TrackPublisherNode(Node):
-    """Publishes pre-loaded track centerline and rectangular lighthouse boundary."""
+    """Publishes the pre-loaded track centerline and a config-derived boundary."""
 
     def __init__(self):
         """Initialize the node, subscriber, publishers, and parameters."""
         super().__init__("track_publisher_node")
 
-        self._lighthouse_positions = []
-        self._frame_id = ""
         self._projector: TrackProjector | None = None
         self._track_frame_id = ""
         self._track_name = ""
 
         latched_qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
 
-        self._sub = self.create_subscription(
-            PoseArray, Topics.LIGHTHOUSE_POSES, self._lighthouse_poses_callback, latched_qos
-        )
-        self._boundary_pub = self.create_publisher(Marker, Topics.TRACK_BOUNDARY, 10)
+        self._boundary_pub = self.create_publisher(Marker, Topics.TRACK_BOUNDARY, latched_qos)
         self._centerline_pub = self.create_publisher(Track, Topics.TRACK_CENTERLINE, latched_qos)
         self._visualization_pub = self.create_publisher(
             MarkerArray, Topics.TRACK_VISUALIZATION, latched_qos
@@ -46,6 +41,10 @@ class TrackPublisherNode(Node):
         self.declare_parameter("car_pose_topic", Topics.CAR_POSE)
         self.declare_parameter("search_window_m", 0.6)
         self.declare_parameter("lost_distance_m", 0.5)
+        # Boundary corners [x0, y0, x1, y1, ...] in the track frame. Empty (default)
+        # derives an axis-aligned box around the centerline with boundary_margin_m.
+        self.declare_parameter("arena_corners", [])
+        self.declare_parameter("boundary_margin_m", 0.5)
 
         self._load_and_publish_track()
 
@@ -97,11 +96,25 @@ class TrackPublisherNode(Node):
 
         self._centerline_pub.publish(track_msg)
         self._publish_track_visualization(waypoints, bezier.frame_id)
+        self._publish_boundary(waypoints, bezier.frame_id)
 
         self.get_logger().info(
             f"Track '{bezier.name}' loaded: {len(waypoints)} waypoints, "
             f"total length {cumul[-1]:.2f} m"
         )
+
+    def _boundary_corners(self, waypoints: list) -> list[tuple[float, float]]:
+        """Boundary polygon corners: explicit arena_corners, else a centerline bbox."""
+        flat = list(self.get_parameter("arena_corners").value or [])
+        if flat:
+            return [(float(flat[i]), float(flat[i + 1])) for i in range(0, len(flat) - 1, 2)]
+
+        margin = float(self.get_parameter("boundary_margin_m").value)
+        xs = [w[0] for w in waypoints]
+        ys = [w[1] for w in waypoints]
+        x0, x1 = min(xs) - margin, max(xs) + margin
+        y0, y1 = min(ys) - margin, max(ys) + margin
+        return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 
     def _publish_track_visualization(self, waypoints: list, frame_id: str) -> None:
         """Publish a cyan LINE_STRIP MarkerArray for the track centerline."""
@@ -253,32 +266,15 @@ class TrackPublisherNode(Node):
 
         self._progress_viz_pub.publish(array)
 
-    def _lighthouse_poses_callback(self, msg: PoseArray):
-        """Process incoming lighthouse poses and update the track boundary."""
-        positions = [(p.position.x, p.position.y, p.position.z) for p in msg.poses]
-        if positions == self._lighthouse_positions:
+    def _publish_boundary(self, waypoints: list, frame_id: str):
+        """Publish a LINE_STRIP marker for the (config-derived) track boundary."""
+        corners = self._boundary_corners(waypoints)
+        if len(corners) < 2:
             return
-
-        self._lighthouse_positions = positions
-        self._frame_id = msg.header.frame_id
-        for x, y, z in positions:
-            self.get_logger().info(f"Lighthouse at ({x:.3f}, {y:.3f}, {z:.3f})")
-
-        if len(positions) >= 2:
-            self._publish_boundary()
-
-    def _publish_boundary(self):
-        """Publish a LINE_STRIP marker connecting lighthouse positions as boundary corners."""
-        positions = self._lighthouse_positions
-        cx = sum(p[0] for p in positions) / len(positions)
-        cy = sum(p[1] for p in positions) / len(positions)
-
-        # Sort corners by angle from centroid so the polygon is non-self-intersecting.
-        corners = sorted(positions, key=lambda p: atan2(p[1] - cy, p[0] - cx))
 
         marker = Marker()
         marker.header.stamp = self.get_clock().now().to_msg()
-        marker.header.frame_id = self._frame_id
+        marker.header.frame_id = frame_id
         marker.ns = "track_boundary"
         marker.id = 0
         marker.type = Marker.LINE_STRIP
