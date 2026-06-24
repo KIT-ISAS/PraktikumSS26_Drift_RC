@@ -4,18 +4,25 @@ Measured physical parameters of the RC car, loadable by models and humans.
 The measurements live in packaged YAML files under ``cars/`` (e.g.
 ``cars/drift_rc.yaml``); this module loads one into a typed
 :class:`CarParameters` dataclass and exposes the *derived* quantities a vehicle
-model typically needs (tire radius, total gear reduction, longitudinal centre
-of mass, axle load split) as properties so they cannot drift out of sync with
-the raw measurements.
+model typically needs (tire radius, total gear reduction, total mass, axle load
+split, centre-of-gravity position) as properties so they cannot drift out of
+sync with the raw measurements.
+
+Positions are expressed as ``(x, y, z)`` coordinates in the **vehicle frame**:
+origin at the **front-axle centre**, ``x`` forward, ``y`` left, ``z`` up (ISO
+8855). Points behind the front axle therefore have a **negative** ``x``. Using
+coordinates rather than scalar "offset"/"distance" values keeps signs
+unambiguous (a recurring source of bugs).
 
 Example::
 
     from vehicle_simulation.car_parameters import load_car_parameters
 
     car = load_car_parameters("drift_rc")
-    car.wheelbase_m                      # measured
-    car.tire_radius_m                    # derived
-    car.com_distance_from_front_axle_m   # derived from axle loads
+    car.wheelbase_m                       # measured
+    car.tire_radius_m                     # derived
+    car.cog_position_m                    # derived from axle loads, (x, y, z)
+    car.tracker_position_relative_to_cog_m  # derived, (x, y, z)
 """
 
 from dataclasses import dataclass
@@ -26,6 +33,8 @@ import yaml
 
 __all__ = ["CarParameters", "load_car_parameters", "list_cars"]
 
+Vec3 = tuple[float, float, float]
+
 
 @dataclass(frozen=True)
 class CarParameters:
@@ -33,8 +42,9 @@ class CarParameters:
     Measured car properties (SI units) plus derived dynamics quantities.
 
     Field values mirror the packaged YAML one-to-one; ``@property`` members are
-    computed from them. See ``cars/drift_rc.yaml`` for the documented source
-    measurements and the coordinate convention (x forward, y left).
+    computed from them. Positions are ``(x, y, z)`` in the vehicle frame (origin
+    at the front-axle centre, x forward, y left, z up). See ``cars/drift_rc.yaml``
+    for the documented source measurements.
     """
 
     name: str
@@ -54,12 +64,10 @@ class CarParameters:
     primary_reduction_teeth: tuple[int, int]
     secondary_reduction: float
 
-    # Vive tracker mounting [m]
-    tracker_offset_from_front_axle_m: float
-    tracker_height_m: float
+    # Vive tracker mounting: position in the vehicle frame [m] (x, y, z)
+    tracker_position_m: Vec3
 
     # Mass [kg]
-    mass_total_kg: float
     mass_front_axle_kg: float
     mass_rear_axle_kg: float
 
@@ -89,34 +97,51 @@ class CarParameters:
         return (spur / pinion) * self.secondary_reduction
 
     @property
-    def axle_load_total_kg(self) -> float:
-        """Sum of the measured axle loads [kg] (may differ slightly from mass_total_kg)."""
+    def mass_total_kg(self) -> float:
+        """Total mass [kg], the sum of the measured front and rear axle loads."""
         return self.mass_front_axle_kg + self.mass_rear_axle_kg
 
     @property
     def front_axle_load_fraction(self) -> float:
         """Fraction of weight on the front axle, from the axle-load measurements."""
-        return self.mass_front_axle_kg / self.axle_load_total_kg
+        return self.mass_front_axle_kg / self.mass_total_kg
 
     @property
     def rear_axle_load_fraction(self) -> float:
         """Fraction of weight on the rear axle, from the axle-load measurements."""
-        return self.mass_rear_axle_kg / self.axle_load_total_kg
+        return self.mass_rear_axle_kg / self.mass_total_kg
 
     @property
-    def com_distance_from_front_axle_m(self) -> float:
-        """Longitudinal centre-of-mass distance behind the front axle [m]."""
-        return self.rear_axle_load_fraction * self.wheelbase_m
+    def cog_position_m(self) -> Vec3:
+        """
+        Centre-of-gravity position in the vehicle frame [m] (x, y, z).
+
+        ``x`` is negative (behind the front axle) and derived from the axle-load
+        split; ``y`` is assumed centred; ``z`` (height) is not measured and is
+        reported as ``0.0``.
+        """
+        x = -(self.rear_axle_load_fraction * self.wheelbase_m)
+        return (x, 0.0, 0.0)
 
     @property
-    def com_distance_from_rear_axle_m(self) -> float:
-        """Longitudinal centre-of-mass distance ahead of the rear axle [m]."""
-        return self.front_axle_load_fraction * self.wheelbase_m
+    def cog_distance_from_front_axle_m(self) -> float:
+        """Longitudinal CoG distance behind the front axle [m] (the model's l_f)."""
+        return -self.cog_position_m[0]
 
     @property
-    def tracker_offset_from_com_m(self) -> float:
-        """Tracker offset from the centre of mass [m]; positive = ahead of the CoM."""
-        return self.com_distance_from_front_axle_m - self.tracker_offset_from_front_axle_m
+    def cog_distance_from_rear_axle_m(self) -> float:
+        """Longitudinal CoG distance ahead of the rear axle [m] (the model's l_r)."""
+        return self.wheelbase_m - self.cog_distance_from_front_axle_m
+
+    @property
+    def tracker_position_relative_to_cog_m(self) -> Vec3:
+        """
+        Tracker position relative to the CoG in the vehicle frame [m] (x, y, z).
+
+        Positive ``x`` means the tracker sits ahead of the CoG.
+        """
+        t, c = self.tracker_position_m, self.cog_position_m
+        return (t[0] - c[0], t[1] - c[1], t[2] - c[2])
 
 
 def _cars_dir():
@@ -129,6 +154,8 @@ def _from_dict(data: dict) -> CarParameters:
     data = dict(data)
     if "primary_reduction_teeth" in data:
         data["primary_reduction_teeth"] = tuple(data["primary_reduction_teeth"])
+    if "tracker_position_m" in data:
+        data["tracker_position_m"] = tuple(data["tracker_position_m"])
     return CarParameters(**data)
 
 
