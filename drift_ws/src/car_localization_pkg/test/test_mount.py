@@ -1,22 +1,16 @@
 """Unit tests for the pure tracker-mount geometry (no ROS required)."""
 
 import math
-import os
-import sys
 
 import pytest
 
-# Make the package importable when run standalone (colcon provides it otherwise).
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-from car_localization_pkg.mount import (  # noqa: E402
+from car_localization_pkg.mount import (
     body_to_tracker_rotation,
     tracker_to_base,
     tracker_to_imu,
 )
-
-from vehicle_simulation.car_parameters import load_car_parameters  # noqa: E402
-from vehicle_simulation.transforms import rotate_vector_by_quaternion  # noqa: E402
+from vehicle_simulation.car_parameters import load_car_parameters
+from vehicle_simulation.transforms import rotate_vector_by_quaternion
 
 _SQRT_HALF = math.sqrt(0.5)
 

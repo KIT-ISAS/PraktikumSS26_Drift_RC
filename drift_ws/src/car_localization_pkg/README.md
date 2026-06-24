@@ -1,0 +1,70 @@
+# car_localization_pkg
+
+Source-agnostic car localization. Turns whatever a tracking system reports into
+the **one canonical car state** — at the centre of gravity, in **ISO 8855**
+(x forward, y left, z up, yaw positive counter-clockwise) — so the rest of the
+system never depends on a specific tracking setup or re-derives coordinate maths.
+
+## The contract a tracking source must satisfy
+
+A source (libsurvive today, SteamVR or anything else later) only has to provide:
+
+1. **TF `world → tracker_link`** — the raw tracker pose. `world` is the shared,
+   fixed, gravity-aligned frame. The pose may be "raw" (e.g. upside-down); the
+   mount transform below corrects it.
+2. **A raw IMU** (`sensor_msgs/Imu`) in `imu_link`, if the tracker has one.
+
+That is the entire boundary. Nothing downstream of `tracker_link` is
+source-specific.
+
+## What this package adds
+
+```
+world ──(source)──▶ tracker_link ──(mount_tf_node, static)──▶ base_link   [CoG, ISO 8855]
+                    tracker_link ──(mount_tf_node, static)──▶ imu_link
+```
+
+- **`mount_tf_node`** — publishes the static `tracker_link → base_link` (and
+  `tracker_link → imu_link`) transforms, derived from the measured car
+  parameters (`vehicle_simulation` `cars/*.yaml`). The mount orientation
+  (tracker y-forward + inverted) is exposed as parameters
+  (`tracker_yaw_offset_deg`, `tracker_upside_down`) to confirm against a known
+  pose at bring-up.
+- **`car_state_node`** — the single transform owner. Reads `world → base_link`
+  from tf2, finite-differences the body-frame velocities, rotates the raw IMU
+  into `base_link`, and publishes the **already-transformed** state:
+  - `/car/pose` (`geometry_msgs/PoseStamped`) — pose only, in `world`.
+  - `/car/odom` (`nav_msgs/Odometry`) — pose in `world` + body-frame twist.
+  - `/car/imu` (`sensor_msgs/Imu`) — raw IMU rotated into `base_link`.
+- **`car_viz_node`** — republishes a car pose as a coloured mesh marker.
+
+## Running
+
+One car (real or sim):
+
+```bash
+ros2 launch car_localization_pkg car_localization.launch.py
+```
+
+Real pipeline: included automatically by `manual_driving_with_viz.launch.py`
+(holodeck publishes the raw tracker TF + IMU; this package derives the rest).
+
+### Real + simulated car together
+
+Bring up a second instance namespaced and frame-prefixed so it coexists in the
+shared `world` frame:
+
+```bash
+ros2 launch car_localization_pkg car_localization.launch.py \
+    namespace:=sim frame_prefix:=sim/ color_rgba:="[0.2, 0.6, 1.0, 1.0]"
+```
+
+`world` is never prefixed; `base_link`/`tracker_link`/`imu_link` become
+`sim/base_link` etc., and the topics move under `/sim`.
+
+## Conventions
+
+Frame names come from `shared_pkg.Frames`; topic names from `shared_pkg.Topics`.
+Coordinate maths lives in `vehicle_simulation.transforms` (ROS-free). Do not
+hardcode frame or topic strings, and do not re-implement transforms in consumers
+— subscribe to the canonical `/car/*` topics instead.
