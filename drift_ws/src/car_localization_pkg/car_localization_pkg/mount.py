@@ -5,10 +5,10 @@ Produces the static transforms that turn the tracker's reported pose into the
 canonical car frames. Kept ROS-free so the maths is unit-testable on its own;
 :mod:`car_localization_pkg.mount_tf_node` wraps this in a ROS node.
 
-The car-parameters YAML is the single source of truth for the geometry: the
-tracker sits ``tracker_offset_from_com_m`` ahead of the centre of gravity and
-``tracker_height_m`` above the ground (both measured in the body frame, x
-forward / y left / z up). The mount *orientation* — the tracker is mounted with
+The car-parameters YAML is the single source of truth for the geometry:
+``tracker_position_relative_to_cog_m`` is the tracker's ``(x, y, z)`` position
+relative to the centre of gravity in the body frame (x forward / y left / z up).
+The mount *orientation* — the tracker is mounted with
 its y-axis pointing forward and (per the libsurvive flip) upside down — is the
 one thing that must be confirmed against a known pose at bring-up, so it is
 exposed as ``yaw_offset_rad`` / ``upside_down`` rather than baked in.
@@ -62,9 +62,11 @@ def tracker_to_base(
     q_tracker_to_body = body_to_tracker_rotation(yaw_offset_rad, upside_down)
     q_tf = quaternion_conjugate(q_tracker_to_body)  # rotates body vectors -> tracker
 
-    # CoG seen from the tracker: the tracker is offset (forward, up) in the body
-    # frame, so the CoG is the negation of that, expressed in the tracker frame.
-    offset_body = (-car.tracker_offset_from_com_m, 0.0, -car.tracker_height_m)
+    # CoG seen from the tracker: the tracker sits at this body-frame position
+    # relative to the CoG, so the CoG is the negation of it, then expressed in
+    # the tracker frame.
+    rel = car.tracker_position_relative_to_cog_m
+    offset_body = (-rel[0], -rel[1], -rel[2])
     t = rotate_vector_by_quaternion(q_tf, offset_body)
     translation = (float(t[0]), float(t[1]), float(t[2]))
     quaternion = (float(q_tf[0]), float(q_tf[1]), float(q_tf[2]), float(q_tf[3]))

@@ -17,11 +17,12 @@ _SQRT_HALF = math.sqrt(0.5)
 
 def test_tracker_to_base_translation_matches_car_params():
     car = load_car_parameters("drift_rc")
+    rel = car.tracker_position_relative_to_cog_m
     translation, _ = tracker_to_base(car)
     # CoG in the tracker frame: forward offset lands on tracker -y, height on +z.
     assert translation[0] == pytest.approx(0.0, abs=1e-9)
-    assert translation[1] == pytest.approx(-car.tracker_offset_from_com_m)
-    assert translation[2] == pytest.approx(car.tracker_height_m)
+    assert translation[1] == pytest.approx(-rel[0])
+    assert translation[2] == pytest.approx(rel[2])
 
 
 def test_tracker_to_base_rotation_is_180_about_xy_diagonal():
