@@ -14,6 +14,8 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 
+from shared_pkg import Topics
+
 
 def generate_launch_description():
     """Launch mount_tf, car_state, and car_viz for one (real or sim) car."""
@@ -35,6 +37,21 @@ def generate_launch_description():
         "imu_frame": imu,
     }
 
+    # The canonical /car/* topics are absolute (source-agnostic), so a node
+    # namespace alone does not separate them. Remap them under /<namespace> so a
+    # second (e.g. sim) instance coexists with the real car instead of colliding.
+    # Empty namespace -> the remap target is identical, i.e. a no-op for the real car.
+    topic_prefix = PythonExpression(["'/' + '", namespace, "' if '", namespace, "' else ''"])
+    state_remaps = [
+        (Topics.CAR_POSE, [topic_prefix, Topics.CAR_POSE]),
+        (Topics.CAR_ODOM, [topic_prefix, Topics.CAR_ODOM]),
+        (Topics.CAR_IMU, [topic_prefix, Topics.CAR_IMU]),
+    ]
+    viz_remaps = [
+        (Topics.CAR_POSE, [topic_prefix, Topics.CAR_POSE]),
+        (Topics.CAR_VISUALIZATION, [topic_prefix, Topics.CAR_VISUALIZATION]),
+    ]
+
     return LaunchDescription(
         [
             DeclareLaunchArgument("car", default_value="drift_rc"),
@@ -45,7 +62,12 @@ def generate_launch_description():
                 description="Frame name prefix, e.g. 'sim/' for a simulated car.",
             ),
             DeclareLaunchArgument("color_rgba", default_value="[1.0, 1.0, 1.0, 1.0]"),
-            DeclareLaunchArgument("raw_imu_topic", default_value="imu"),
+            DeclareLaunchArgument(
+                "raw_imu_topic",
+                default_value="imu",
+                description="Tracking source's raw IMU topic (set this to the source's "
+                "output, e.g. /libsurvive/imu; the default 'imu' rarely matches a real source).",
+            ),
             Node(
                 package="car_localization_pkg",
                 executable="mount_tf_node",
@@ -67,6 +89,7 @@ def generate_launch_description():
                         "raw_imu_topic": raw_imu_topic,
                     }
                 ],
+                remappings=state_remaps,
             ),
             Node(
                 package="car_localization_pkg",
@@ -75,6 +98,7 @@ def generate_launch_description():
                 namespace=namespace,
                 output="screen",
                 parameters=[{"color_rgba": color}],
+                remappings=viz_remaps,
             ),
         ]
     )
