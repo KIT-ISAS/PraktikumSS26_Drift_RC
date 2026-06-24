@@ -11,6 +11,9 @@ class Topics:
     MAP_BASE: str = "/map"
     LIGHTHOUSE_POSES: str = MAP_BASE + "/lighthouses"
 
+    # Tracking source (libsurvive) raw outputs
+    LIBSURVIVE_IMU: str = "/libsurvive/imu"
+
     # Track-related Topics
     TRACK_BASE: str = "/track"
     TRACK_BOUNDARY: str = TRACK_BASE + "/boundary"

@@ -1,10 +1,4 @@
-"""
-Top-level launch for manual driving with visualization.
-
-Brings up joystick mapper, vehicle communication, holodeck tracking (which now
-only publishes the raw tracker TF + IMU), the car_localization subgraph that
-derives the canonical /car/pose, /car/odom and /car/imu, and the track publisher.
-"""
+"""Top-level launch for manual driving with visualization."""
 
 import os
 
@@ -12,6 +6,8 @@ from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
+
+from shared_pkg import Topics
 
 
 def generate_launch_description():
@@ -36,10 +32,9 @@ def generate_launch_description():
         launch_arguments={"foxbridge": "true"}.items(),
     )
     # Derives the canonical CoG/ISO-8855 state from holodeck's raw tracker TF.
-    # holodeck publishes its IMU under its own namespace, so point at /libsurvive/imu.
     localization_include = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(localization_launch),
-        launch_arguments={"raw_imu_topic": "/libsurvive/imu"}.items(),
+        launch_arguments={"raw_imu_topic": Topics.LIBSURVIVE_IMU}.items(),
     )
 
     track_publisher_node = Node(

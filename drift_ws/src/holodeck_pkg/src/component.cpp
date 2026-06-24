@@ -292,10 +292,7 @@ void Component::work()
             SurvivePose pose = {};
             auto timecode = survive_simple_object_get_latest_pose(pose_event->object, &pose);
             if (timecode > 0) {
-              // Publish the raw tracker pose as tracking_frame -> tracker_link.
-              // Mount correction (flip / y-forward / CoG offset) is applied
-              // downstream by car_localization_pkg's static tracker_link ->
-              // base_link transform, so the pose stays raw here.
+              // Raw tracker pose; mount correction is applied downstream.
               geometry_msgs::msg::TransformStamped pose_msg;
               pose_msg.header.stamp = this->get_ros_time("tracker", timecode);
               pose_msg.header.frame_id = tracking_frame_;

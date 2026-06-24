@@ -50,6 +50,8 @@ class CarVizNode(Node):
         marker.type = Marker.MESH_RESOURCE
         marker.action = Marker.ADD
         marker.mesh_resource = self._mesh
+        # color_rgba only tints the mesh when embedded materials are OFF; with
+        # them ON (default) the glb's own materials win and color is ignored.
         marker.mesh_use_embedded_materials = self._embedded
         marker.pose = msg.pose
         marker.scale.x = marker.scale.y = marker.scale.z = 1.0
