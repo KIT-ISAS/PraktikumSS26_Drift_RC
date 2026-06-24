@@ -6,9 +6,7 @@ services:
       dockerfile: .devcontainer/Dockerfile
 
     privileged: true
-    devices:
-      - /dev/bus/usb:/dev/bus/usb
-      
+
     network_mode: host
     ports:
       - 8765:8765 # For Foxglove Bridge communication
@@ -23,11 +21,16 @@ services:
       - bash-history:/commandhistory # Persist shell history across container rebuilds
       - /dev/input:/dev/input # For input devices (Joystick) access
       - /run/udev:/run/udev:ro # To detect plugging-in/out events for input devices
+      # Bind the whole USB tree (not a static `devices:` entry) so devices
+      # hot-plugged after container start -- e.g. the Vive tracker dongle -- are
+      # visible inside the container instead of erroring with "File doesn't exist".
+      - /dev/bus/usb:/dev/bus/usb
 
-    # Allow SDL inside the container to see Linux input devices such as
-    # /dev/input/js* and /dev/input/event*.
+    # Allow the container to access Linux input devices (major 13: joystick,
+    # /dev/input/js*, event*) and USB devices (major 189: Vive tracker/lighthouses).
     device_cgroup_rules:
       - "c 13:* rmw"
+      - "c 189:* rmw"
 
     working_dir: /root/repo/drift_ws
 
