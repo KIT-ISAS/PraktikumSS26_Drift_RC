@@ -168,6 +168,44 @@ jobs:
         if: always()
         run: docker compose -f .devcontainer/docker-compose.yaml down
 
+  library-test:
+    name: Run Library Tests
+    runs-on: ubuntu-24.04
+    needs: build-docker-image
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Docker Image
+        run: |
+          docker pull $IMAGE_NAME:$IMAGE_TAG
+
+      - name: Start Dev Container
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml up -d
+
+      # vehicle_simulation is a pure pip library (no package.xml), so colcon test
+      # does not discover it. Run its pytest suite directly. The package source and
+      # venv site-packages are on PYTHONPATH via the image, and pytest comes from
+      # the system Python (same one colcon uses), so no venv activation is needed.
+      - name: Run Library Tests
+        run: |
+          docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
+            python3 -m pytest src/vehicle_simulation/tests -v
+          "
+
+      - name: Stop Dev Container
+        if: always()
+        run: docker compose -f .devcontainer/docker-compose.yaml down
+
   lint:
     name: Lint Code
     runs-on: ubuntu-24.04
