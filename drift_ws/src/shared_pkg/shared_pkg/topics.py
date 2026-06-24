@@ -22,5 +22,7 @@ class Topics:
     # Car-related Topics
     CAR_BASE: str = "/car"
     CAR_POSE: str = CAR_BASE + "/pose"
+    CAR_ODOM: str = CAR_BASE + "/odom"
+    CAR_IMU: str = CAR_BASE + "/imu"
     VEHICLE_ACTION_REQUEST: str = CAR_BASE + "/vehicle_action_request"
     VEHICLE_STATUS: str = CAR_BASE + "/vehicle_status"
