@@ -260,7 +260,23 @@ Component::~Component()
 
 rclcpp::Time Component::get_ros_time(const std::string & /*str*/, FLT timecode)
 {
-  return rclcpp::Time() + rclcpp::Duration(std::chrono::duration<double>(timecode));
+  // libsurvive timecodes are seconds on its own monotonic clock (counting from
+  // driver start), not the ROS epoch. Anchor them to ROS time once via a fixed
+  // offset captured on the first sample, so the dynamic tracker/IMU/lighthouse
+  // stamps share the same clock as the static transforms and consumers. Without
+  // this the dynamic frames sit ~1.7e9 s in the past and drift relative to the
+  // rest of the TF tree. A constant offset preserves the relative timing the
+  // downstream velocity finite-difference relies on.
+  const rcl_clock_type_t clock_type = this->get_clock()->get_clock_type();
+  const rclcpp::Time survive_time =
+    rclcpp::Time(0, 0, clock_type) + rclcpp::Duration(std::chrono::duration<double>(timecode));
+
+  std::lock_guard<std::mutex> lock(time_ref_mutex_);
+  if (!time_ref_initialized_) {
+    time_offset_ = this->get_clock()->now() - survive_time;
+    time_ref_initialized_ = true;
+  }
+  return survive_time + time_offset_;
 }
 
 void Component::publish_imu(const sensor_msgs::msg::Imu & msg)
@@ -375,12 +391,18 @@ void Component::work()
           SurvivePose pose = {};
           auto timecode = survive_simple_object_get_latest_pose(it, &pose);
           if (timecode > 0) {
-            geometry_msgs::msg::TransformStamped pose_msg;
-            pose_msg.header.stamp = this->get_ros_time("lighthouse", timecode);
-            pose_msg.header.frame_id = tracking_frame_;
-            pose_msg.child_frame_id = survive_simple_serial_number(it);
-            ros_from_pose(&pose_msg.transform, pose);
-            tf_static_broadcaster_->sendTransform(pose_msg);
+            // Lighthouses are static: latch each frame on /tf_static exactly once.
+            // Re-broadcasting libsurvive's refined estimate would make the frame
+            // wobble. The live estimate still streams on the PoseArray topic below.
+            std::string serial = survive_simple_serial_number(it);
+            if (published_lighthouse_frames_.insert(serial).second) {
+              geometry_msgs::msg::TransformStamped pose_msg;
+              pose_msg.header.stamp = this->get_ros_time("lighthouse", timecode);
+              pose_msg.header.frame_id = tracking_frame_;
+              pose_msg.child_frame_id = serial;
+              ros_from_pose(&pose_msg.transform, pose);
+              tf_static_broadcaster_->sendTransform(pose_msg);
+            }
 
             // Collect the lighthouse pose in world coordinates.
             lighthouse_msg.poses.push_back(to_world_pose(pose_from_survive(pose)));

@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -72,6 +73,16 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr lighthouse_poses_publisher_;
   std::thread worker_thread_;
   rclcpp::Time last_base_station_update_;
+  // Lighthouse serials whose static TF has already been latched. Lighthouses do
+  // not move, so each frame is broadcast on /tf_static exactly once; re-sending
+  // libsurvive's continuously-refined estimate would make the frames wobble.
+  std::set<std::string> published_lighthouse_frames_;
+  // Fixed offset mapping libsurvive's monotonic clock onto ROS time, captured
+  // once from the first sample so every stamp shares the ROS clock. Guarded by a
+  // mutex because get_ros_time() is called from both the worker and IMU threads.
+  std::mutex time_ref_mutex_;
+  bool time_ref_initialized_ = false;
+  rclcpp::Duration time_offset_{0, 0};
   std::string tracking_frame_;
   std::string world_frame_;
   std::string tracker_frame_;
