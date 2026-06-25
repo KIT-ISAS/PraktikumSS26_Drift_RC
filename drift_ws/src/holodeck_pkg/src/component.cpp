@@ -164,9 +164,10 @@ Component::Component(const rclcpp::NodeOptions & options)
   this->declare_parameter("imu_frame", "imu_link");
   this->get_parameter("imu_frame", imu_frame_);
 
-  // Serial of the car's tracker. Empty (default) auto-picks the first object that
-  // reports a pose; set it when more than one object (e.g. a controller) is
-  // tracked, so only the car owns the canonical tracker_link/imu_link frames.
+  // Serial of the car's tracker. Empty (default) uses the first available
+  // tracker (the first OBJECT to report a pose). libsurvive reports trackers and
+  // controllers with the same OBJECT type, so set this explicitly if a controller
+  // might also be live, to keep it from claiming the car's tracker_link/imu_link.
   this->declare_parameter("tracker_serial", "");
   this->get_parameter("tracker_serial", tracker_serial_);
 
@@ -331,8 +332,10 @@ void Component::work()
       case SurviveSimpleEventType_PoseUpdateEvent: {
           const struct SurviveSimplePoseUpdatedEvent * pose_event =
             survive_simple_get_pose_updated_event(&event);
-          if (survive_simple_object_get_type(pose_event->object) !=
-            SurviveSimpleObject_LIGHTHOUSE)
+          // Only genuine tracked objects are candidates for tracker_link
+          // (excludes lighthouses, an HMD, and external poses).
+          if (survive_simple_object_get_type(pose_event->object) ==
+            SurviveSimpleObject_OBJECT)
           {
             SurvivePose pose = {};
             auto timecode = survive_simple_object_get_latest_pose(pose_event->object, &pose);

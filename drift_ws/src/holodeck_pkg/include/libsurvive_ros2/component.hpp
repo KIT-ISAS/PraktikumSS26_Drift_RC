@@ -94,8 +94,9 @@ private:
   std::string tracker_frame_;
   std::string imu_frame_;
   // Which tracked object is the car. `tracker_serial_` is the configured serial
-  // ("" = auto-pick the first object that reports a pose); `active_tracker_serial_`
-  // is the latched winner that owns the canonical tracker_link/imu_link frames.
+  // ("" = use the first available tracker, i.e. the first OBJECT to report a
+  // pose); `active_tracker_serial_` is the latched winner that owns the canonical
+  // tracker_link/imu_link frames.
   // Other objects (controllers, extra trackers) keep their own serial frames so
   // they never collide on tracker_link. Guarded by the mutex (worker + IMU thread).
   std::string tracker_serial_;
