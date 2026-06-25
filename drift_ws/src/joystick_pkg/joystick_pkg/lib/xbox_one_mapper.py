@@ -24,10 +24,12 @@ class XBoxOneMapper(JoystickMapper):
         Extract steering value from joystick message based on configured axis mapping.
 
         :param joy_msg: The incoming joystick ROS message containing axes data.
-        :returns: A float in [-1, 1] representing the steering value,
-        where negative values indicate left and positive values indicate right.
+        :returns: A float in [-1, 1] in ISO 8855: positive = left, negative = right.
         """
-        steering = -joy_msg.axes[self.axis_mapping["steering"]]  # invert axis
+        # ISO 8855 (positive = left). The stick's left deflection reads positive on
+        # this axis, so it passes straight through (no inversion). The physical
+        # servo direction is applied at the actuation edge (ESP32 firmware).
+        steering = joy_msg.axes[self.axis_mapping["steering"]]
         return max(-1.0, min(1.0, steering))
 
     def extract_throttle(self, joy_msg: Joy) -> float:

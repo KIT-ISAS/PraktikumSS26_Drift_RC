@@ -57,7 +57,7 @@ Arming is ignored during the first 3 s after boot — the ESC needs that window 
 | Field        | Type   | Range         | Description                                    |
 |--------------|--------|---------------|------------------------------------------------|
 | `session_id` | uint32 | —             | Random ID chosen by the sender at startup      |
-| `steering`   | float  | −1.0 … 1.0    | Left (−1) to right (+1)                        |
+| `steering`   | float  | −1.0 … 1.0    | ISO 8855: left (+1) to right (−1)              |
 | `throttle`   | float  | −1.0 … 1.0    | Reverse/brake (−1) to forward (+1)             |
 | `gyro_mode`  | string | `soft`/`hard` | Gyro correction direction                      |
 | `gyro_gain`  | float  | 0.0 … 1.0     | Gyro correction strength                       |

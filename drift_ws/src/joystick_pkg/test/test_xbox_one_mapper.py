@@ -23,15 +23,16 @@ def _calibrated_mapper() -> XBoxOneMapper:
 
 
 class TestSteering:
-    """Axis inversion and clamping of extract_steering."""
+    """ISO 8855 pass-through (positive = left) and clamping of extract_steering."""
 
     def test_left_input_is_positive(self):
+        # Left stick deflection reads positive on the axis -> positive (left).
         mapper = XBoxOneMapper(AXIS_MAPPING)
-        assert mapper.extract_steering(_joy(steering=-0.5)) == pytest.approx(0.5)
+        assert mapper.extract_steering(_joy(steering=0.5)) == pytest.approx(0.5)
 
     def test_right_input_is_negative(self):
         mapper = XBoxOneMapper(AXIS_MAPPING)
-        assert mapper.extract_steering(_joy(steering=0.5)) == pytest.approx(-0.5)
+        assert mapper.extract_steering(_joy(steering=-0.5)) == pytest.approx(-0.5)
 
     def test_center_is_zero(self):
         mapper = XBoxOneMapper(AXIS_MAPPING)
@@ -39,8 +40,8 @@ class TestSteering:
 
     def test_clamps_to_unit_range(self):
         mapper = XBoxOneMapper(AXIS_MAPPING)
-        assert mapper.extract_steering(_joy(steering=-2.0)) == pytest.approx(1.0)
-        assert mapper.extract_steering(_joy(steering=2.0)) == pytest.approx(-1.0)
+        assert mapper.extract_steering(_joy(steering=2.0)) == pytest.approx(1.0)
+        assert mapper.extract_steering(_joy(steering=-2.0)) == pytest.approx(-1.0)
 
 
 class TestTriggerCalibration:
