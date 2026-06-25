@@ -40,8 +40,15 @@ PARAMETERS = [
     {"driver_args": f"--disable-calibrate --init-configfile {CFG_FILE}"},
     # {"driver_args": f"--force-calibrate 1 --init-configfile {CFG_FILE}"},
     {"tracking_frame": "libsurvive_world"},
-    # Absolute path so the node namespace does not prefix it; matches Topics.CAR_POSE.
-    {"car_pose_topic": "/car/pose"},
+    # Raw tracker pose is published as TF libsurvive_world -> tracker_link; the
+    # canonical /car/pose, /car/odom and /car/imu are derived downstream by
+    # car_localization_pkg.
+    {"tracker_frame": "tracker_link"},
+    {"imu_frame": "imu_link"},
+    # Serial of the car's tracker. Empty = use the first available tracker; set it
+    # when a controller / second tracker may also be live so only the car owns
+    # tracker_link/imu_link.
+    {"tracker_serial": ""},
     {"imu_topic": "imu"},
     {"joy_topic": "joy"},
     {"cfg_topic": "cfg"},

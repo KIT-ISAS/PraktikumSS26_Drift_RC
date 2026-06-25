@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -59,6 +60,13 @@ public:
   virtual ~Component();
   rclcpp::Time get_ros_time(const std::string & str, FLT timecode);
   void publish_imu(const sensor_msgs::msg::Imu & msg);
+  const std::string & imu_frame() const {return imu_frame_;}
+  // Whether `serial` is the car's tracker. claimTrackerFrame() also latches the
+  // first matching object as the car tracker when it is not yet decided (auto
+  // mode); isActiveTracker() is read-only. Both are thread-safe: pose updates run
+  // on the worker thread, IMU on a libsurvive thread.
+  bool claimTrackerFrame(const std::string & serial);
+  bool isActiveTracker(const std::string & serial);
 
 private:
   void work();
@@ -68,13 +76,32 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr joy_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::KeyValue>::SharedPtr cfg_publisher_;
-  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr viz_publisher_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr car_pose_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr lighthouse_poses_publisher_;
   std::thread worker_thread_;
   rclcpp::Time last_base_station_update_;
+  // Lighthouse serials whose static TF has already been latched. Lighthouses do
+  // not move, so each frame is broadcast on /tf_static exactly once; re-sending
+  // libsurvive's continuously-refined estimate would make the frames wobble.
+  std::set<std::string> published_lighthouse_frames_;
+  // Fixed offset mapping libsurvive's monotonic clock onto ROS time, captured
+  // once from the first sample so every stamp shares the ROS clock. Guarded by a
+  // mutex because get_ros_time() is called from both the worker and IMU threads.
+  std::mutex time_ref_mutex_;
+  bool time_ref_initialized_ = false;
+  rclcpp::Duration time_offset_{0, 0};
   std::string tracking_frame_;
   std::string world_frame_;
+  std::string tracker_frame_;
+  std::string imu_frame_;
+  // Which tracked object is the car. `tracker_serial_` is the configured serial
+  // ("" = use the first available tracker, i.e. the first OBJECT to report a
+  // pose); `active_tracker_serial_` is the latched winner that owns the canonical
+  // tracker_link/imu_link frames.
+  // Other objects (controllers, extra trackers) keep their own serial frames so
+  // they never collide on tracker_link. Guarded by the mutex (worker + IMU thread).
+  std::string tracker_serial_;
+  std::string active_tracker_serial_;
+  std::mutex tracker_serial_mutex_;
   double lighthouse_rate_;
 };
 

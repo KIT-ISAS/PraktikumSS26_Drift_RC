@@ -63,10 +63,16 @@ static void imu_func(
 {
   if (_singleton) {
     survive_default_imu_process(so, mask, accelgyromag, rawtime, id);
+    // Only publish the car tracker's IMU on imu_link; other objects' IMUs would
+    // otherwise be mixed onto the same topic/frame. (Pose updates latch which
+    // serial is the car, so this drops samples until the first pose arrives.)
+    if (!_singleton->isActiveTracker(so->serial_number)) {
+      return;
+    }
     FLT timecode = SurviveSensorActivations_runtime(
       &so->activations, so->activations.last_imu) / FLT(1e6);
     sensor_msgs::msg::Imu imu_msg;
-    imu_msg.header.frame_id = std::string(so->serial_number) + "_imu";
+    imu_msg.header.frame_id = _singleton->imu_frame();
     imu_msg.header.stamp = _singleton->get_ros_time("inertial", timecode);
     imu_msg.angular_velocity.x = accelgyromag[3];
     imu_msg.angular_velocity.y = accelgyromag[4];
@@ -88,18 +94,6 @@ static void ros_from_pose(
   tx->rotation.x = pose.Rot[1];
   tx->rotation.y = pose.Rot[2];
   tx->rotation.z = pose.Rot[3];
-}
-
-// Flips the orientation 180 degrees about its own forward (X) axis, turning an
-// upside-down pose right-side up while keeping the heading unchanged.
-// Equivalent to the Hamilton product q * (w=0, x=1, y=0, z=0).
-static void flip_upside_down(geometry_msgs::msg::Quaternion * const q)
-{
-  const double w = q->w, x = q->x, y = q->y, z = q->z;
-  q->w = -x;
-  q->x = w;
-  q->y = z;
-  q->z = -y;
 }
 
 // Converts a raw libsurvive pose into a ROS pose (still in the tracking frame).
@@ -161,12 +155,21 @@ Component::Component(const rclcpp::NodeOptions & options)
   this->declare_parameter("lighthouse_rate", 4.0);
   this->get_parameter("lighthouse_rate", lighthouse_rate_);
 
-  // Setup topic for the car pose in world coordinates.
-  std::string car_pose_topic;
-  this->declare_parameter("car_pose_topic", "car_pose");
-  this->get_parameter("car_pose_topic", car_pose_topic);
-  car_pose_publisher_ =
-    this->create_publisher<geometry_msgs::msg::PoseStamped>(car_pose_topic, 10);
+  // Frames published for the tracked car. This node only emits the *raw* tracker
+  // pose as world -> tracker_link (and the raw IMU on imu_link); the canonical
+  // CoG/ISO-8855 pose, odometry and IMU are derived downstream by
+  // car_localization_pkg, keeping this adapter free of mount-specific maths.
+  this->declare_parameter("tracker_frame", "tracker_link");
+  this->get_parameter("tracker_frame", tracker_frame_);
+  this->declare_parameter("imu_frame", "imu_link");
+  this->get_parameter("imu_frame", imu_frame_);
+
+  // Serial of the car's tracker. Empty (default) uses the first available
+  // tracker (the first OBJECT to report a pose). libsurvive reports trackers and
+  // controllers with the same OBJECT type, so set this explicitly if a controller
+  // might also be live, to keep it from claiming the car's tracker_link/imu_link.
+  this->declare_parameter("tracker_serial", "");
+  this->get_parameter("tracker_serial", tracker_serial_);
 
   // Setup topic for the lighthouse poses in world coordinates. The base stations
   // are static, so we latch the latest sample for late-joining subscribers.
@@ -193,13 +196,6 @@ Component::Component(const rclcpp::NodeOptions & options)
   this->declare_parameter("cfg_topic", "cfg");
   this->get_parameter("cfg_topic", cfg_topic);
   cfg_publisher_ = this->create_publisher<diagnostic_msgs::msg::KeyValue>(cfg_topic, 10);
-
-  // Setup topic for visualization
-  std::string viz_topic;
-  this->declare_parameter("viz_topic", "visualization_marker");
-  this->get_parameter("viz_topic", viz_topic);
-  viz_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>(
-    viz_topic, rclcpp::QoS(1).transient_local());
 
   // Publish the static TF from world to the libsurvive tracking frame.
   // This encodes the same rotation + offset applied in to_world_pose() so that
@@ -277,7 +273,40 @@ Component::~Component()
 
 rclcpp::Time Component::get_ros_time(const std::string & /*str*/, FLT timecode)
 {
-  return rclcpp::Time() + rclcpp::Duration(std::chrono::duration<double>(timecode));
+  // libsurvive timecodes are seconds on its own monotonic clock (counting from
+  // driver start), not the ROS epoch. Anchor them to ROS time once via a fixed
+  // offset captured on the first sample, so the dynamic tracker/IMU/lighthouse
+  // stamps share the same clock as the static transforms and consumers. Without
+  // this the dynamic frames sit ~1.7e9 s in the past and drift relative to the
+  // rest of the TF tree. A constant offset preserves the relative timing the
+  // downstream velocity finite-difference relies on.
+  const rcl_clock_type_t clock_type = this->get_clock()->get_clock_type();
+  const rclcpp::Time survive_time =
+    rclcpp::Time(0, 0, clock_type) + rclcpp::Duration(std::chrono::duration<double>(timecode));
+
+  std::lock_guard<std::mutex> lock(time_ref_mutex_);
+  if (!time_ref_initialized_) {
+    time_offset_ = this->get_clock()->now() - survive_time;
+    time_ref_initialized_ = true;
+  }
+  return survive_time + time_offset_;
+}
+
+bool Component::claimTrackerFrame(const std::string & serial)
+{
+  std::lock_guard<std::mutex> lock(tracker_serial_mutex_);
+  if (active_tracker_serial_.empty() &&
+    (tracker_serial_.empty() || serial == tracker_serial_))
+  {
+    active_tracker_serial_ = serial;
+  }
+  return serial == active_tracker_serial_;
+}
+
+bool Component::isActiveTracker(const std::string & serial)
+{
+  std::lock_guard<std::mutex> lock(tracker_serial_mutex_);
+  return !active_tracker_serial_.empty() && serial == active_tracker_serial_;
 }
 
 void Component::publish_imu(const sensor_msgs::msg::Imu & msg)
@@ -303,47 +332,24 @@ void Component::work()
       case SurviveSimpleEventType_PoseUpdateEvent: {
           const struct SurviveSimplePoseUpdatedEvent * pose_event =
             survive_simple_get_pose_updated_event(&event);
-          if (survive_simple_object_get_type(pose_event->object) !=
-            SurviveSimpleObject_LIGHTHOUSE)
+          // Only genuine tracked objects are candidates for tracker_link
+          // (excludes lighthouses, an HMD, and external poses).
+          if (survive_simple_object_get_type(pose_event->object) ==
+            SurviveSimpleObject_OBJECT)
           {
             SurvivePose pose = {};
             auto timecode = survive_simple_object_get_latest_pose(pose_event->object, &pose);
             if (timecode > 0) {
+              // Raw tracker pose; mount correction is applied downstream. Only the
+              // car's tracker owns the canonical tracker_link frame; any other
+              // tracked object keeps its own serial frame so they never collide.
+              std::string serial = survive_simple_serial_number(pose_event->object);
               geometry_msgs::msg::TransformStamped pose_msg;
               pose_msg.header.stamp = this->get_ros_time("tracker", timecode);
               pose_msg.header.frame_id = tracking_frame_;
-              pose_msg.child_frame_id = survive_simple_serial_number(pose_event->object);
+              pose_msg.child_frame_id = claimTrackerFrame(serial) ? tracker_frame_ : serial;
               ros_from_pose(&pose_msg.transform, pose);
-              flip_upside_down(&pose_msg.transform.rotation);
               tf_broadcaster_->sendTransform(pose_msg);
-
-              // Publish the car pose in world coordinates.
-              geometry_msgs::msg::PoseStamped world_msg;
-              if (car_pose_publisher_) {
-                geometry_msgs::msg::Pose tracker_pose = pose_from_survive(pose);
-                flip_upside_down(&tracker_pose.orientation);
-                world_msg.header.stamp = pose_msg.header.stamp;
-                world_msg.header.frame_id = world_frame_;
-                world_msg.pose = to_world_pose(tracker_pose);
-                car_pose_publisher_->publish(world_msg);
-              }
-
-              if (viz_publisher_) {
-                visualization_msgs::msg::Marker marker_msg;
-                marker_msg.header.stamp = this->get_clock()->now();
-                marker_msg.header.frame_id = world_frame_;
-                marker_msg.id = 0;
-                marker_msg.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
-                marker_msg.action = visualization_msgs::msg::Marker::ADD;
-                marker_msg.mesh_resource = "package://shared_pkg/meshes/porsche.glb";
-                marker_msg.mesh_use_embedded_materials = true;
-                marker_msg.pose = world_msg.pose;
-                marker_msg.scale.x = 7.0;
-                marker_msg.scale.y = 7.0;
-                marker_msg.scale.z = 7.0;
-                marker_msg.color.a = 1.0f;
-                viz_publisher_->publish(marker_msg);
-              }
             }
           }
           break;
@@ -420,12 +426,18 @@ void Component::work()
           SurvivePose pose = {};
           auto timecode = survive_simple_object_get_latest_pose(it, &pose);
           if (timecode > 0) {
-            geometry_msgs::msg::TransformStamped pose_msg;
-            pose_msg.header.stamp = this->get_ros_time("lighthouse", timecode);
-            pose_msg.header.frame_id = tracking_frame_;
-            pose_msg.child_frame_id = survive_simple_serial_number(it);
-            ros_from_pose(&pose_msg.transform, pose);
-            tf_static_broadcaster_->sendTransform(pose_msg);
+            // Lighthouses are static: latch each frame on /tf_static exactly once.
+            // Re-broadcasting libsurvive's refined estimate would make the frame
+            // wobble. The live estimate still streams on the PoseArray topic below.
+            std::string serial = survive_simple_serial_number(it);
+            if (published_lighthouse_frames_.insert(serial).second) {
+              geometry_msgs::msg::TransformStamped pose_msg;
+              pose_msg.header.stamp = this->get_ros_time("lighthouse", timecode);
+              pose_msg.header.frame_id = tracking_frame_;
+              pose_msg.child_frame_id = serial;
+              ros_from_pose(&pose_msg.transform, pose);
+              tf_static_broadcaster_->sendTransform(pose_msg);
+            }
 
             // Collect the lighthouse pose in world coordinates.
             lighthouse_msg.poses.push_back(to_world_pose(pose_from_survive(pose)));
