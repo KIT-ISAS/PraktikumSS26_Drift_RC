@@ -8,6 +8,7 @@
   <license>Apache License 2.0</license>
 
   <depend>shared_pkg</depend>
+  <depend>shared_interfaces</depend>
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>

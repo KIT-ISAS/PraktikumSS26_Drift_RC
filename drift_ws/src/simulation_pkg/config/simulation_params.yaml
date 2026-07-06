@@ -1,0 +1,22 @@
+simulation_node:
+  ros__parameters:
+    # Vehicle model to simulate (resolved by build_model):
+    #   "arcade"    game-like drift model (default; torch-free)
+    #   "kinematic" no-slip kinematic bicycle (torch-free)
+    #   "dynamic"   physics single-track bicycle (needs the [neural] extra)
+    #   "neural"/"hybrid" or a run-dir path  (trained models; need model_weights/run dir)
+    model_type: "arcade"
+
+    # Path to a YAML config for hand-tuned models (arcade/kinematic); empty = defaults
+    model_config: ""
+
+    # Path to a .pt checkpoint or run dir (for trained models: neural/hybrid)
+    model_weights: ""
+
+    # Simulation timestep in seconds (also controls /car/pose publish rate)
+    dt: 0.02
+
+    # Initial pose of the simulated vehicle
+    initial_x: 0.53077
+    initial_y: -0.63897
+    initial_heading: 2.094  # ~120 deg — figure-8 start tangent direction
