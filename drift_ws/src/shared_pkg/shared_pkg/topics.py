@@ -14,6 +14,11 @@ class Topics:
     # Tracking source (libsurvive) raw outputs
     LIBSURVIVE_IMU: str = "/libsurvive/imu"
 
+    # Tracking source (SteamVR) raw outputs
+    STEAMVR_BASE: str = "/steamvr"
+    STEAMVR_IMU: str = STEAMVR_BASE + "/imu"
+    STEAMVR_POSE: str = STEAMVR_BASE + "/pose"
+
     # Track-related Topics
     TRACK_BASE: str = "/track"
     TRACK_BOUNDARY: str = TRACK_BASE + "/boundary"
