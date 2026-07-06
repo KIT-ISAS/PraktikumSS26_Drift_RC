@@ -42,7 +42,7 @@ PARAMETERS = [
             "-v 5"
             "--disable-calibrate 1 "
             # Honest accelerometer noise at rest, automatic down-weighting while driving (norm penalty), gyro de-trusted against vibration
-            "--imu-acc-variance 2e-3 " 
+            "--imu-acc-variance 2e-3 "
             "--imu-acc-norm-penalty 10 "
             "--imu-gyro-variance 1e-3 "
             # Freezes the online IMU self-calibration whose saturated scale/bias causes growing tilt
