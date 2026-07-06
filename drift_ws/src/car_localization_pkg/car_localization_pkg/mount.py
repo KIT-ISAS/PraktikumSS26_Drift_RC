@@ -28,6 +28,8 @@ from vehicle_simulation.transforms import (
 # mount right-side up while leaving the forward axis unchanged.
 _FLIP_X = (1.0, 0.0, 0.0, 0.0)
 
+_SQRT_HALF = math.sqrt(0.5)
+
 Vec3 = tuple[float, float, float]
 Quat = tuple[float, float, float, float]
 
@@ -77,8 +79,18 @@ def tracker_to_imu() -> tuple[Vec3, Quat]:
     """
     Static transform ``tracker_link -> imu_link`` as ``(translation, quaternion)``.
 
-    Identity by default: the car-parameters file carries no measured IMU offset
-    yet, so the IMU is treated as coincident with the tracker pose frame. Split
-    out so a measured offset can be added later without touching the node.
+    The raw libsurvive IMU is *not* coincident with the tracker pose frame: the
+    pose frame is y-forward (see :func:`tracker_to_base`), but the bare IMU chip
+    axes are **x forward, y right, z down** (measured from a recorded run — the
+    rest gravity vector reads ``-9.7`` on z, and forward/left pushes land on
+    +x/-y). Relative to the tracker pose frame that is a +90 deg yaw, so the IMU
+    needs its own rotation instead of the identity; without it ``/car/imu`` comes
+    out 90 deg off (accel x/y swapped) while z happens to be correct.
+
+    Translation stays zero: the car-parameters file carries no measured IMU
+    lever-arm offset yet (a future refinement, needed for CoG correction).
     """
-    return (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)
+    # +90 deg yaw about Z: composed with tracker_to_base's rotation this makes the
+    # net imu_link -> base_link a pure 180 deg roll about X, i.e. (fwd, right, down)
+    # -> (fwd, left, up) = ISO 8855.
+    return (0.0, 0.0, 0.0), (0.0, 0.0, _SQRT_HALF, _SQRT_HALF)
