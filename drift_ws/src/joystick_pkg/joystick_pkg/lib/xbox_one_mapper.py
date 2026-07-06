@@ -26,9 +26,6 @@ class XBoxOneMapper(JoystickMapper):
         :param joy_msg: The incoming joystick ROS message containing axes data.
         :returns: A float in [-1, 1] in ISO 8855: positive = left, negative = right.
         """
-        # ISO 8855 (positive = left). The stick's left deflection reads positive on
-        # this axis, so it passes straight through (no inversion). The physical
-        # servo direction is applied at the actuation edge (ESP32 firmware).
         steering = joy_msg.axes[self.axis_mapping["steering"]]
         return max(-1.0, min(1.0, steering))
 
