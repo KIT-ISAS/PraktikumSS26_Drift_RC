@@ -7,12 +7,16 @@ system never depends on a specific tracking setup or re-derives coordinate maths
 
 ## The contract a tracking source must satisfy
 
-A source (libsurvive today, SteamVR or anything else later) only has to provide:
+A source (libsurvive via `holodeck_pkg`, or SteamVR via `steamvr_pkg`) only has
+to provide:
 
 1. **TF `world → tracker_link`** — the raw tracker pose. `world` is the shared,
    fixed, gravity-aligned frame. The pose may be "raw" (e.g. upside-down); the
    mount transform below corrects it.
-2. **A raw IMU** (`sensor_msgs/Imu`) in `imu_link`, if the tracker has one.
+2. **A raw IMU** (`sensor_msgs/Imu`), if the tracker has one. `car_state_node`
+   rotates it into `base_link` via TF from the message's `frame_id` — libsurvive
+   stamps it `imu_link` (raw chip axes), steamvr stamps its pseudo-IMU
+   `tracker_link` directly.
 
 That is the entire boundary. Nothing downstream of `tracker_link` is
 source-specific.
@@ -47,7 +51,10 @@ ros2 launch car_localization_pkg car_localization.launch.py
 ```
 
 Real pipeline: included automatically by `manual_driving_with_viz.launch.py`
-(holodeck publishes the raw tracker TF + IMU; this package derives the rest).
+(the selected tracking source — `tracking_source:=libsurvive|steamvr` —
+publishes the raw tracker TF + IMU; this package derives the rest). The mount
+knobs are forwarded as launch arguments (`tracker_yaw_offset_deg`,
+`tracker_upside_down`) since the tracker body frame can differ per source.
 
 ### Real + simulated car together
 

@@ -58,12 +58,17 @@ ROS 2 packages live in `drift_ws/src/`:
 | `joystick_pkg` | ament_python | Reads controller via ROS `joy` node, maps inputs (`xbox_one_mapper`) to `VehicleActionRequest` |
 | `vehicle_communication_pkg` | ament_python | Bridges ROS ↔ car: forwards `VehicleActionRequest` to the ESP32, republishes `VehicleStatus` |
 | `holodeck_pkg` | ament_cmake (C++) | Thin wrapper around the `libsurvive_ros2` driver; publishes vehicle and lighthouse poses in the world frame via TF and on `/car/pose` |
+| `steamvr_pkg` | ament_python | Alternative tracking source: receives tracker poses from the host-side SteamVR bridge (`steamvr_bridge/`, UDP) and publishes the same TF contract + a pseudo-IMU |
 | `track_pkg` | ament_python | Bezier track representation, lap progress tracking, and centerline publisher |
 | `example_pkg` | ament_python | Template/reference package |
 
 **Control data flow:** `joystick_pkg` → `VehicleActionRequest` topic → `vehicle_communication_pkg` → UDP/JSON → ESP32 firmware → PWM (servo/ESC). Status flows back: ESP32 → UDP → `vehicle_communication_pkg` → `VehicleStatus` topic.
 
-**Tracking data flow:** Vive lighthouses → `holodeck_pkg`/libsurvive → vehicle & lighthouse poses published in the **world frame** via TF and on `/car/pose` → `track_pkg` projects the car onto the centerline and publishes `TrackProgress` (lap count, lateral error, arc-length distance).
+**Tracking data flow:** Vive lighthouses → tracking source → TF `world -> tracker_link` + raw IMU topic → `car_localization_pkg` derives the canonical `/car/pose`, `/car/odom`, `/car/imu` (CoG, ISO 8855) → `track_pkg` projects the car onto the centerline and publishes `TrackProgress` (lap count, lateral error, arc-length distance).
+
+Two interchangeable tracking sources exist (`tracking_source:=libsurvive|steamvr` on the top-level launch; they cannot run simultaneously — both claim the tracker dongle):
+- **libsurvive**: `holodeck_pkg` wraps the driver in-container.
+- **SteamVR**: `steamvr_bridge/steamvr_bridge.py` must run **on the host** (OpenVR needs local IPC to SteamVR) and streams raw poses over UDP to `steamvr_pkg`'s node; the wire format lives in `steamvr_pkg/steamvr_pkg/lib/protocol.py` (stdlib-only, imported by both ends). Calibration of `world -> steamvr_world` is via ROS params — see `steamvr_pkg/README.md`.
 
 ### Conventions
 
