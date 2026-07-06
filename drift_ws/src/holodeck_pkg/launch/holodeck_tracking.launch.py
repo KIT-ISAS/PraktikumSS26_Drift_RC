@@ -41,20 +41,26 @@ PARAMETERS = [
         "driver_args": (
             "-v 5"
             "--disable-calibrate 1 "
-            "--imu-acc-variance 2e-3 "
+            # Honest accelerometer noise at rest, automatic down-weighting while driving (norm penalty), gyro de-trusted against vibration
+            "--imu-acc-variance 2e-3 " 
             "--imu-acc-norm-penalty 10 "
             "--imu-gyro-variance 1e-3 "
+            # Freezes the online IMU self-calibration whose saturated scale/bias causes growing tilt
             "--kalman-initial-acc-scale-variance 0 "
             "--kalman-initial-acc-bias-variance 0 "
             "--process-weight-acc-bias 0 "
+            # Stops the filter from being slaved to the noisy 167 Hz MPFit poses (main jitter source)
             "--obs-pos-variance 1e-4 "
             "--obs-rot-variance 1e-5 "
+            # Process noise sized for a ground vehicle instead of a VR headset
             "--process-weight-jerk 1e4 "
             "--process-weight-ang-vel 5 "
+            # Prevents pose dropouts during driving and keeps partial-visibility light batches usable
             "--report-ignore-threshold 1.0 "
             "--light-ignore-threshold 10 "
             "--kalman-lightcap-minimum-sensors 3 "
             "--kalman-joint-lightcap-minimum-sensors 3 "
+            # Stationary detection just above your vibration floor; occlusions under 0.5 s don't zero your velocity
             "--move-threshold-acc 0.05 "
             "--move-threshold-gyro 0.1 "
             "--kalman-zvu-no-light-time 0.5 "
