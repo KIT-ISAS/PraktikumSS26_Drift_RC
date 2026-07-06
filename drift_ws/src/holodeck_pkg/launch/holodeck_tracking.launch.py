@@ -37,7 +37,30 @@ CFG_FILE = os.path.join(get_package_share_directory("holodeck_pkg"), "config", "
 
 # Sow we don't have to repeat for composable and non-composable versions.
 PARAMETERS = [
-    {"driver_args": f"--disable-calibrate --init-configfile {CFG_FILE}"},
+    {
+        "driver_args": (
+            "-v 5"
+            "--disable-calibrate 1 "
+            "--imu-acc-variance 2e-3 "
+            "--imu-acc-norm-penalty 10 "
+            "--imu-gyro-variance 1e-3 "
+            "--kalman-initial-acc-scale-variance 0 "
+            "--kalman-initial-acc-bias-variance 0 "
+            "--process-weight-acc-bias 0 "
+            "--obs-pos-variance 1e-4 "
+            "--obs-rot-variance 1e-5 "
+            "--process-weight-jerk 1e4 "
+            "--process-weight-ang-vel 5 "
+            "--report-ignore-threshold 1.0 "
+            "--light-ignore-threshold 10 "
+            "--kalman-lightcap-minimum-sensors 3 "
+            "--kalman-joint-lightcap-minimum-sensors 3 "
+            "--move-threshold-acc 0.05 "
+            "--move-threshold-gyro 0.1 "
+            "--kalman-zvu-no-light-time 0.5 "
+            f"--init-configfile {CFG_FILE}"
+        )
+    },
     # {"driver_args": f"--force-calibrate 1 --init-configfile {CFG_FILE}"},
     {"tracking_frame": "libsurvive_world"},
     # Raw tracker pose is published as TF libsurvive_world -> tracker_link; the
