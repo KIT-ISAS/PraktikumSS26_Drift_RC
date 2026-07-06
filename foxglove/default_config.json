@@ -21,9 +21,19 @@
       "foxglovePanelTitle": "Brake Request"
     },
     "bar-display.Bar Display!1je62um": {
-      "topicField": "/car/vehicle_action_request.steering",
-      "minValue": -1,
+      "topicField": "/car/vehicle_action_request.gyro_gain",
+      "minValue": 0,
       "maxValue": 1,
+      "barColor": "#b626a7",
+      "orientation": "horizontal",
+      "fillBehavior": "clamp",
+      "negateValue": false,
+      "foxglovePanelTitle": "Gyro Gain"
+    },
+    "bar-display.Bar Display!16uica3": {
+      "topicField": "/car/vehicle_action_request.steering",
+      "minValue": 1,
+      "maxValue": -1,
       "barColor": "#000eff",
       "orientation": "horizontal",
       "fillBehavior": "clamp",
@@ -99,9 +109,13 @@
               "second": "bar-display.Bar Display!32p8jw6",
               "direction": "row"
             },
-            "second": "bar-display.Bar Display!1je62um",
+            "second": {
+              "first": "bar-display.Bar Display!1je62um",
+              "second": "bar-display.Bar Display!16uica3",
+              "direction": "column"
+            },
             "direction": "column",
-            "splitPercentage": 89.54546862606058
+            "splitPercentage": 56.06616271237183
           },
           "title": ""
         }
@@ -110,14 +124,14 @@
     },
     "3D!2nekybg": {
       "cameraState": {
-        "perspective": false,
-        "distance": 6.470670899473156,
-        "phi": 52.17697031003335,
-        "thetaOffset": 0,
+        "perspective": true,
+        "distance": 8.802533372996347,
+        "phi": 34.99456558943333,
+        "thetaOffset": 170.91107006521642,
         "targetOffset": [
-          0,
-          0,
-          0
+          0.39695377842916507,
+          0.7334745817194359,
+          -6.412171961077457e-17
         ],
         "target": [
           0,
@@ -145,7 +159,12 @@
       "topics": {
         "/libsurvive/visualization_marker": {
           "visible": true,
-          "showOutlines": false
+          "showOutlines": false,
+          "namespaces": {
+            "car": {
+              "visible": true
+            }
+          }
         },
         "/libsurvive/car_pose": {
           "visible": false
@@ -162,6 +181,32 @@
         },
         "/track/progress_visualization": {
           "visible": true
+        },
+        "/initialpose": {
+          "axisScale": 0.2,
+          "type": "axis",
+          "visible": true
+        },
+        "/move_base_simple/goal": {
+          "visible": true
+        },
+        "/car/pose": {
+          "visible": false,
+          "type": "arrow",
+          "arrowScale": [
+            1,
+            0.15,
+            0.15
+          ]
+        },
+        "/car/visualization": {
+          "visible": true,
+          "namespaces": {
+            "car": {
+              "visible": true
+            }
+          },
+          "showOutlines": false
         }
       },
       "layers": {
@@ -196,13 +241,14 @@
         "poseEstimateThetaDeviation": 0.26179939
       },
       "synchronize": false,
-      "imageMode": {}
+      "imageMode": {},
+      "followTf": "world"
     },
     "Plot!1c58pzm": {
       "paths": [
         {
           "timestampMethod": "receiveTime",
-          "value": "/libsurvive/imu.linear_acceleration.x",
+          "value": "/car/imu.linear_acceleration.x",
           "enabled": true,
           "color": "#4e98e2",
           "id": "6cfd4e76-5584-4a52-aa39-8f805ffb799d",
@@ -210,7 +256,7 @@
         },
         {
           "timestampMethod": "receiveTime",
-          "value": "/libsurvive/imu.linear_acceleration.y",
+          "value": "/car/imu.linear_acceleration.y",
           "enabled": true,
           "color": "#f5774d",
           "id": "8dcb4623-704b-4e03-b06f-00a23cbe9fa6",
@@ -218,19 +264,20 @@
         },
         {
           "timestampMethod": "receiveTime",
-          "value": "/libsurvive/imu.linear_acceleration.z",
+          "value": "/car/imu.linear_acceleration.z",
           "enabled": true,
           "color": "#f7df71",
           "id": "2a4ecb90-7975-48dc-9fd4-7aade1f65cd5",
           "label": "Accel_Z"
         }
-      ]
+      ],
+      "showLegend": true
     },
     "Plot!c2huyw": {
       "paths": [
         {
           "timestampMethod": "receiveTime",
-          "value": "/libsurvive/imu.angular_velocity.z",
+          "value": "/car/imu.angular_velocity.z",
           "enabled": true,
           "color": "#4e98e2",
           "id": "6cfd4e76-5584-4a52-aa39-8f805ffb799d",
@@ -306,11 +353,11 @@
         },
         "second": "Tab!3y9wyd3",
         "direction": "column",
-        "splitPercentage": 15.630912389508586
+        "splitPercentage": 29.786732649935193
       },
       "second": "3D!2nekybg",
       "direction": "row",
-      "splitPercentage": 15.10204081632653
+      "splitPercentage": 18.819802381740676
     },
     "second": {
       "first": "Plot!1c58pzm",

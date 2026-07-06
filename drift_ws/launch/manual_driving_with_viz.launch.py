@@ -34,7 +34,15 @@ def generate_launch_description():
     # Derives the canonical CoG/ISO-8855 state from holodeck's raw tracker TF.
     localization_include = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(localization_launch),
-        launch_arguments={"raw_imu_topic": Topics.LIBSURVIVE_IMU}.items(),
+        # namespace="" is passed explicitly: the holodeck include (processed first)
+        # declares a "namespace" arg defaulting to "libsurvive", which leaks into the
+        # shared launch context, so car_localization's own default_value="" would not
+        # take effect. Without this the real car lands under /libsurvive and its /car/*
+        # outputs get remapped to /libsurvive/car/*.
+        launch_arguments={
+            "namespace": "",
+            "raw_imu_topic": Topics.LIBSURVIVE_IMU,
+        }.items(),
     )
 
     track_publisher_node = Node(
