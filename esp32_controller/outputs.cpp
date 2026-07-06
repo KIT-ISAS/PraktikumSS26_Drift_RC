@@ -53,7 +53,9 @@ void outputsBegin() {
 }
 
 void outputsApply(const Command& cmd) {
-  steeringServo.writeMicroseconds(mapSymmetric(cmd.steering, STEERING_LEFT_US, STEERING_RIGHT_US));
+  // cmd.steering is ISO 8855 (positive = left), but the servo's mechanical
+  // positive (mapSymmetric's high end) is right, so negate to steer left on +.
+  steeringServo.writeMicroseconds(mapSymmetric(-cmd.steering, STEERING_LEFT_US, STEERING_RIGHT_US));
   escServo.writeMicroseconds(mapSymmetric(cmd.throttle, THROTTLE_MIN_US, THROTTLE_MAX_US));
   gyroServo.writeMicroseconds(mapGyro(cmd.gyroMode, cmd.gyroGain));
 }
