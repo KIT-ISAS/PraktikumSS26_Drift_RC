@@ -1,0 +1,38 @@
+# Curriculum stage 3: drift the loops (warm-start from stage 2).
+# 2.5 m/s on r=1 m loops needs 6.25 m/s^2 lateral -- at/over the arcade grip limit,
+# so sliding becomes the profitable line. The drift bonus pays for sideslip near
+# beta_target inside curved zones (|kappa| >= 0.5, i.e. the loops); on the crossing
+# straights the sideslip penalty asks the car to recover. Heading shaping is nearly
+# off: a drift *is* a large heading error.
+name: stage3_drift
+env:
+  track: figure_8
+  model_type: arcade
+  dt: 0.02
+  max_episode_steps: 1500
+  spawn:
+    speed: 1.5
+    speed_noise_std: 0.2
+    lateral_noise_std: 0.05
+    heading_noise_std: 0.15
+  termination:
+    lateral_limit_m: 0.6
+    stall_speed: 0.1
+    stall_timeout_s: 2.0
+    off_track_penalty: 20.0
+    stall_penalty: 10.0
+  reward:
+    progress_weight: 1.0
+    target_speed: 2.5
+    speed_weight: 0.5
+    lateral_weight: 1.0
+    heading_weight: 0.1
+    action_rate_weight: 0.05
+    drift_weight: 2.0
+    drift_beta_target: 0.5
+    drift_beta_sigma: 0.25
+    drift_kappa_min: 0.5
+    drift_min_speed: 1.0
+    straight_beta_weight: 0.5
+train:
+  total_steps: 500000

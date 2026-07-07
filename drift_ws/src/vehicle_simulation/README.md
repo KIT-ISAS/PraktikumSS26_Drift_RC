@@ -78,6 +78,39 @@ python -m vehicle_simulation.evaluation.evaluate \
 A trained model is reloaded by passing its run directory to `build_model(run_dir)`,
 including into the ROS simulator (`simulation_pkg`).
 
+## RL agent (needs the `[rl]` extra)
+
+The drift agent is a Stable-Baselines3 **SAC** policy trained in `DriftEnv`
+(`environments/drift_env.py`), which steps any `build_model(...)` dynamics model
+(arcade baseline now, a trained model later) on a track at 50 Hz. Training follows
+a three-stage curriculum — each stage is a packaged YAML config
+(`environments/configs/`), and later stages warm-start from the previous run:
+
+```bash
+python -m vehicle_simulation.agents.train_agent --config stage1_path_follow --tag s1
+python -m vehicle_simulation.agents.train_agent --config stage2_fast  --init-from runs/<s1> --tag s2
+python -m vehicle_simulation.agents.train_agent --config stage3_drift --init-from runs/<s2> --tag s3
+
+python -m vehicle_simulation.agents.evaluate_agent --run-dir runs/<id> --episodes 10
+```
+
+Each run writes a self-contained `runs/<timestamp>__sac__<tag>/` (config, meta,
+`progress.csv`, `agent.zip` + `best_model.zip`, `eval/`). Inference — in the ROS
+node or anywhere else — goes through `vehicle_simulation.agents.DriftAgent`:
+
+```python
+from vehicle_simulation.agents import DriftAgent
+agent = DriftAgent("runs/<id>")             # loads best_model.zip / agent.zip
+action = agent.act(obs)                      # -> VehicleAction, deterministic
+```
+
+**Sim-to-real seam:** `environments/observation.py` is the single source of truth
+for the policy input (local state + upcoming-centerline curvature, fixed
+normalization constants, no learned statistics). The deployment ROS node must
+build observations with exactly these helpers — every input maps 1:1 to
+`/car/odom`, `TrackProgress`, `Track`, and the node's own last published action.
+(Follow-up: export the actor to TorchScript if SB3-free deployment is needed.)
+
 ## Used by the ROS packages
 
 - `track_pkg` imports `vehicle_simulation.track` (geometry lives here, not in the node).

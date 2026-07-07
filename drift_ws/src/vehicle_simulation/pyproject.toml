@@ -17,9 +17,15 @@ dependencies = [
     "rosbags",
 ]
 
+[project.optional-dependencies]
+neural = ["torch"]  # torch-based models + training
+rl = ["gymnasium", "stable-baselines3"]  # DriftEnv / RL-agent training
+eval = ["matplotlib"]  # evaluation plots
+all = ["torch", "gymnasium", "stable-baselines3", "matplotlib"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["vehicle_simulation*"]
 
 [tool.setuptools.package-data]
-vehicle_simulation = ["tracks/*.yaml", "cars/*.yaml"]
+vehicle_simulation = ["tracks/*.yaml", "cars/*.yaml", "environments/configs/*.yaml"]
