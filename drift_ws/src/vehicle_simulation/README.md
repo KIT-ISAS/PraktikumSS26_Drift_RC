@@ -116,6 +116,8 @@ build observations with exactly these helpers — every input maps 1:1 to
 - `track_pkg` imports `vehicle_simulation.track` (geometry lives here, not in the node).
 - `simulation_pkg` builds a model with `build_model(...)` and steps it to publish
   `/car/pose` — so any model (basic, trained, physics, hybrid) can be driven in sim.
+- `agent_pkg` runs a trained agent via `DriftAgent` and builds its observations with
+  `environments/observation.py` — the same code the agent was trained on.
 
 Keep this logic in the library; do not duplicate it in the ROS packages.
 
