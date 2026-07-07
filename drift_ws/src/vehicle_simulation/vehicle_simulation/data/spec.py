@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 import yaml
 
 from .dataset import Window, build_windows, split_windows, stack_windows
-from .preprocessing import compute_body_frame_velocities, segment_episodes
+from .preprocessing import segment_episodes
 from .regimes import label_regimes, regime_counts
 from .rosbag_reader import read_driving_data
 from .sanity import sanitize_episodes
@@ -77,8 +77,8 @@ def _sanity_kwargs(filters: dict) -> dict:
 
 
 def default_filters() -> dict:
-    """Reasonable filter defaults for the ~250 Hz Vive data (tune per dataset)."""
-    return {"max_gap_s": 1.0, "min_len": 20, "smooth_window": 21}
+    """Reasonable filter defaults for the ~100 Hz canonical odom data (tune per dataset)."""
+    return {"max_gap_s": 1.0, "min_len": 20}
 
 
 def _regime_kwargs(filters: dict) -> dict:
@@ -98,23 +98,19 @@ def build_dataset_from_spec(
     """
     max_gap_s = spec.filters.get("max_gap_s", 1.0)
     min_len = spec.filters.get("min_len", 10)
-    smooth_window = spec.filters.get("smooth_window", 0)
 
-    # 1. read + segment into continuous episodes, with first-pass velocities for sanity.
+    # 1. read + segment into continuous episodes. Body velocities come recorded
+    #    in /car/odom, so nothing is re-derived from the pose here.
     episodes = []
     for bag in spec.bags:
         df = read_driving_data(bag)
-        for ep in segment_episodes(df, max_gap_s=max_gap_s):
-            episodes.append(compute_body_frame_velocities(ep, smooth_window=smooth_window))
+        episodes.extend(segment_episodes(df, max_gap_s=max_gap_s))
 
-    # 2. cut localization jumps, then recompute clean velocities + label regimes.
+    # 2. cut localization jumps, then label regimes.
     episodes, jump_report = sanitize_episodes(
         episodes, min_len=min_len, **_sanity_kwargs(spec.filters)
     )
-    labeled = []
-    for ep in episodes:
-        ep = compute_body_frame_velocities(ep, smooth_window=smooth_window)
-        labeled.append(label_regimes(ep, **_regime_kwargs(spec.filters)))
+    labeled = [label_regimes(ep, **_regime_kwargs(spec.filters)) for ep in episodes]
 
     # 3. window (variable dt) and optionally keep only chosen regimes.
     windows = build_windows(
