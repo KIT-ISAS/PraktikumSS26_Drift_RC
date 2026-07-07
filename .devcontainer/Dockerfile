@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     python3-colcon-common-extensions \
     python-is-python3 \
     git \
+    git-lfs \
     openssh-client \
     vim \
     nano \
@@ -27,6 +28,14 @@ RUN apt-get update && apt-get install -y \
     libsciplot-dev \
     gh \
     && rm -rf /var/lib/apt/lists/*
+
+# Register the LFS smudge/clean filters system-wide (the repo tracks *.pptx via LFS)
+RUN git lfs install --system --skip-repo
+
+# The repo is bind-mounted with the host user's uid while the container runs as
+# root; without this git refuses every command with "dubious ownership". The
+# container is a single-user dev environment, so trusting all paths is fine.
+RUN git config --system --add safe.directory '*'
 
 
 
