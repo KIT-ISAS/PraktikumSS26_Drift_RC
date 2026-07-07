@@ -47,9 +47,10 @@ def build_model(
 
     1. ``run_dir`` given, or ``model_type`` points at a run dir / ``.pt`` file
        -> load the trained model via :func:`models.loader.load_model_from_run`.
-    2. ``model_type`` is a registry name. Basic models here: ``"kinematic"`` and
-       ``"arcade"`` (both accept an optional YAML ``config``). Trainable models
-       (``"neural"``, ``"dynamic"``, ``"hybrid"``) are added in later PRs.
+    2. ``model_type`` is a registry name. Basic models here: ``"kinematic"``,
+       ``"arcade"``, and the predecessor ports ``"old_standard"`` /
+       ``"old_slip_angle"`` (all accept an optional YAML ``config``). Trainable
+       models (``"neural"``, ``"dynamic"``, ``"hybrid"``) are added in later PRs.
 
     Args:
         model_type: registry name, run-directory path, or ``.pt`` path.
@@ -85,6 +86,20 @@ def build_model(
         if config:
             return ArcadeDriftModel.from_config(config)
         return ArcadeDriftModel(**kwargs)
+
+    if model_type == "old_standard":
+        from .old.standard_vehicle import OldStandardVehicleModel
+
+        if config:
+            return OldStandardVehicleModel.from_config(config)
+        return OldStandardVehicleModel(**kwargs)
+
+    if model_type == "old_slip_angle":
+        from .old.slip_angle_vehicle import OldSlipAngleVehicleModel
+
+        if config:
+            return OldSlipAngleVehicleModel.from_config(config)
+        return OldSlipAngleVehicleModel(**kwargs)
 
     # Trainable (torch) models — neural / dynamic / hybrid — register their own
     # build_model branches in the PRs that add them.

@@ -38,6 +38,8 @@ comparing models is the core experiment loop.
 |------|------|-------|---------|---------|
 | `kinematic` | kinematic bicycle (no slip) | no | no (`vy ≡ 0`) | fast baseline / RL bootstrap / sanity |
 | `arcade` | game-like, velocity-space | no | yes (tunable `grip`) | demos / feel-test in sim |
+| `old_standard` | predecessor (WS 25/26) kinematic bicycle | no | no (`vy ≡ 0`) | comparison with predecessor sim |
+| `old_slip_angle` | predecessor (WS 25/26) scripted drift model | no | yes (drift state machine) | comparison with predecessor sim |
 
 ### `kinematic` — `KinematicBicycleModel`
 No-slip rear-wheel bicycle. Speed from `throttle·max_accel − drag·speed` (clamped to
@@ -55,6 +57,16 @@ turning faster than the velocity follows is what creates the sideways slide — 
 `grip` bleeds that lateral velocity away. Low `grip` → longer, looser slides; high
 `grip` ≈ kinematic. Deterministic. Params: `max_speed, max_reverse_speed,
 max_accel, drag, max_yaw_rate, steer_speed_full, grip, lateral_drag`.
+
+### `old_standard` / `old_slip_angle` — predecessor ports (`models/old/`)
+Faithful ports of the WS 25/26 project's vehicle models, converted from pixels /
+per-frame updates to SI + `dt` and wrapped in the `VehicleModel` interface.
+`old_standard` is a kinematic bicycle whose throttle commands a *target speed*
+(separate accel/brake/friction rates, reverse supported). `old_slip_angle` is a
+scripted arcade drift model: throttle builds `slip`, hard steering at speed
+enters a drifting mode (velocity lags the heading), slip angles past 90° trigger
+a spin-out. The drift state machine lives *inside* the model instance, so step
+one instance sequentially. Details and the list of fixed bugs: `old/README.md`.
 
 > Learned / physical models (`neural`, `dynamic`, `hybrid`) are documented in the
 > sections added with their respective PRs.
