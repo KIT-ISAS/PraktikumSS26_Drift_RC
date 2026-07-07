@@ -32,6 +32,16 @@ services:
       - "c 13:* rmw"
       - "c 189:* rmw"
 
+    # Pass through physical GPU 3 only (host must have nvidia-container-toolkit
+    # installed and the Docker daemon configured with the nvidia runtime).
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["3"]
+              capabilities: [gpu]
+
     working_dir: /root/repo/drift_ws
 
     environment:
