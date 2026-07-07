@@ -32,6 +32,7 @@ class SpawnConfig:
 
     speed: float = 1.0  # m/s initial forward speed
     speed_noise_std: float = 0.1  # m/s
+    standstill_prob: float = 0.0  # probability of spawning parked (vx = 0) instead
     lateral_noise_std: float = 0.05  # m, clipped to ±2 std
     heading_noise_std: float = 0.15  # rad
 

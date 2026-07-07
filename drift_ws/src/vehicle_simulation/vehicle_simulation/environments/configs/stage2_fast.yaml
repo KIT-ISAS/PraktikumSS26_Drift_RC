@@ -10,6 +10,7 @@ env:
   spawn:
     speed: 1.5
     speed_noise_std: 0.2
+    standstill_prob: 0.15  # keep the standing start learned in stage 1
     lateral_noise_std: 0.05
     heading_noise_std: 0.15
   termination:
@@ -17,7 +18,7 @@ env:
     stall_speed: 0.1
     stall_timeout_s: 2.0
     off_track_penalty: 20.0
-    stall_penalty: 10.0
+    stall_penalty: 30.0  # stalling must cost more than crashing (see stage 1)
   reward:
     progress_weight: 1.0
     target_speed: 2.0

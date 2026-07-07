@@ -116,7 +116,12 @@ class DriftEnv(gymnasium.Env):
             x += -math.sin(heading) * lateral
             y += math.cos(heading) * lateral
             heading = wrap_angle(heading + self.np_random.normal(0.0, spawn.heading_noise_std))
-            speed += self.np_random.normal(0.0, spawn.speed_noise_std)
+            # Standing starts stay in-distribution: the real car always launches
+            # from parked, so the policy must learn it.
+            if self.np_random.random() < spawn.standstill_prob:
+                speed = 0.0
+            else:
+                speed += self.np_random.normal(0.0, spawn.speed_noise_std)
         self._state = VehicleState(x=x, y=y, heading=heading, vx=max(0.0, speed))
 
         self._projector.reset()
