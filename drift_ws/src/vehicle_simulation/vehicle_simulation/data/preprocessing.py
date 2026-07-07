@@ -3,45 +3,6 @@
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
-from scipy.signal import savgol_filter
-
-
-def compute_body_frame_velocities(
-    df: pd.DataFrame, smooth_window: int = 0, smooth_polyorder: int = 2
-) -> pd.DataFrame:
-    """
-    Add vx, vy, yaw_rate columns estimated from finite differences of pose.
-
-    vx, vy are in the vehicle body frame (vx = forward, vy = left). yaw_rate is
-    computed from the unwrapped heading derivative.
-
-    High-rate trackers (e.g. the Vive at ~250 Hz) make raw finite differences very
-    noisy. Pass ``smooth_window`` > 1 (samples; forced odd) to Savitzky-Golay
-    smooth x / y / unwrapped-heading before differentiating. ``smooth_window=0``
-    keeps the raw behaviour.
-    """
-    t = df["t"].values
-    heading_unwrapped = np.unwrap(df["heading"].values)
-    x = df["x"].values
-    y = df["y"].values
-
-    if smooth_window and smooth_window > 1:
-        win = int(smooth_window) | 1  # force odd
-        if win <= len(df) and win > smooth_polyorder:
-            x = savgol_filter(x, win, smooth_polyorder)
-            y = savgol_filter(y, win, smooth_polyorder)
-            heading_unwrapped = savgol_filter(heading_unwrapped, win, smooth_polyorder)
-
-    dx = np.gradient(x, t)
-    dy = np.gradient(y, t)
-    cos_h = np.cos(heading_unwrapped)
-    sin_h = np.sin(heading_unwrapped)
-
-    df = df.copy()
-    df["vx"] = dx * cos_h + dy * sin_h
-    df["vy"] = -dx * sin_h + dy * cos_h
-    df["yaw_rate"] = np.gradient(heading_unwrapped, t)
-    return df
 
 
 def filter_stationary(df: pd.DataFrame, min_speed: float = 0.05) -> pd.DataFrame:

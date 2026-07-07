@@ -24,7 +24,7 @@ class JumpReport:
     n_flagged: int = 0
     n_dropped_samples: int = 0
     reasons: dict = field(
-        default_factory=lambda: {"position": 0, "heading": 0, "accel": 0, "dt": 0}
+        default_factory=lambda: {"position": 0, "heading": 0, "velocity": 0, "accel": 0, "dt": 0}
     )
 
     def as_dict(self) -> dict:
@@ -58,8 +58,14 @@ def detect_discontinuities(
     tracker rates raw finite-difference acceleration is noise-dominated and would
     flag good data, so it is off by default — real solver jumps show up as position
     and heading jumps. Set ``max_accel`` only on suitably smoothed/low-rate data.
+
+    The recorded twist (``vx``/``vy``/``yaw_rate`` columns from ``/car/odom``) is
+    checked directly too: a jump can corrupt the live finite-differenced twist of
+    row ``i+1`` while its pose step stays under the position/heading bounds, so an
+    implausible recorded speed or yaw rate on row ``i+1`` also flags transition
+    ``i`` (dropping that row on split).
     """
-    reasons = {"position": 0, "heading": 0, "accel": 0, "dt": 0}
+    reasons = {"position": 0, "heading": 0, "velocity": 0, "accel": 0, "dt": 0}
     if len(df) < 2:
         return np.zeros(max(len(df) - 1, 0), dtype=bool), reasons
 
@@ -73,6 +79,13 @@ def detect_discontinuities(
     pos_bad = dpos > (max_speed * safe_dt + pos_margin)
     head_bad = dhead > (max_yaw_rate * safe_dt + head_margin)
 
+    vel_bad = np.zeros(len(dt), dtype=bool)
+    if "vx" in df.columns and "vy" in df.columns:
+        speed = np.hypot(df["vx"].to_numpy(), df["vy"].to_numpy())
+        vel_bad = speed[1:] > max_speed
+        if "yaw_rate" in df.columns:
+            vel_bad |= np.abs(df["yaw_rate"].to_numpy()[1:]) > max_yaw_rate
+
     accel_bad = np.zeros(len(dt), dtype=bool)
     if max_accel is not None and "vx" in df.columns and "vy" in df.columns:
         speed = np.hypot(df["vx"].to_numpy(), df["vy"].to_numpy())
@@ -81,9 +94,10 @@ def detect_discontinuities(
     reasons["dt"] = int(bad_dt.sum())
     reasons["position"] = int(pos_bad.sum())
     reasons["heading"] = int(head_bad.sum())
+    reasons["velocity"] = int(vel_bad.sum())
     reasons["accel"] = int(accel_bad.sum())
 
-    mask = bad_dt | pos_bad | head_bad | accel_bad
+    mask = bad_dt | pos_bad | head_bad | vel_bad | accel_bad
     return mask, reasons
 
 
@@ -91,18 +105,20 @@ def split_on_discontinuities(
     df: pd.DataFrame, mask: np.ndarray, min_len: int = 10
 ) -> list[pd.DataFrame]:
     """
-    Cut an episode at flagged transitions, dropping the offending step.
+    Cut an episode at flagged transitions, dropping the corrupted row.
 
-    ``mask[i]`` flags the transition between rows ``i`` and ``i+1``; the episode is
-    split there so neither corrupt step survives. Sub-segments shorter than
+    ``mask[i]`` flags the transition between rows ``i`` and ``i+1``. The episode is
+    split there and row ``i+1`` is dropped: its recorded body velocities were
+    finite-differenced across the jump (by ``car_state_node``), so the row carries
+    a corrupt twist even though its pose is fine. Sub-segments shorter than
     ``min_len`` rows are discarded.
     """
     if len(df) == 0:
         return []
-    bounds = [0, *(np.where(mask)[0] + 1).tolist(), len(df)]
-    segments = [
-        df.iloc[bounds[i] : bounds[i + 1]].reset_index(drop=True) for i in range(len(bounds) - 1)
-    ]
+    idx = np.where(mask)[0]
+    starts = [0, *(idx + 2).tolist()]
+    ends = [*(idx + 1).tolist(), len(df)]
+    segments = [df.iloc[s:e].reset_index(drop=True) for s, e in zip(starts, ends)]
     return [seg for seg in segments if len(seg) >= min_len]
 
 
