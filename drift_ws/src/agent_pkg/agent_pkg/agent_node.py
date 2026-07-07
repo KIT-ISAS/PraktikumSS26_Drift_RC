@@ -10,7 +10,13 @@ code the agent was trained on), and publishes ``VehicleActionRequest`` at the
 control rate. Because both the simulation and the real car publish the same
 canonical surface, this node is sim/real agnostic.
 
-Safety: actions are only published while *all* inputs are fresh
+Gating: the node is armed by a start signal (``/agent/start``) and disarmed by a
+stop signal (``/agent/stop``). Until it has been started — or after it has been
+stopped — it publishes nothing, so a joystick or the firmware failsafe stays in
+control. This lets an operator hold the agent off the throttle until the car is
+positioned and cut it instantly.
+
+Safety: even while armed, actions are only published while *all* inputs are fresh
 (``input_timeout_s``); on stale localization or track progress the node stops
 publishing (it never sends zeros, so a joystick or the firmware failsafe can
 take over) and warns.
@@ -21,6 +27,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
+from std_msgs.msg import Empty
 
 from shared_interfaces.msg import Track, TrackProgress, VehicleActionRequest
 from shared_pkg import Topics
@@ -75,11 +82,15 @@ class AgentNode(Node):
         self._odom_stamp = None
         self._progress_stamp = None
         self._prev_action = np.zeros(2, dtype=np.float32)
+        # Disarmed until a start signal arrives; a stop signal disarms again.
+        self._running = False
 
         latched_qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.create_subscription(Odometry, Topics.CAR_ODOM, self._odom_callback, 10)
         self.create_subscription(TrackProgress, Topics.TRACK_PROGRESS, self._progress_callback, 10)
         self.create_subscription(Track, Topics.TRACK_CENTERLINE, self._track_callback, latched_qos)
+        self.create_subscription(Empty, Topics.AGENT_START, self._start_callback, 10)
+        self.create_subscription(Empty, Topics.AGENT_STOP, self._stop_callback, 10)
         self._action_pub = self.create_publisher(
             VehicleActionRequest, Topics.VEHICLE_ACTION_REQUEST, 10
         )
@@ -99,7 +110,27 @@ class AgentNode(Node):
             f"Received track {msg.name!r} ({len(msg.curvature)} centerline points)"
         )
 
+    def _start_callback(self, _msg: Empty) -> None:
+        if self._running:
+            return
+        self._running = True
+        # Start from a clean slate so a restart never feeds a stale prev_action.
+        self._prev_action = np.zeros(2, dtype=np.float32)
+        self.get_logger().info("Received start signal — agent armed")
+
+    def _stop_callback(self, _msg: Empty) -> None:
+        if not self._running:
+            return
+        self._running = False
+        self.get_logger().info("Received stop signal — agent disarmed, not publishing")
+
     def _control_step(self) -> None:
+        if not self._running:
+            self.get_logger().info(
+                f"Waiting for start signal on {Topics.AGENT_START}",
+                throttle_duration_sec=5.0,
+            )
+            return
         if not self._inputs_ready():
             return
         obs = observation_from_messages(self._odom, self._progress, self._track, self._prev_action)
