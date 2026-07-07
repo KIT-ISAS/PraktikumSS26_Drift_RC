@@ -3,21 +3,25 @@
 import math
 
 import numpy as np
+import numpy.testing as npt
 import pytest
 
-pytest.importorskip("shared_interfaces.msg")
+# Importing agent_node pulls in shared_interfaces (a colcon-built package); skip the
+# whole module rather than error when the workspace has not been built yet. Kept in a
+# try/except so all imports stay at the top of the file (flake8 E402/import-order clean).
+try:
+    from nav_msgs.msg import Odometry
 
-from nav_msgs.msg import Odometry
-import numpy.testing as npt
-
-from agent_pkg.agent_node import observation_from_messages
-from shared_interfaces.msg import Track, TrackProgress
-from vehicle_simulation.environments.observation import (
-    OBS_DIM,
-    build_observation,
-    curvature_lookahead,
-)
-from vehicle_simulation.transforms import quaternion_from_yaw
+    from agent_pkg.agent_node import observation_from_messages
+    from shared_interfaces.msg import Track, TrackProgress
+    from vehicle_simulation.environments.observation import (
+        OBS_DIM,
+        build_observation,
+        curvature_lookahead,
+    )
+    from vehicle_simulation.transforms import quaternion_from_yaw
+except ImportError:
+    pytest.skip("shared_interfaces not built", allow_module_level=True)
 
 
 def _quat(yaw):
