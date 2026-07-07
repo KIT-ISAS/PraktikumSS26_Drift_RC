@@ -1,9 +1,13 @@
 # Predecessor models (WS 25/26)
 
 These models are from the Winter term 25/26 predecessor project
-(`PraktikumWS25_Autonomous_Drift_RC/reward_environment/model/`), adapted to our
-current code base so they plug into the `VehicleModel` interface like any other
-model (`build_model("old_standard")` / `build_model("old_slip_angle")`).
+(`PraktikumWS25_Autonomous_Drift_RC/reward_environment/model/`, branch
+`deployment-training`, commit `ef335e5`), adapted to our current code base so
+they plug into the `VehicleModel` interface like any other model
+(`build_model("old_standard")` / `build_model("old_slip_angle")`). Note the
+branch: the other predecessor branches (including `main`) carry different
+slip-angle parameters (`mass=5`, `engine_force=4000`, `drag=4`) and have no
+spin-out routine — only `deployment-training` matches this port.
 
 | registry name | class | original file |
 |---|---|---|
