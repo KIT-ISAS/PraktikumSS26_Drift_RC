@@ -23,11 +23,25 @@ def _arcade() -> type[VehicleModel]:
     return ArcadeDriftModel
 
 
+def _old_standard() -> type[VehicleModel]:
+    from .old.standard_vehicle import OldStandardVehicleModel
+
+    return OldStandardVehicleModel
+
+
+def _old_slip_angle() -> type[VehicleModel]:
+    from .old.slip_angle_vehicle import OldSlipAngleVehicleModel
+
+    return OldSlipAngleVehicleModel
+
+
 # model_type -> zero-arg callable returning the class. Only implemented models are
 # registered, so resolving an unknown name fails cleanly (never an ImportError).
 MODEL_REGISTRY: dict[str, Callable[[], type[VehicleModel]]] = {
     "kinematic": _kinematic,
     "arcade": _arcade,
+    "old_standard": _old_standard,
+    "old_slip_angle": _old_slip_angle,
 }
 
 
