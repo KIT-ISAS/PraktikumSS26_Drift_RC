@@ -51,7 +51,7 @@ class OldStandardVehicleModel(VehicleModel):
     wheelbase: float = 0.256  # m (49.5 px) — front-to-rear axle distance
     max_steer_angle: float = 0.5236  # rad (30°) — full-lock road-wheel angle
     coast_speed_eps: float = 0.005  # m/s (1 px/s) — below this, coasting friction is off
-    stop_speed_eps: float = 0.003  # m/s (0.5 px/s) — speeds below this snap to 0
+    stop_speed_eps: float = 0.0026  # m/s (0.5 px/s) — speeds below this snap to 0
 
     @property
     def max_reverse_speed(self) -> float:
