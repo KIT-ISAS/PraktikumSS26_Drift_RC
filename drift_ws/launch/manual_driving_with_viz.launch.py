@@ -88,9 +88,10 @@ def generate_launch_description():
         [
             DeclareLaunchArgument(
                 "tracking_source",
-                default_value="libsurvive",
+                default_value="steamvr",
                 choices=["libsurvive", "steamvr"],
-                description="Which tracking system publishes world -> tracker_link",
+                description="Which tracking system publishes world -> tracker_link "
+                "(steamvr needs steamvr_bridge.py running on the host)",
             ),
             joystick_include,
             vehicle_include,
