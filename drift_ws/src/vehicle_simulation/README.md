@@ -28,6 +28,12 @@ pip install -e drift_ws/src/vehicle_simulation[neural]    # + torch models & tra
 pip install -e drift_ws/src/vehicle_simulation[rl]        # + gymnasium/SB3 (RL, scaffold)
 pip install -e drift_ws/src/vehicle_simulation[eval]      # + matplotlib (eval plots)
 pip install -e drift_ws/src/vehicle_simulation[all]
+
+# CPU-only inference on a device with no GPU (deploy/robot): run a trained agent
+# without the multi-GB CUDA torch. Pinned to the training checkpoints; the +cpu
+# torch wheel needs the PyTorch CPU index:
+pip install -e "drift_ws/src/vehicle_simulation[rl-cpu]" \
+    --extra-index-url https://download.pytorch.org/whl/cpu
 ```
 
 ## Package layout

@@ -14,4 +14,6 @@ source init_flake8.sh
 # Only the lightweight base is installed here. The heavy training extras
 # (`[neural]` = torch, `[rl]` = gymnasium + stable-baselines3) are meant for the
 # training / GPU machine: `pip install -e drift_ws/src/vehicle_simulation[neural,rl]`.
+# A CPU-only deploy machine that just runs a trained agent uses the pinned
+# `[rl-cpu]` extra instead — see the vehicle_simulation README for the one-liner.
 /opt/venv/bin/pip install -e /root/repo/drift_ws/src/vehicle_simulation
