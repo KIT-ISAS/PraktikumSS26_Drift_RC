@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     libsciplot-dev \
     gh \
+    htop \
     && rm -rf /var/lib/apt/lists/*
 
 # Register the LFS smudge/clean filters system-wide (the repo tracks *.pptx via LFS)
