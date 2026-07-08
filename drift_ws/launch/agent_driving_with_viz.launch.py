@@ -1,0 +1,86 @@
+"""
+Top-level launch for agent-driven (real car) driving with visualization.
+
+Same stack as manual_driving_with_viz, but the RL agent replaces the joystick as
+the control source:
+
+    holodeck tracking (+ foxglove bridge) -> car_localization -> track_publisher
+    -> agent_node -> VehicleActionRequest -> vehicle_communication -> ESP32
+
+Usage:
+    ros2 launch drift_ws/launch/agent_driving_with_viz.launch.py run_dir:=/path/to/runs/<id>
+
+Connect Foxglove to ws://localhost:8765.
+"""
+
+import os
+
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+
+from shared_pkg import Topics
+
+
+def generate_launch_description():
+    this_dir = os.path.dirname(__file__)
+    src_dir = os.path.abspath(os.path.join(this_dir, "..", "src"))
+
+    vehicle_launch = os.path.join(
+        src_dir, "vehicle_communication_pkg", "launch", "vehicle_communication.launch.py"
+    )
+    holodeck_launch = os.path.join(
+        src_dir, "holodeck_pkg", "launch", "holodeck_tracking.launch.py"
+    )
+    localization_launch = os.path.join(
+        src_dir, "car_localization_pkg", "launch", "car_localization.launch.py"
+    )
+    agent_launch = os.path.join(src_dir, "agent_pkg", "launch", "agent.launch.py")
+
+    run_dir_arg = DeclareLaunchArgument(
+        "run_dir",
+        description="Training run directory (with best_model.zip / agent.zip) or a SAC .zip",
+    )
+
+    vehicle_include = IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))
+    holodeck_include = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(holodeck_launch),
+        launch_arguments={"foxbridge": "true"}.items(),
+    )
+    # Derives the canonical CoG/ISO-8855 state from holodeck's raw tracker TF.
+    localization_include = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(localization_launch),
+        # namespace="" is passed explicitly: the holodeck include (processed first)
+        # declares a "namespace" arg defaulting to "libsurvive", which leaks into the
+        # shared launch context, so car_localization's own default_value="" would not
+        # take effect. Without this the real car lands under /libsurvive and its /car/*
+        # outputs get remapped to /libsurvive/car/*.
+        launch_arguments={
+            "namespace": "",
+            "raw_imu_topic": Topics.LIBSURVIVE_IMU,
+        }.items(),
+    )
+    agent_include = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(agent_launch),
+        launch_arguments={"run_dir": LaunchConfiguration("run_dir")}.items(),
+    )
+
+    track_publisher_node = Node(
+        package="track_pkg",
+        executable="track_publisher_node",
+        name="track_publisher_node",
+        output="screen",
+    )
+
+    return LaunchDescription(
+        [
+            run_dir_arg,
+            vehicle_include,
+            holodeck_include,
+            localization_include,
+            track_publisher_node,
+            agent_include,
+        ]
+    )
