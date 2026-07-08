@@ -14,11 +14,16 @@
     # component.cpp — tune per the procedure in the package README, and
     # re-tune after redoing SteamVR room setup (the Standing-universe origin
     # can shift).
+    #
+    # Calibrated 2026-07-08: yaw solved from 3 lighthouse correspondences
+    # against the holodeck config.json world positions (XY residuals 2-6 cm),
+    # translation pinned to a tracker placed at the floor center (= world
+    # origin). The SteamVR origin sits at lighthouse height, hence world_z.
     # ---------------------------------------------------------------------
-    world_x: 0.0
-    world_y: 0.0
-    world_z: 0.0
-    world_yaw_deg: 0.0
+    world_x: -2.6279
+    world_y: -2.4075
+    world_z: 2.2230
+    world_yaw_deg: 42.398
 
     # Pseudo-IMU: add +g up so it reads specific force like a real
     # accelerometer at rest.
