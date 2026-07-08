@@ -7,6 +7,11 @@ the control source:
     holodeck tracking (+ foxglove bridge) -> car_localization -> track_publisher
     -> agent_node -> VehicleActionRequest -> vehicle_communication -> ESP32
 
+The joystick stays up as an emergency override (agent_override_mode): it is
+passive while the agent drives, but significant stick/trigger movement stops the
+agent (/agent/stop + /agent/override) and takes over control instantly.
+Publishing /agent/start hands control back to the agent.
+
 Usage:
     ros2 launch drift_ws/launch/agent_driving_with_viz.launch.py run_dir:=/path/to/runs/<id>
 
@@ -28,6 +33,7 @@ def generate_launch_description():
     this_dir = os.path.dirname(__file__)
     src_dir = os.path.abspath(os.path.join(this_dir, "..", "src"))
 
+    joystick_launch = os.path.join(src_dir, "joystick_pkg", "launch", "joystick_mapper.launch.py")
     vehicle_launch = os.path.join(
         src_dir, "vehicle_communication_pkg", "launch", "vehicle_communication.launch.py"
     )
@@ -44,6 +50,12 @@ def generate_launch_description():
         description="Training run directory (with best_model.zip / agent.zip) or a SAC .zip",
     )
 
+    # Joystick as emergency override: passive until significant movement, then it
+    # stops the agent and takes over.
+    joystick_include = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(joystick_launch),
+        launch_arguments={"agent_override_mode": "true"}.items(),
+    )
     vehicle_include = IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))
     holodeck_include = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(holodeck_launch),
@@ -77,6 +89,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             run_dir_arg,
+            joystick_include,
             vehicle_include,
             holodeck_include,
             localization_include,

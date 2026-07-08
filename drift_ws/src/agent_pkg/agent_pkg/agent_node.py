@@ -22,6 +22,11 @@ straightened) using the ``/car/odom`` speed, then sends a neutral command before
 releasing control so a joystick or the firmware failsafe can take over. If the
 odometry is stale/missing (speed unknown) it skips straight to neutral.
 
+Override (``/agent/override``): sent when another controller (e.g. the joystick
+in override mode) has already seized the vehicle action topic. The agent releases
+control *immediately* — the braking phase would fight the new controller's
+commands, and the sender guarantees the car is being commanded.
+
 Safety: while armed, actions are only published while *all* inputs are fresh
 (``input_timeout_s``); on stale localization or track progress the node holds off
 publishing (letting a joystick or the firmware failsafe take over) and warns.
@@ -72,6 +77,7 @@ class AgentNode(Node):
         self.create_subscription(Track, Topics.TRACK_CENTERLINE, self._track_callback, latched_qos)
         self.create_subscription(Empty, Topics.AGENT_START, self._start_callback, 10)
         self.create_subscription(Empty, Topics.AGENT_STOP, self._stop_callback, 10)
+        self.create_subscription(Empty, Topics.AGENT_OVERRIDE, self._override_callback, 10)
         self._action_pub = self.create_publisher(
             VehicleActionRequest, Topics.VEHICLE_ACTION_REQUEST, 10
         )
@@ -112,6 +118,15 @@ class AgentNode(Node):
             self._stop_started = self.get_clock().now()
             self._neutral_ticks = 0
             self.get_logger().info("Received stop signal — braking to a standstill")
+
+    def _override_callback(self, _msg: Empty) -> None:
+        if not self._running and not self._stopping:
+            return
+        # Another controller has taken over the vehicle action topic: release
+        # immediately, including cancelling an in-progress braking phase.
+        self._running = False
+        self._stopping = False
+        self.get_logger().warning("Override received — releasing control immediately")
 
     def _control_step(self) -> None:
         if self._stopping:

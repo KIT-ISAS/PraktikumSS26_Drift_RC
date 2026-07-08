@@ -40,3 +40,8 @@ class Topics:
     AGENT_BASE: str = "/agent"
     AGENT_START: str = AGENT_BASE + "/start"
     AGENT_STOP: str = AGENT_BASE + "/stop"
+    # Emergency takeover: another controller (e.g. the joystick) has seized the
+    # vehicle action topic. Unlike AGENT_STOP the agent must release control
+    # immediately — no brake-to-standstill phase, which would fight the new
+    # controller's commands.
+    AGENT_OVERRIDE: str = AGENT_BASE + "/override"
