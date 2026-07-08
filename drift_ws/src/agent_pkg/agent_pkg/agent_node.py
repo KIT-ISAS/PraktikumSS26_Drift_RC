@@ -34,43 +34,12 @@ from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from std_msgs.msg import Empty
 
+from agent_pkg.observation_bridge import observation_from_messages
 from shared_interfaces.msg import Track, TrackProgress, VehicleActionRequest
 from shared_pkg import Topics
-from vehicle_simulation.environments.observation import build_observation, curvature_lookahead
-from vehicle_simulation.transforms import yaw_from_quaternion
 
-
-def observation_from_messages(
-    odom: Odometry,
-    progress: TrackProgress,
-    track: Track,
-    prev_action: np.ndarray,
-) -> np.ndarray:
-    """
-    Build the policy observation from the ROS messages (pure, unit-testable).
-
-    Mirrors ``DriftEnv``'s observation exactly: every field maps 1:1 onto what
-    the training environment feeds the shared builder.
-    """
-    car = odom.pose.pose.orientation
-    tangent = progress.projected_pose.orientation
-    heading = yaw_from_quaternion(car.x, car.y, car.z, car.w)
-    track_heading = yaw_from_quaternion(tangent.x, tangent.y, tangent.z, tangent.w)
-    curvatures_ahead = curvature_lookahead(
-        track.curvature,
-        track.cumulative_distance,
-        progress.total_length,
-        progress.distance,
-    )
-    return build_observation(
-        lateral_error=progress.lateral_error,
-        heading_error=heading - track_heading,
-        vx=odom.twist.twist.linear.x,
-        vy=odom.twist.twist.linear.y,
-        yaw_rate=odom.twist.twist.angular.z,
-        prev_action=prev_action,
-        curvatures_ahead=curvatures_ahead,
-    )
+# Re-exported for backward compatibility (tests and callers import it from here).
+__all__ = ["AgentNode", "observation_from_messages", "main"]
 
 
 class AgentNode(Node):

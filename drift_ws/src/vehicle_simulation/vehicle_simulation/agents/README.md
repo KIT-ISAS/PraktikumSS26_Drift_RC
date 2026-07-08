@@ -72,6 +72,33 @@ Trailing slashes matter: `runs/` on both sides copies contents into local `runs/
 (without them you get a nested `runs/runs/`). Add `--delete` to make local an exact
 mirror, or `--exclude='*.log'` to skip the `*_train.log` files.
 
+## Fine-tuning on real-car data
+
+Record real transitions and train offline afterwards.
+
+**1. Record on the car** Drive the sim policy with
+
+```bash
+ros2 launch agent_pkg record.launch.py run_dir:=/path/to/runs/<sim_run>
+# ros2 topic pub --once /agent/start std_msgs/msg/Empty {}
+```
+
+Transitions land in the node's `output_dir` (default `recordings/`) as
+`<timestamp>__recording.npz`.
+
+**2. Sync the recordings** to GPU server.
+
+**3. Fine-tune off-board.**
+
+```bash
+/opt/venv/bin/python -m vehicle_simulation.agents.finetune_agent \
+    --init-from runs/<sim_run> --data recordings/*.npz --tag real-s3 --gradient-steps 20000
+```
+
+Useful flags: `--batch-size`, `--learning-rate` (keep modest — offline SAC can over-estimate),
+`--sim-rollout-steps N` (interleave a little sim experience as a regularizer), `--device`,
+`--config` (override the stage).
+
 ## Local CPU training
 
 No GPU needed for a quick smoke run or a short curriculum — the same commands work

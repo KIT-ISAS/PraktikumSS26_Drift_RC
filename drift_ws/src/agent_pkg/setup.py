@@ -31,6 +31,7 @@ setup(
     entry_points={
         "console_scripts": [
             "agent_node = agent_pkg.agent_node:main",
+            "data_collection_node = agent_pkg.data_collection_node:main",
         ],
     },
 )

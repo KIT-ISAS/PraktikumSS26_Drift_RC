@@ -42,9 +42,15 @@ class DriftAgent:
         self.path = path
         self._model = SAC.load(str(path), device=device)
 
-    def predict(self, obs: np.ndarray) -> np.ndarray:
-        """Deterministic ``[steering, throttle]`` array in [-1, 1] for one observation."""
-        action, _ = self._model.predict(obs, deterministic=True)
+    def predict(self, obs: np.ndarray, deterministic: bool = True) -> np.ndarray:
+        """
+        Map one observation to a ``[steering, throttle]`` array in [-1, 1].
+
+        ``deterministic=True`` (the deployment default) uses the SAC policy mean;
+        pass ``deterministic=False`` to sample the squashed-Gaussian policy for
+        exploration (used when collecting real transitions for fine-tuning).
+        """
+        action, _ = self._model.predict(obs, deterministic=deterministic)
         return np.clip(np.asarray(action, dtype=np.float32), -1.0, 1.0)
 
     def act(self, obs: np.ndarray) -> VehicleAction:
