@@ -77,12 +77,17 @@ SteamVR's room-setup origin and the physical `world` frame — the parameters
 Re-tune after redoing SteamVR room setup — the Standing-universe origin can
 shift. `--universe raw` on the bridge is the uncalibrated fallback.
 
-## Mount
+## Tracker body frame & mount
 
-`mount_tf_node` (car_localization_pkg) publishes `tracker_link -> base_link`
-with the empirical knobs `tracker_yaw_offset_deg` / `tracker_upside_down`.
-Their defaults encode the libsurvive body-frame convention; OpenVR may report
-a different tracker body frame. Verify at bring-up: push the car forward →
-`/car/odom` `twist.linear.x` must be positive, and `base_link` must be z-up in
-Foxglove. Pass corrected values via the launch arguments of
-`car_localization.launch.py` and record them in the top-level launch.
+OpenVR's body convention for the Vive tracker was measured at bring-up
+(static flat pose + sliding the tracker along its LED direction): **+y toward
+the LED, -z out of the top face** — different from libsurvive's. The
+conversion relabels it so `tracker_link` is always **z = top-face normal,
+y = LED direction**; with the LED mounted toward the car front and the
+tracker right-side up, the mount knobs for this source are
+`tracker_yaw_offset_deg = -90`, `tracker_upside_down = false` (already set in
+`manual_driving_with_viz.launch.py`).
+
+Sanity checks after any mount change: tracker flat on the floor →
+`tf2_echo steamvr_world tracker_link` shows roll ≈ pitch ≈ 0; push the car
+forward → `/car/odom` `twist.linear.x` positive; `base_link` z-up in Foxglove.

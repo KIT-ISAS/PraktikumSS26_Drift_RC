@@ -66,13 +66,14 @@ def generate_launch_description():
                 ]
             ),
             # Empirical mount knobs per source (how the tracker body frame maps
-            # to the car). The steamvr values are provisional — verify at
-            # bring-up (see steamvr_pkg/README.md) and correct them here.
+            # to the car). steamvr's tracker_link is y-forward (LED toward the
+            # car front) and right-side up (see steamvr_pkg/lib/conversion.py),
+            # so it only needs a -90 deg yaw and no flip.
             "tracker_yaw_offset_deg": PythonExpression(
-                ["'90.0' if '", tracking_source, "' == 'libsurvive' else '90.0'"]
+                ["'90.0' if '", tracking_source, "' == 'libsurvive' else '-90.0'"]
             ),
             "tracker_upside_down": PythonExpression(
-                ["'true' if '", tracking_source, "' == 'libsurvive' else 'true'"]
+                ["'true' if '", tracking_source, "' == 'libsurvive' else 'false'"]
             ),
         }.items(),
     )

@@ -14,6 +14,7 @@ from steamvr_pkg.lib.conversion import (
 from vehicle_simulation.transforms import (
     quaternion_from_yaw,
     rotate_vector_by_quaternion,
+    wrap_angle,
     yaw_from_quaternion,
 )
 
@@ -29,10 +30,26 @@ def _vr_rotation_about_y(angle: float) -> np.ndarray:
     return np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
 
 
-def test_identity_pose_maps_to_identity():
-    position, quat = pose_from_openvr(_vr_matrix(np.eye(3)))
-    assert position == pytest.approx((0.0, 0.0, 0.0))
-    assert quat == pytest.approx((0.0, 0.0, 0.0, 1.0))
+# A physically flat tracker (top face up, LED toward VR world +x), expressed in
+# the empirically measured OpenVR body convention: +y toward the LED, -z out of
+# the top face. Columns are the body axes in VR world coordinates.
+_FLAT_TRACKER_LED_ALONG_VR_X = np.column_stack(
+    [
+        np.array([0.0, 0.0, -1.0]),  # x_vr(body)
+        np.array([1.0, 0.0, 0.0]),  # y_vr(body): LED direction
+        np.array([0.0, -1.0, 0.0]),  # z_vr(body): into the floor
+    ]
+)
+
+
+def test_flat_tracker_comes_out_z_up_with_y_toward_led():
+    _, quat = pose_from_openvr(_vr_matrix(_FLAT_TRACKER_LED_ALONG_VR_X))
+    up = rotate_vector_by_quaternion(quat, (0.0, 0.0, 1.0))
+    led = rotate_vector_by_quaternion(quat, (0.0, 1.0, 0.0))
+    assert up == pytest.approx((0.0, 0.0, 1.0), abs=1e-12)
+    # VR world +x relabels to ROS world -y (see vector_from_openvr).
+    assert led == pytest.approx((0.0, -1.0, 0.0), abs=1e-12)
+    assert vector_from_openvr((1.0, 0.0, 0.0)) == pytest.approx(led)
 
 
 def test_translation_axes_are_relabelled():
@@ -46,13 +63,17 @@ def test_vr_up_maps_to_ros_up():
 
 
 def test_vr_yaw_maps_to_ros_yaw_with_same_sign_and_magnitude():
-    # A rotation about the VR up axis (y) must become the same rotation about
-    # the ROS up axis (z): proper conjugation preserves angle and handedness.
+    # A rotation about the VR up axis (y) must become the same *relative*
+    # rotation about the ROS up axis (z): proper rotations preserve angle and
+    # handedness.
     angle = math.radians(30.0)
-    _, quat = pose_from_openvr(_vr_matrix(_vr_rotation_about_y(angle)))
-    assert yaw_from_quaternion(*quat) == pytest.approx(angle)
+    base = _FLAT_TRACKER_LED_ALONG_VR_X
+    _, quat0 = pose_from_openvr(_vr_matrix(base))
+    _, quat1 = pose_from_openvr(_vr_matrix(_vr_rotation_about_y(angle) @ base))
+    relative = wrap_angle(yaw_from_quaternion(*quat1) - yaw_from_quaternion(*quat0))
+    assert relative == pytest.approx(angle)
     # Yaw-only: no roll/pitch leakage.
-    up = rotate_vector_by_quaternion(quat, (0.0, 0.0, 1.0))
+    up = rotate_vector_by_quaternion(quat1, (0.0, 0.0, 1.0))
     assert up == pytest.approx((0.0, 0.0, 1.0), abs=1e-12)
 
 

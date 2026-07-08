@@ -7,11 +7,15 @@ The fixed axis relabel used throughout is::
 
     x_ros = -z_vr,   y_ros = -x_vr,   z_ros = y_vr
 
-Poses are converted by conjugation (``R @ M @ R.T``), which relabels the axes
-of both the tracking space and the tracker body frame — a tracker sitting flat
-on the floor comes out with its z axis up. Any residual body-frame difference
-versus the libsurvive convention is absorbed by the ``mount_tf_node``
-parameters, not here.
+The tracker **body** frame needs its own, different relabel: OpenVR's body
+convention for the Vive tracker was measured at bring-up (static pose + a
+slide along the LED direction, 2026-07-08) to be **+y toward the LED and -z
+out of the top face**. ``tracker_link`` is defined to match what the
+``mount_tf_node`` convention expects: **z = top-face normal, y = LED
+direction** (= car forward, LED mounted facing the front), so poses are
+converted as ``R @ M @ B.T`` with the two distinct relabels below. A tracker
+sitting flat on the floor thus comes out with its z axis up; the remaining
+mount correction is a pure yaw (no flip).
 
 ROS-free (works on plain floats/numpy) so it is unit-testable in isolation.
 """
@@ -33,6 +37,17 @@ _VR_TO_ROS = np.array(
         [0.0, 0.0, -1.0],
         [-1.0, 0.0, 0.0],
         [0.0, 1.0, 0.0],
+    ]
+)
+
+# Rows express the tracker_link axes in OpenVR *body* coordinates: a 180 deg
+# rotation about the LED axis (y), turning OpenVR's "-z out of the top face"
+# into tracker_link's "+z out of the top face" (det +1, symmetric).
+_VR_BODY_TO_TRACKER = np.array(
+    [
+        [-1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, -1.0],
     ]
 )
 
@@ -80,13 +95,14 @@ def pose_from_openvr(matrix12) -> tuple[np.ndarray, np.ndarray]:
 
     Returns ``(position, quaternion)`` of the tracker in the z-up tracking
     frame (``steamvr_world``): position as ``[x, y, z]`` and orientation as
-    ``(x, y, z, w)``.
+    ``(x, y, z, w)``, with the tracker body relabelled into the
+    ``tracker_link`` convention (z = top-face normal, y = LED direction).
     """
     m = np.asarray(matrix12, dtype=np.float64).reshape(3, 4)
     rotation_vr = m[:, :3]
     position_vr = m[:, 3]
     position = _VR_TO_ROS @ position_vr
-    rotation = _VR_TO_ROS @ rotation_vr @ _VR_TO_ROS.T
+    rotation = _VR_TO_ROS @ rotation_vr @ _VR_BODY_TO_TRACKER.T
     return position, quaternion_from_rotation_matrix(rotation)
 
 
@@ -94,8 +110,8 @@ def vector_from_openvr(v) -> np.ndarray:
     """
     Relabel a tracking-space OpenVR 3-vector into z-up ``steamvr_world`` axes.
 
-    Also correct for a vector expressed in the device's own OpenVR body axes
-    (conjugation relabels the body frame with the same rotation).
+    Only for tracking-space vectors (velocities); a vector expressed in the
+    device's own body axes would need ``_VR_BODY_TO_TRACKER`` instead.
     """
     return _VR_TO_ROS @ np.asarray(v, dtype=np.float64)
 

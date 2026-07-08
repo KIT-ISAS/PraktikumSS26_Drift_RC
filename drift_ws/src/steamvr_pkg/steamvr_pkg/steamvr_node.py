@@ -180,8 +180,8 @@ class SteamVrNode(Node):
 
     def _publish_imu(self, sample: TrackerSample, quat, stamp) -> None:
         # OpenVR reports velocities in the tracking frame (its angular-velocity
-        # frame is under-documented; if bring-up shows it is body-frame, use
-        # vector_from_openvr(sample.angular_velocity) directly instead).
+        # frame is under-documented; if bring-up shows it is body-frame, relabel
+        # with conversion._VR_BODY_TO_TRACKER instead of converting+rotating).
         angular_world = vector_from_openvr(sample.angular_velocity)
         velocity_world = vector_from_openvr(sample.velocity)
 
