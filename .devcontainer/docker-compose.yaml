@@ -32,15 +32,10 @@ services:
       - "c 13:* rmw"
       - "c 189:* rmw"
 
-    # Pass through physical GPU 3 only (host must have nvidia-container-toolkit
-    # installed and the Docker daemon configured with the nvidia runtime).
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["3"]
-              capabilities: [gpu]
+    # GPU passthrough is NOT declared here: it would break `docker compose up`
+    # (and the devcontainer) on hosts without the NVIDIA runtime. On a GPU
+    # workstation, add the docker-compose.gpu.yaml overlay:
+    #   docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml up -d
 
     working_dir: /root/repo/drift_ws
 

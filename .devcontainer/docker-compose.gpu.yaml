@@ -1,0 +1,16 @@
+# GPU passthrough overlay. NOT loaded by default, so the base compose file
+# keeps working on hosts without an NVIDIA GPU. On a GPU workstation (host
+# needs nvidia-container-toolkit installed and the Docker daemon configured
+# with the nvidia runtime), layer it on top of the base file:
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml up -d
+#
+services:
+  ros2:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
