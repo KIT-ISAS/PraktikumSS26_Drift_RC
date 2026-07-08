@@ -12,6 +12,11 @@ Two modes:
   immediately (``/agent/stop`` + ``/agent/override``) and forwards joystick
   commands from that same frame on. A subsequent ``/agent/start`` hands control
   back to the agent and re-arms the passive watch.
+
+In both modes two mapped buttons (``button_mapping``) control the agent: the
+start button publishes ``/agent/start`` (arming the agent and, in override
+mode, returning the joystick to passive), the stop button publishes
+``/agent/stop`` (the agent brakes to a standstill before releasing control).
 """
 
 import rclpy
@@ -34,6 +39,8 @@ class JoystickMapperNode(Node):
         self._load_params()
         self._dpad_prev_h: float | None = None
         self._dpad_prev_v: float | None = None
+        self._start_btn_prev = False
+        self._stop_btn_prev = False
         self._mapper: JoystickMapper = XBoxOneMapper(self.axis_mapping)
 
         # In override mode the joystick starts passive (the agent drives) and
@@ -45,8 +52,10 @@ class JoystickMapperNode(Node):
             VehicleActionRequest, Topics.VEHICLE_ACTION_REQUEST, 10
         )
 
+        self.agent_start_publisher = self.create_publisher(Empty, Topics.AGENT_START, 10)
+        self.agent_stop_publisher = self.create_publisher(Empty, Topics.AGENT_STOP, 10)
+
         if self.agent_override_mode:
-            self.agent_stop_publisher = self.create_publisher(Empty, Topics.AGENT_STOP, 10)
             self.agent_override_publisher = self.create_publisher(Empty, Topics.AGENT_OVERRIDE, 10)
             # A start signal hands control back to the agent — go passive again.
             self.agent_start_subscriber = self.create_subscription(
@@ -68,9 +77,11 @@ class JoystickMapperNode(Node):
 
         Maps the parameterized joystick axes to steering and throttle values.
         D-pad up/down adjusts gyro gain; d-pad left/right sets gyro mode.
+        The mapped start/stop buttons signal the agent (rising edge only).
         In agent-override mode, nothing is published while passive; significant
         movement triggers the takeover first.
         """
+        self._check_agent_signal(msg)
         self._update_gyro_from_dpad(msg)
 
         steering = self._mapper.extract_steering(msg)
@@ -100,6 +111,25 @@ class JoystickMapperNode(Node):
             return
         self._passive = True
         self.get_logger().info("Agent started — joystick passive until significant movement")
+
+    def _check_agent_signal(self, msg: Joy) -> None:
+        """Publish agent start/stop signals on the rising edge of the mapped buttons."""
+        start_pressed = bool(msg.buttons[self.button_mapping["agent_start"]])
+        stop_pressed = bool(msg.buttons[self.button_mapping["agent_stop"]])
+
+        if start_pressed and not self._start_btn_prev:
+            self.agent_start_publisher.publish(Empty())
+            self.get_logger().info("Start button pressed — starting agent")
+            if self.agent_override_mode:
+                # Go passive right away instead of waiting for the looped-back
+                # /agent/start, so this frame doesn't fight the agent.
+                self._agent_start_callback(Empty())
+        if stop_pressed and not self._stop_btn_prev:
+            self.agent_stop_publisher.publish(Empty())
+            self.get_logger().info("Stop button pressed — agent braking to a standstill")
+
+        self._start_btn_prev = start_pressed
+        self._stop_btn_prev = stop_pressed
 
     def _update_gyro_from_dpad(self, msg: Joy) -> None:
         """Update gyro state from d-pad input, triggering once per press."""
@@ -135,6 +165,14 @@ class JoystickMapperNode(Node):
         axis_mapping_params = self.get_parameters_by_prefix("axis_mapping")
         self.axis_mapping = {
             param_key: param_value.value for param_key, param_value in axis_mapping_params.items()
+        }
+
+        self.declare_parameter("button_mapping.agent_start", 0)
+        self.declare_parameter("button_mapping.agent_stop", 1)
+        button_mapping_params = self.get_parameters_by_prefix("button_mapping")
+        self.button_mapping = {
+            param_key: param_value.value
+            for param_key, param_value in button_mapping_params.items()
         }
 
         self.declare_parameter("gyro_mode", "soft")
