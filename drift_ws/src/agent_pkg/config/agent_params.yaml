@@ -12,4 +12,4 @@ agent_node:
     input_timeout_s: 0.3
     # Forwarded verbatim in every VehicleActionRequest.
     gyro_mode: "soft"
-    gyro_gain: 0.0
+    gyro_gain: 0.8
