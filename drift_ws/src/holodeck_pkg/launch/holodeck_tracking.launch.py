@@ -33,9 +33,7 @@ from launch_ros.descriptions import ComposableNode
 BAG_FILE = os.path.join(launch.logging.launch_config.log_dir, "libsurvive.bag")
 
 # Default libsurvive configuration file
-CFG_FILE = os.path.join(
-    get_package_share_directory("holodeck_pkg"), "config", "config.json"
-)
+CFG_FILE = os.path.join(get_package_share_directory("holodeck_pkg"), "config", "config.json")
 
 # Sow we don't have to repeat for composable and non-composable versions.
 PARAMETERS = [
