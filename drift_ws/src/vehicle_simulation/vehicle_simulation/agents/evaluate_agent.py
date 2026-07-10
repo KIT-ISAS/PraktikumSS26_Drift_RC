@@ -72,7 +72,7 @@ def evaluate_agent(
         total_reward = 0.0
         step = 0
         while True:
-            action = agent.predict(obs) if deterministic else agent._model.predict(obs)[0]
+            action = agent.predict(obs, deterministic=deterministic)
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             for field, value in (
@@ -96,7 +96,7 @@ def evaluate_agent(
                 term_reasons[reason] = term_reasons.get(reason, 0) + 1
                 break
         episode_rewards.append(total_reward)
-        episode_laps.append(info["progress_m"] / env._total_length)
+        episode_laps.append(info["progress_m"] / env.total_length)
 
     lateral = np.array(rows["lateral_error"])
     sideslip = np.array(rows["sideslip"])
@@ -132,7 +132,7 @@ def _plot(env, rows: dict, out_path: Path) -> bool:
     except ImportError:
         return False
     fig, ax = plt.subplots(figsize=(8, 5))
-    centerline = env._waypoints
+    centerline = env.waypoints
     ax.plot(centerline[:, 0], centerline[:, 1], "k--", lw=1, alpha=0.5, label="centerline")
     episode = np.asarray(rows["episode"])
     x, y = np.asarray(rows["x"]), np.asarray(rows["y"])

@@ -76,6 +76,16 @@ class DriftEnv(gymnasium.Env):
         self._progress_m = 0.0
         self._stall_time = 0.0
 
+    @property
+    def total_length(self) -> float:
+        """Arc length of the closed centerline [m]."""
+        return self._total_length
+
+    @property
+    def waypoints(self) -> np.ndarray:
+        """Discretized centerline waypoints as an ``(n, 3)`` array of (x, y, heading)."""
+        return self._waypoints
+
     def _centerline_pose(self, s: float) -> tuple[float, float, float]:
         """Interpolate (x, y, heading) on the closed centerline at arc length ``s``."""
         s = float(np.mod(s, self._total_length))

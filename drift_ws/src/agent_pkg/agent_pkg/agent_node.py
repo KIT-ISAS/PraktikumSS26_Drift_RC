@@ -43,7 +43,6 @@ from agent_pkg.observation_bridge import observation_from_messages
 from shared_interfaces.msg import Track, TrackProgress, VehicleActionRequest
 from shared_pkg import Topics
 
-# Re-exported for backward compatibility (tests and callers import it from here).
 __all__ = ["AgentNode", "observation_from_messages", "main"]
 
 
