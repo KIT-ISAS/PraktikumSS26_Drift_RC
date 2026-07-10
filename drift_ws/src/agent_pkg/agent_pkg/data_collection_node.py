@@ -161,6 +161,16 @@ class DataCollectionNode(Node):
             )
             return
         if not self._inputs_ready():
+            # A data gap cuts the episode: the pending transition's reward/next_obs
+            # would span the whole gap while being scored with dt = one tick,
+            # poisoning the fine-tuning buffer. Truncate the last completed
+            # transition and start fresh once inputs are back.
+            if self._pending:
+                self._truncate_last()
+                self._begin_episode()
+                self.get_logger().warning(
+                    "Inputs went stale — episode cut, dropping the pending transition"
+                )
             return
         self._record_step()
 
