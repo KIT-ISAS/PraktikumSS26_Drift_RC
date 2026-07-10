@@ -243,13 +243,15 @@ class AgentNode(Node):
 
 def main(args=None) -> None:
     rclpy.init(args=args)
-    node = AgentNode()
+    node = None
     try:
+        node = AgentNode()
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     finally:
-        node.destroy_node()
+        if node is not None:
+            node.destroy_node()
         rclpy.shutdown()
 
 

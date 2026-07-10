@@ -411,14 +411,16 @@ class DataCollectionNode(Node):
 
 def main(args=None) -> None:
     rclpy.init(args=args)
-    node = DataCollectionNode()
+    node = None
     try:
+        node = DataCollectionNode()
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     finally:
-        node.flush()
-        node.destroy_node()
+        if node is not None:
+            node.flush()
+            node.destroy_node()
         rclpy.shutdown()
 
 
