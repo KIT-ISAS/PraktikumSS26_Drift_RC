@@ -85,6 +85,7 @@ class DataCollectionNode(Node):
         self.create_subscription(Track, Topics.TRACK_CENTERLINE, self._track_callback, latched_qos)
         self.create_subscription(Empty, Topics.AGENT_START, self._start_callback, 10)
         self.create_subscription(Empty, Topics.AGENT_STOP, self._stop_callback, 10)
+        self.create_subscription(Empty, Topics.AGENT_OVERRIDE, self._override_callback, 10)
         self._action_pub = self.create_publisher(
             VehicleActionRequest, Topics.VEHICLE_ACTION_REQUEST, 10
         )
@@ -132,6 +133,20 @@ class DataCollectionNode(Node):
             self._stop_started = self.get_clock().now()
             self._neutral_ticks = 0
             self.get_logger().info("Received stop signal — braking to a standstill")
+
+    def _override_callback(self, _msg: Empty) -> None:
+        if not self._running and not self._stopping:
+            return
+        # Another controller (e.g. the joystick) has seized the vehicle action
+        # topic: release immediately — the braking phase would fight its commands.
+        # The episode ends here, so truncate the last completed transition,
+        # drop the incomplete pending one, and persist the buffer.
+        self._running = False
+        self._stopping = False
+        self._truncate_last()
+        self._pending = False
+        self._flush()
+        self.get_logger().warning("Override received — releasing control immediately")
 
     # --- control / recording loop -------------------------------------------
 
