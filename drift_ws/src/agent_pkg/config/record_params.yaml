@@ -10,9 +10,9 @@ data_collection_node:
     rate_hz: 50.0
     # Stop publishing/recording when odom / track progress are older than this (safety).
     input_timeout_s: 0.3
-    # Forwarded verbatim in every VehicleActionRequest.
+    # Forwarded verbatim in every VehicleActionRequest. Keep in sync with agent_params.yaml.
     gyro_mode: "soft"
-    gyro_gain: 0.0
+    gyro_gain: 0.8
     # Exploration during recording. deterministic=false samples the policy so SAC has
     # action variety to learn from; throttle is clamped to [throttle_min, throttle_cap]
     # so exploration cannot drive the car into a high-speed loss of control.
