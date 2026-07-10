@@ -45,7 +45,7 @@ cd /root/repo/drift_ws/src/vehicle_simulation
 
 /opt/venv/bin/python -m vehicle_simulation.agents.train_agent --config stage1_path_follow --tag s1 > runs/s1_train.log 2>&1
 /opt/venv/bin/python -m vehicle_simulation.agents.train_agent --config stage2_fast  --init-from runs/<stage1_run> --tag s2 > runs/s2_train.log 2>&1
-/opt/venv/bin/python -m vehicle_simulation.agents.train_agent --config stage3_drift --init-from runs/<s3> --tag s3 > runs/s3_train.log 2>&1
+/opt/venv/bin/python -m vehicle_simulation.agents.train_agent --config stage3_drift --init-from runs/<stage2_run> --tag s3 > runs/s3_train.log 2>&1
 ```
 
 Useful flags: `--total-steps N` (override), `--seed N`, `--runs-dir <path>`.
