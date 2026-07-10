@@ -22,6 +22,7 @@ is ``(obs_t, action_t, reward_t, obs_{t+1}, terminated, truncated)``.
 """
 
 from datetime import datetime
+import os
 from pathlib import Path
 
 from nav_msgs.msg import Odometry
@@ -91,7 +92,7 @@ class DataCollectionNode(Node):
         )
         self.create_timer(self._dt, self._control_step)
         if self._flush_period_s > 0.0:
-            self.create_timer(self._flush_period_s, self._flush)
+            self.create_timer(self._flush_period_s, self.flush)
         self.get_logger().info(f"Recording transitions to {self._out_path}")
 
     # --- ROS callbacks -------------------------------------------------------
@@ -127,7 +128,7 @@ class DataCollectionNode(Node):
         # and drop the incomplete pending one. Then persist the buffer.
         self._truncate_last()
         self._pending = False
-        self._flush()
+        self.flush()
         if not self._stopping:
             self._stopping = True
             self._stop_started = self.get_clock().now()
@@ -145,7 +146,7 @@ class DataCollectionNode(Node):
         self._stopping = False
         self._truncate_last()
         self._pending = False
-        self._flush()
+        self.flush()
         self.get_logger().warning("Override received — releasing control immediately")
 
     # --- control / recording loop -------------------------------------------
@@ -247,8 +248,8 @@ class DataCollectionNode(Node):
         if self._transitions and not self._transitions[-1]["terminated"]:
             self._transitions[-1]["truncated"] = True
 
-    def _flush(self) -> None:
-        """Write the accumulated buffer to the session npz (overwrites in place)."""
+    def flush(self) -> None:
+        """Write the accumulated buffer to the session npz (atomic overwrite)."""
         if not self._transitions:
             return
         obs = np.stack([t["obs"] for t in self._transitions])
@@ -258,19 +259,24 @@ class DataCollectionNode(Node):
         terminateds = np.array([t["terminated"] for t in self._transitions], dtype=bool)
         truncateds = np.array([t["truncated"] for t in self._transitions], dtype=bool)
         track_name = self._track.name if self._track is not None else ""
-        np.savez(
-            self._out_path,
-            observations=obs,
-            next_observations=next_obs,
-            actions=actions,
-            rewards=rewards,
-            terminateds=terminateds,
-            truncateds=truncateds,
-            rate_hz=np.float32(self._rate_hz),
-            run_dir=str(self._run_dir),
-            stage_name=self._stage.name,
-            track_name=track_name,
-        )
+        # Write to a temp file and rename, so a crash mid-write cannot corrupt the
+        # whole session's recording.
+        tmp_path = self._out_path.with_name(self._out_path.name + ".tmp")
+        with open(tmp_path, "wb") as f:
+            np.savez(
+                f,
+                observations=obs,
+                next_observations=next_obs,
+                actions=actions,
+                rewards=rewards,
+                terminateds=terminateds,
+                truncateds=truncateds,
+                rate_hz=np.float32(self._rate_hz),
+                run_dir=str(self._run_dir),
+                stage_name=self._stage.name,
+                track_name=track_name,
+            )
+        os.replace(tmp_path, self._out_path)
         self.get_logger().info(f"Wrote {len(self._transitions)} transitions to {self._out_path}")
 
     # --- episode lifecycle ---------------------------------------------------
@@ -286,7 +292,7 @@ class DataCollectionNode(Node):
         self._running = False
         # No-op for the terminal transition (it keeps terminated=True).
         self._truncate_last()
-        self._flush()
+        self.flush()
         if not self._stopping:
             self._stopping = True
             self._stop_started = self.get_clock().now()
@@ -377,7 +383,8 @@ class DataCollectionNode(Node):
         self._deterministic = bool(self.get_parameter("deterministic").value)
         self._throttle_cap = float(self.get_parameter("throttle_cap").value)
         self._throttle_min = float(self.get_parameter("throttle_min").value)
-        self._output_dir = self.get_parameter("output_dir").value
+        # Resolved to an absolute path: the CWD of a launched node varies.
+        self._output_dir = Path(self.get_parameter("output_dir").value).expanduser().resolve()
         self._flush_period_s = float(self.get_parameter("flush_period_s").value)
         self._stop_brake_throttle = float(self.get_parameter("stop_brake_throttle").value)
         self._stop_speed_threshold = float(self.get_parameter("stop_speed_threshold").value)
@@ -410,7 +417,7 @@ def main(args=None) -> None:
     except KeyboardInterrupt:
         pass
     finally:
-        node._flush()
+        node.flush()
         node.destroy_node()
         rclpy.shutdown()
 
