@@ -144,6 +144,53 @@ class TestLapCounting:
         assert projection.distance == pytest.approx(5.5)
 
 
+class TestCheckpointValidation:
+    """Shortcuts (re-localization jumps) must not earn progress or laps (issue #78)."""
+
+    def _shortcut(self) -> TrackProjector:
+        """Seed at s=1.5, then teleport to s=13.5 — a lost re-localization jump."""
+        projector = _square_projector()
+        projector.project(1.5, 0.0)
+        projector.project(0.0, 2.5)
+        return projector
+
+    def test_jump_moves_position_but_freezes_progress(self):
+        projector = _square_projector()
+        projector.project(1.5, 0.0)
+        jumped = projector.project(0.0, 2.5)
+        # Position is truthful, but progress is capped at the next unpassed
+        # checkpoint (s=2) instead of leaping to 13.5/16.
+        assert jumped.distance == pytest.approx(13.5)
+        assert jumped.lap == 0
+        assert jumped.lap_progress == pytest.approx(2.0 / 16.0)
+
+    def test_start_crossing_after_shortcut_earns_no_lap(self):
+        projector = self._shortcut()
+        projection = None
+        for i in range(26):  # s = 13.5 -> 16 -> wrap -> 1.0 in 0.5 m steps
+            s = 13.5 + 0.5 * (i + 1)
+            x, y = (0.0, 16.0 - s) if s < 16.0 else (s - 16.0, 0.0)
+            projection = projector.project(x, y)
+            if s - 16.0 >= 1.0:
+                break
+        assert projection.lap == 0
+        assert projection.lap_progress == pytest.approx(1.0 / 16.0)
+
+    def test_lap_counts_after_driving_missed_section(self):
+        projector = self._shortcut()
+        # Drive continuously from the jump landing all the way around, through the
+        # missed checkpoint at s=2, and across the start line again.
+        s = 13.5
+        projection = None
+        while s < 16.0 + 16.0 + 1.0:
+            s += 0.5
+            s_mod = s % 16.0
+            side, along = int(s_mod // 4.0), s_mod % 4.0
+            x, y = [(along, 0.0), (4.0, along), (4.0 - along, 4.0), (0.0, 4.0 - along)][side]
+            projection = projector.project(x, y)
+        assert projection.lap == 1
+
+
 class TestBranchDisambiguation:
     """The search window keeps the projection on the branch being tracked."""
 

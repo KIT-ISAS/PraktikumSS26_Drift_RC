@@ -20,8 +20,8 @@ class Projection:
     heading: float  # track tangent direction at the projection (rad)
     distance: float  # arc length along the centerline (m)
     lateral_error: float  # signed car->centerline distance (m), + = car left of path
-    lap: int  # completed laps since start
-    lap_progress: float  # current-lap fraction, 0..1
+    lap: int  # completed laps since start, validated by in-order checkpoint passage
+    lap_progress: float  # current-lap fraction, 0..1, capped at the next unpassed checkpoint
 
 
 class TrackProjector:
@@ -32,6 +32,13 @@ class TrackProjector:
     the first. Crossings (e.g. the figure-8 origin) are disambiguated by searching only a
     small arc-length window around the previous projection, since the two branches that
     meet at a crossing are far apart in arc length.
+
+    Lap count and lap progress are validated by checkpoints spaced evenly along the
+    centerline: they only advance when the projection passes the next checkpoint in
+    order through continuous motion. A re-localization jump (e.g. the car cutting
+    across the figure-8 crossing onto the other branch, or being carried elsewhere)
+    moves ``distance`` to the true position but skips no checkpoints, so shortcuts
+    earn neither progress nor laps until the missed section is actually driven.
     """
 
     def __init__(
@@ -40,8 +47,9 @@ class TrackProjector:
         cumulative_distance: list[float],
         search_window_m: float = 0.6,
         lost_distance_m: float = 0.5,
+        checkpoint_spacing_m: float = 1.0,
     ) -> None:
-        """Store the centerline and configure the search window and lost threshold."""
+        """Store the centerline and configure search window, lost threshold, checkpoints."""
         self._wp = [(float(x), float(y)) for x, y, _ in waypoints]
         self._n = len(self._wp)
         self._cumul = [float(d) for d in cumulative_distance]
@@ -57,13 +65,25 @@ class TrackProjector:
         self._search_window_m = search_window_m
         self._lost_distance_m = lost_distance_m
 
+        if self.total_length > 0.0:
+            self._n_cp = max(1, round(self.total_length / checkpoint_spacing_m))
+            self._cp_spacing = self.total_length / self._n_cp
+            # Larger jumps than the search window can produce are re-localizations.
+            self._continuity_m = search_window_m + 2.0 * self.total_length / self._n
+        else:
+            self._n_cp = 1
+            self._cp_spacing = 0.0
+            self._continuity_m = 0.0
+
         self._last_s: float | None = None
         self._lap = 0
+        self._next_cp = 0
 
     def reset(self) -> None:
         """Forget the previous projection so the next call re-localizes globally."""
         self._last_s = None
         self._lap = 0
+        self._next_cp = 0
 
     def _segment(self, i: int) -> tuple[float, float, float, float, float, float]:
         """Return (ax, ay, dx, dy, seg_len, s_start) for segment i -> (i+1) mod n."""
@@ -125,9 +145,17 @@ class TrackProjector:
                     best = global_best
 
         dist, cx, cy, heading, s, lateral = best
-        self._update_laps(s)
+
+        if self._last_s is None:
+            # Seed: the checkpoint behind the start position counts as already passed.
+            self._next_cp = (int(s // self._cp_spacing) + 1) % self._n_cp
+        else:
+            ds = self._wrapped_delta(s, self._last_s)
+            if abs(ds) <= self._continuity_m:
+                self._pass_checkpoints(self._last_s, ds)
         self._last_s = s
 
+        cap = self.total_length if self._next_cp == 0 else self._next_cp * self._cp_spacing
         return Projection(
             x=cx,
             y=cy,
@@ -135,16 +163,38 @@ class TrackProjector:
             distance=s,
             lateral_error=lateral,
             lap=self._lap,
-            lap_progress=s / self.total_length,
+            lap_progress=min(s % self.total_length, cap) / self.total_length,
         )
 
-    def _update_laps(self, s: float) -> None:
-        """Increment/decrement the lap count on a forward/backward start-line wrap."""
-        if self._last_s is None:
-            return
-        frac_prev = self._last_s / self.total_length
-        frac_now = s / self.total_length
-        if frac_prev > 0.9 and frac_now < 0.1:
-            self._lap += 1
-        elif frac_prev < 0.1 and frac_now > 0.9:
-            self._lap = max(0, self._lap - 1)
+    def _wrapped_delta(self, s: float, s_prev: float) -> float:
+        """Signed arc-length move from ``s_prev`` to ``s``, wrapped to +-half the track."""
+        d = (s - s_prev) % self.total_length
+        return d - self.total_length if d > self.total_length / 2.0 else d
+
+    def _pass_checkpoints(self, s_from: float, ds: float) -> None:
+        """
+        Advance checkpoints crossed by a continuous move of ``ds`` starting at ``s_from``.
+
+        Only the next expected checkpoint can be passed (forward) or the previously
+        passed one un-passed (backward); crossing any other checkpoint is ignored, so
+        arc-length progress skipped via a shortcut stays unvalidated. The lap count
+        changes only when checkpoint 0 (the start line) is passed in order.
+        """
+        max_crossings = int(abs(ds) / self._cp_spacing) + 1
+        if ds > 0.0:
+            for _ in range(max_crossings):
+                gap = (self._next_cp * self._cp_spacing - s_from) % self.total_length
+                if not 0.0 <= gap < ds:
+                    return
+                if self._next_cp == 0:
+                    self._lap += 1
+                self._next_cp = (self._next_cp + 1) % self._n_cp
+        elif ds < 0.0:
+            for _ in range(max_crossings):
+                prev = (self._next_cp - 1) % self._n_cp
+                gap = (s_from - prev * self._cp_spacing) % self.total_length
+                if not 0.0 < gap <= -ds:
+                    return
+                if prev == 0:
+                    self._lap = max(0, self._lap - 1)
+                self._next_cp = prev

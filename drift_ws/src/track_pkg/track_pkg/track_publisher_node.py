@@ -41,6 +41,7 @@ class TrackPublisherNode(Node):
         self.declare_parameter("car_pose_topic", Topics.CAR_POSE)
         self.declare_parameter("search_window_m", 0.6)
         self.declare_parameter("lost_distance_m", 0.5)
+        self.declare_parameter("checkpoint_spacing_m", 1.0)
         # Boundary corners [x0, y0, x1, y1, ...] in the track frame. Empty (default)
         # derives an axis-aligned box around the centerline with boundary_margin_m.
         self.declare_parameter("arena_corners", [])
@@ -72,6 +73,7 @@ class TrackPublisherNode(Node):
             cumul,
             search_window_m=self.get_parameter("search_window_m").value,
             lost_distance_m=self.get_parameter("lost_distance_m").value,
+            checkpoint_spacing_m=self.get_parameter("checkpoint_spacing_m").value,
         )
 
         track_msg = Track()
