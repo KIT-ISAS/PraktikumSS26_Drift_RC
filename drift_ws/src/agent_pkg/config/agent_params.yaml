@@ -1,0 +1,17 @@
+agent_node:
+  ros__parameters:
+    # Training run directory (contains best_model.zip / agent.zip) or a SAC .zip.
+    # Required — usually set via the launch argument run_dir:=...
+    run_dir: ""
+    device: "cpu"
+    # Load best_model.zip when present (false: always the final agent.zip).
+    prefer_best: true
+    # Control rate. Keep at 50 Hz — the policy was trained with dt = 0.02.
+    rate_hz: 50.0
+    # Stop publishing when odom / track progress are older than this (safety).
+    input_timeout_s: 0.3
+    # A dropout longer than this disarms the agent (fresh start signal required).
+    disarm_timeout_s: 2.0
+    # Forwarded verbatim in every VehicleActionRequest.
+    gyro_mode: "soft"
+    gyro_gain: 0.8

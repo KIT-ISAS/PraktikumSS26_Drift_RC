@@ -8,7 +8,7 @@ by including their package-specific launch files.
 import os
 
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import GroupAction, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
@@ -30,7 +30,15 @@ def generate_launch_description():
         )
     )
 
-    joystick_include = IncludeLaunchDescription(PythonLaunchDescriptionSource(joystick_launch))
-    vehicle_include = IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))
+    # Each include is wrapped in a scoped GroupAction: launch arguments declared
+    # inside one include (both package launches declare "params_file") would
+    # otherwise leak into the shared context and pre-empt the next include's own
+    # default. Scoping discards them when the group exits.
+    joystick_include = GroupAction(
+        [IncludeLaunchDescription(PythonLaunchDescriptionSource(joystick_launch))]
+    )
+    vehicle_include = GroupAction(
+        [IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))]
+    )
 
     return LaunchDescription([joystick_include, vehicle_include])

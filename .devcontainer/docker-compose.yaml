@@ -32,6 +32,11 @@ services:
       - "c 13:* rmw"
       - "c 189:* rmw"
 
+    # GPU passthrough is NOT declared here: it would break `docker compose up`
+    # (and the devcontainer) on hosts without the NVIDIA runtime. On a GPU
+    # workstation, add the docker-compose.gpu.yaml overlay:
+    #   docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml up -d
+
     working_dir: /root/repo/drift_ws
 
     environment:

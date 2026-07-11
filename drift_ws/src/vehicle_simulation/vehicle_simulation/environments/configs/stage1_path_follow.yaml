@@ -1,0 +1,33 @@
+# Curriculum stage 1: follow the centerline slowly and cleanly.
+# Tight lateral limit, strong lateral/heading shaping, no drift bonus.
+name: stage1_path_follow
+env:
+  track: figure_8
+  model_type: arcade
+  dt: 0.02
+  max_episode_steps: 1500  # 30 s
+  spawn:
+    speed: 0.8
+    speed_noise_std: 0.1
+    standstill_prob: 0.25  # standing starts in-distribution (the real car starts parked)
+    lateral_noise_std: 0.05
+    heading_noise_std: 0.15
+  termination:
+    lateral_limit_m: 0.4
+    stall_speed: 0.1
+    stall_timeout_s: 2.0
+    off_track_penalty: 20.0
+    # Stalling must cost more than crashing: it also ends the per-step penalty
+    # bleed, so a cheaper stall makes "stop immediately" an early local optimum.
+    stall_penalty: 30.0
+  reward:
+    progress_weight: 1.0
+    target_speed: 1.0
+    speed_weight: 0.5
+    lateral_weight: 4.0
+    heading_weight: 1.0
+    action_rate_weight: 0.05
+    drift_weight: 0.0
+    straight_beta_weight: 0.0
+train:
+  total_steps: 500000  # 200k ended with ep_rew_mean still climbing steeply

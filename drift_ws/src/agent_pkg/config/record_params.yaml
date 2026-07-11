@@ -1,0 +1,30 @@
+data_collection_node:
+  ros__parameters:
+    # Training run directory (must contain config.yaml + best_model.zip/agent.zip).
+    # Required — usually set via the launch argument run_dir:=...
+    run_dir: ""
+    device: "cpu"
+    # Load best_model.zip when present (false: always the final agent.zip).
+    prefer_best: true
+    # Control rate. Keep at 50 Hz — the policy was trained with dt = 0.02.
+    rate_hz: 50.0
+    # Stop publishing/recording when odom / track progress are older than this (safety).
+    input_timeout_s: 0.3
+    # A dropout longer than this disarms recording (fresh start signal required).
+    disarm_timeout_s: 2.0
+    # Forwarded verbatim in every VehicleActionRequest. Keep in sync with agent_params.yaml.
+    gyro_mode: "soft"
+    gyro_gain: 0.8
+    # Exploration during recording. deterministic=false samples the policy so SAC has
+    # action variety to learn from; throttle is clamped to [throttle_min, throttle_cap]
+    # so exploration cannot drive the car into a high-speed loss of control.
+    deterministic: false
+    throttle_cap: 0.5
+    throttle_min: -0.4
+    # Where recorded .npz transition files are written, and how often to flush.
+    output_dir: "recordings"
+    flush_period_s: 10.0
+    # Braking-to-standstill on stop / off-track / stall (shared with agent_node).
+    stop_brake_throttle: -0.4
+    stop_speed_threshold: 0.2
+    stop_timeout_s: 2.0

@@ -7,9 +7,18 @@ joystick_mapper:
       brake: 2       # Left trigger
       dpad_h: 6      # D-pad horizontal (left=+1, right=-1)
       dpad_v: 7      # D-pad vertical   (up=+1, down=-1)
+    # Mapping of joystick buttons to agent start/stop signals
+    button_mapping:
+      agent_start: 0  # A button — arm the agent (/agent/start)
+      agent_stop: 1   # B button — stop the agent, brakes to standstill (/agent/stop)
     gyro_mode: "soft"      # "soft" or "hard"
     gyro_gain: 1.0         # 0.0 (off) to 1.0 (full)
     gyro_gain_step: 0.1    # increment/decrement per d-pad up/down press
+
+    # Agent-override mode (set via launch): joystick stays passive while the RL
+    # agent drives, and takes over (stopping the agent) on significant movement.
+    agent_override_mode: false
+    override_threshold: 0.3   # |steering| or |throttle| beyond this triggers takeover
 
 joy_node:
   ros__parameters:

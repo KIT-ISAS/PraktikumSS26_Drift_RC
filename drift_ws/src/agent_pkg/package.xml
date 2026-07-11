@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>agent_pkg</name>
+  <version>0.0.0</version>
+  <description>ROS2 wrapper around the trained RL drift agent: builds observations from /car/odom + /track/progress + /track/centerline via the shared vehicle_simulation observation builder and publishes VehicleActionRequest at the control rate</description>
+  <maintainer email="louis.wagner0610@gmail.com">Louis Wagner</maintainer>
+  <license>Apache License 2.0</license>
+
+  <depend>shared_pkg</depend>
+  <depend>shared_interfaces</depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

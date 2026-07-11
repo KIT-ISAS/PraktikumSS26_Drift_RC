@@ -3,7 +3,7 @@
 import os
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
@@ -35,47 +35,65 @@ def generate_launch_description():
     use_libsurvive = PythonExpression(["'", tracking_source, "' == 'libsurvive'"])
     use_steamvr = PythonExpression(["'", tracking_source, "' == 'steamvr'"])
 
-    joystick_include = IncludeLaunchDescription(PythonLaunchDescriptionSource(joystick_launch))
-    vehicle_include = IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))
-    holodeck_include = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(holodeck_launch),
-        condition=IfCondition(use_libsurvive),
-        launch_arguments={"foxbridge": "true"}.items(),
+    # Each include is wrapped in a scoped GroupAction: launch arguments declared
+    # inside one include (e.g. "params_file" in both the joystick and vehicle
+    # launches, "namespace" in the tracking launches) would otherwise leak into
+    # the shared context and pre-empt the next include's own default. Scoping
+    # discards them when the group exits.
+    joystick_include = GroupAction(
+        [IncludeLaunchDescription(PythonLaunchDescriptionSource(joystick_launch))]
     )
-    steamvr_include = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(steamvr_launch),
-        condition=IfCondition(use_steamvr),
-        launch_arguments={"foxbridge": "true"}.items(),
+    vehicle_include = GroupAction(
+        [IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))]
+    )
+    holodeck_include = GroupAction(
+        [
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(holodeck_launch),
+                condition=IfCondition(use_libsurvive),
+                launch_arguments={"foxbridge": "true"}.items(),
+            )
+        ]
+    )
+    steamvr_include = GroupAction(
+        [
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(steamvr_launch),
+                condition=IfCondition(use_steamvr),
+                launch_arguments={"foxbridge": "true"}.items(),
+            )
+        ]
     )
     # Derives the canonical CoG/ISO-8855 state from the tracking source's raw
-    # tracker TF and IMU topic.
-    localization_include = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(localization_launch),
-        # namespace="" is passed explicitly: the tracking include (processed first)
-        # declares a "namespace" arg defaulting to "libsurvive"/"steamvr", which leaks
-        # into the shared launch context, so car_localization's own default_value=""
-        # would not take effect. Without this the real car lands under that namespace
-        # and its /car/* outputs get remapped e.g. to /libsurvive/car/*.
-        launch_arguments={
-            "namespace": "",
-            "raw_imu_topic": PythonExpression(
-                [
-                    f"'{Topics.LIBSURVIVE_IMU}' if '",
-                    tracking_source,
-                    f"' == 'libsurvive' else '{Topics.STEAMVR_IMU}'",
-                ]
-            ),
-            # Empirical mount knobs per source (how the tracker body frame maps
-            # to the car). steamvr's tracker_link is y-forward (LED toward the
-            # car front) and right-side up (see steamvr_pkg/lib/conversion.py),
-            # so it only needs a -90 deg yaw and no flip.
-            "tracker_yaw_offset_deg": PythonExpression(
-                ["'90.0' if '", tracking_source, "' == 'libsurvive' else '-90.0'"]
-            ),
-            "tracker_upside_down": PythonExpression(
-                ["'true' if '", tracking_source, "' == 'libsurvive' else 'false'"]
-            ),
-        }.items(),
+    # tracker TF and IMU topic. namespace="" is passed explicitly (belt and
+    # suspenders with the scoping above): the real car must stay un-namespaced
+    # or its /car/* outputs would be remapped e.g. to /libsurvive/car/*.
+    localization_include = GroupAction(
+        [
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(localization_launch),
+                launch_arguments={
+                    "namespace": "",
+                    "raw_imu_topic": PythonExpression(
+                        [
+                            f"'{Topics.LIBSURVIVE_IMU}' if '",
+                            tracking_source,
+                            f"' == 'libsurvive' else '{Topics.STEAMVR_IMU}'",
+                        ]
+                    ),
+                    # Empirical mount knobs per source (how the tracker body frame maps
+                    # to the car). steamvr's tracker_link is y-forward (LED toward the
+                    # car front) and right-side up (see steamvr_pkg/lib/conversion.py),
+                    # so it only needs a -90 deg yaw and no flip.
+                    "tracker_yaw_offset_deg": PythonExpression(
+                        ["'90.0' if '", tracking_source, "' == 'libsurvive' else '-90.0'"]
+                    ),
+                    "tracker_upside_down": PythonExpression(
+                        ["'true' if '", tracking_source, "' == 'libsurvive' else 'false'"]
+                    ),
+                }.items(),
+            )
+        ]
     )
 
     track_publisher_node = Node(

@@ -11,3 +11,6 @@ esp32_controller/libraries/
 
 # Recorded rosbags (large binaries; share out-of-band, do not commit)
 drift_ws/rosbag2_*/
+
+# Training run artifacts (self-contained run dirs; share out-of-band)
+runs/
