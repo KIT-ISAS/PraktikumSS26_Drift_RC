@@ -43,7 +43,7 @@ from agent_pkg.observation_bridge import observation_from_messages
 from shared_interfaces.msg import Track, TrackProgress, VehicleActionRequest
 from shared_pkg import Topics
 
-__all__ = ["AgentNode", "observation_from_messages", "main"]
+__all__ = ["AgentNode", "main"]
 
 
 class AgentNode(Node):

@@ -107,9 +107,9 @@ def build_observation(
     obs[0] = np.clip(lateral_error / LATERAL_SCALE, -_LATERAL_CLIP, _LATERAL_CLIP)
     obs[1] = math.sin(heading_error)
     obs[2] = math.cos(heading_error)
-    obs[3] = vx / SPEED_SCALE
-    obs[4] = vy / SPEED_SCALE
-    obs[5] = yaw_rate / YAW_RATE_SCALE
+    obs[3] = np.clip(vx / SPEED_SCALE, OBS_LOW[3], OBS_HIGH[3])
+    obs[4] = np.clip(vy / SPEED_SCALE, OBS_LOW[4], OBS_HIGH[4])
+    obs[5] = np.clip(yaw_rate / YAW_RATE_SCALE, OBS_LOW[5], OBS_HIGH[5])
     obs[6:8] = np.clip(np.asarray(prev_action, dtype=np.float32), -1.0, 1.0)
     obs[8:] = np.clip(
         np.asarray(curvatures_ahead, dtype=np.float32) / CURVATURE_SCALE,

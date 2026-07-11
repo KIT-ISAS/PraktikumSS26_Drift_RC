@@ -151,7 +151,6 @@ def finetune(
         chunk = min(log_interval, gradient_steps - done)
         model.train(gradient_steps=chunk, batch_size=batch_size)
         done += chunk
-        model._n_updates = done
         model.logger.record("finetune/gradient_steps", done)
         model.logger.dump(step=done)
 

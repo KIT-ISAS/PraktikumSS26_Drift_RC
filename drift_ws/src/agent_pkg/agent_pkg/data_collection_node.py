@@ -383,8 +383,12 @@ class DataCollectionNode(Node):
         self._deterministic = bool(self.get_parameter("deterministic").value)
         self._throttle_cap = float(self.get_parameter("throttle_cap").value)
         self._throttle_min = float(self.get_parameter("throttle_min").value)
-        # Resolved to an absolute path: the CWD of a launched node varies.
-        self._output_dir = Path(self.get_parameter("output_dir").value).expanduser().resolve()
+        # Relative paths land wherever `ros2 launch` was invoked; anchor them to
+        # the run dir so recordings live next to the policy that produced them.
+        output_dir = Path(self.get_parameter("output_dir").value).expanduser()
+        if not output_dir.is_absolute():
+            output_dir = Path(self._run_dir) / output_dir
+        self._output_dir = output_dir.resolve()
         self._flush_period_s = float(self.get_parameter("flush_period_s").value)
         self._stop_brake_throttle = float(self.get_parameter("stop_brake_throttle").value)
         self._stop_speed_threshold = float(self.get_parameter("stop_speed_threshold").value)

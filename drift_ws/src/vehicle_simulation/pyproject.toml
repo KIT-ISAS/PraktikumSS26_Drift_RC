@@ -19,9 +19,9 @@ dependencies = [
 
 [project.optional-dependencies]
 neural = ["torch"]  # torch-based models + training
-rl = ["gymnasium", "stable-baselines3"]  # DriftEnv / RL-agent training
+rl = ["gymnasium==1.3.0", "stable-baselines3==2.9.0"]  # DriftEnv / RL-agent training (lockstep with rl-cpu)
 eval = ["matplotlib"]  # evaluation plots
-all = ["torch", "gymnasium", "stable-baselines3", "matplotlib"]
+all = ["torch", "gymnasium==1.3.0", "stable-baselines3==2.9.0", "matplotlib"]
 # CPU-only inference for a deploy/robot machine with no GPU: run a trained
 # DriftAgent (loads a SAC .zip) without the multi-GB CUDA torch. Versions are
 # pinned to the training checkpoints so SB3 loads them without warnings. torch is
