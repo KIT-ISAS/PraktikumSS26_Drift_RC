@@ -60,7 +60,6 @@ ROS 2 packages live in `drift_ws/src/`:
 | `holodeck_pkg` | ament_cmake (C++) | Thin wrapper around the `libsurvive_ros2` driver; publishes vehicle and lighthouse poses in the world frame via TF and on `/car/pose` |
 | `track_pkg` | ament_python | Bezier track representation, lap progress tracking, and centerline publisher |
 | `agent_pkg` | ament_python | Runs a trained RL agent (`vehicle_simulation.agents.DriftAgent`) as the control source: `/car/odom` + `/track/progress` + `/track/centerline` → shared observation builder → `VehicleActionRequest` at 50 Hz |
-| `example_pkg` | ament_python | Template/reference package |
 
 **Control data flow:** `joystick_pkg` → `VehicleActionRequest` topic → `vehicle_communication_pkg` → UDP/JSON → ESP32 firmware → PWM (servo/ESC). Status flows back: ESP32 → UDP → `vehicle_communication_pkg` → `VehicleStatus` topic.
 
