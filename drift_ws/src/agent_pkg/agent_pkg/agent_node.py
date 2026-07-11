@@ -29,7 +29,10 @@ commands, and the sender guarantees the car is being commanded.
 
 Safety: while armed, actions are only published while *all* inputs are fresh
 (``input_timeout_s``); on stale localization or track progress the node holds off
-publishing (letting a joystick or the firmware failsafe take over) and warns.
+publishing (letting a joystick or the firmware failsafe take over) and warns. A
+dropout longer than ``disarm_timeout_s`` disarms the node instead of holding off —
+after a long gap (occluded tracker, car picked up and repositioned) a silent
+resume would be surprising, so a fresh start signal is required.
 """
 
 from nav_msgs.msg import Odometry
@@ -195,13 +198,28 @@ class AgentNode(Node):
         now = self.get_clock().now()
         for name, stamp in (("odom", self._odom_stamp), ("track progress", self._progress_stamp)):
             age = (now - stamp).nanoseconds * 1e-9
-            if age > self._input_timeout_s:
+            if age <= self._input_timeout_s:
+                continue
+            if age > self._disarm_timeout_s:
+                self._disarm_after_dropout(name, age)
+            else:
                 self.get_logger().warning(
                     f"{name} is stale ({age:.2f} s > {self._input_timeout_s} s) — not publishing",
                     throttle_duration_sec=2.0,
                 )
-                return False
+            return False
         return True
+
+    def _disarm_after_dropout(self, name: str, age: float) -> None:
+        """Disarm on a long input dropout — a silent resume would be surprising."""
+        self._running = False
+        self._stopping = True
+        self._stop_started = self.get_clock().now()
+        self._neutral_ticks = 0
+        self.get_logger().warning(
+            f"{name} lost for {age:.2f} s (> {self._disarm_timeout_s} s) — disarming, "
+            f"a fresh start signal on {Topics.AGENT_START} is required"
+        )
 
     def _load_params(self) -> None:
         self.declare_parameter("run_dir", "")
@@ -209,6 +227,7 @@ class AgentNode(Node):
         self.declare_parameter("prefer_best", True)
         self.declare_parameter("rate_hz", 50.0)  # matches the training env's dt = 0.02
         self.declare_parameter("input_timeout_s", 0.3)
+        self.declare_parameter("disarm_timeout_s", 2.0)  # dropout longer than this disarms
         self.declare_parameter("gyro_mode", "soft")
         self.declare_parameter("gyro_gain", 0.0)
         # Braking-to-standstill behaviour on a stop signal.
@@ -221,6 +240,7 @@ class AgentNode(Node):
         self._prefer_best = bool(self.get_parameter("prefer_best").value)
         self._rate_hz = float(self.get_parameter("rate_hz").value)
         self._input_timeout_s = float(self.get_parameter("input_timeout_s").value)
+        self._disarm_timeout_s = float(self.get_parameter("disarm_timeout_s").value)
         self._gyro_mode = self.get_parameter("gyro_mode").value
         self._gyro_gain = float(self.get_parameter("gyro_gain").value)
         self._stop_brake_throttle = float(self.get_parameter("stop_brake_throttle").value)

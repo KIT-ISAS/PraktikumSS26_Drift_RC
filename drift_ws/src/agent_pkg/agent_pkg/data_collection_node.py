@@ -11,8 +11,10 @@ pure-numpy ``.npz`` (no torch), which is then fed to
 ``vehicle_simulation.agents.finetune_agent`` on a laptop/server.
 
 The policy still runs the car, so all of :mod:`.agent_node`'s safety machinery is
-reused: start/stop gating, an input-freshness gate, and brake-to-standstill on stop
-or on an off-track/stall termination. Exploration is bounded by clamping throttle to
+reused: start/stop gating, an input-freshness gate (a dropout longer than
+``disarm_timeout_s`` disarms — fresh start signal required), and
+brake-to-standstill on stop or on an off-track/stall termination. Exploration is
+bounded by clamping throttle to
 ``[throttle_min, throttle_cap]`` (steering left full-range); the applied (clamped)
 action is what gets logged, so the buffer reflects what the car actually did.
 
@@ -288,7 +290,7 @@ class DataCollectionNode(Node):
         self._pending = False
 
     def _enter_braking(self) -> None:
-        """Stop recording this episode and brake to a standstill (off-track/stall)."""
+        """Stop recording this episode and brake to a standstill (off-track/stall/dropout)."""
         self._running = False
         # No-op for the terminal transition (it keeps terminated=True).
         self._truncate_last()
@@ -344,13 +346,25 @@ class DataCollectionNode(Node):
         now = self.get_clock().now()
         for name, stamp in (("odom", self._odom_stamp), ("track progress", self._progress_stamp)):
             age = (now - stamp).nanoseconds * 1e-9
-            if age > self._input_timeout_s:
+            if age <= self._input_timeout_s:
+                continue
+            if age > self._disarm_timeout_s:
+                self._disarm_after_dropout(name, age)
+            else:
                 self.get_logger().warning(
                     f"{name} is stale ({age:.2f} s > {self._input_timeout_s} s) — not recording",
                     throttle_duration_sec=2.0,
                 )
-                return False
+            return False
         return True
+
+    def _disarm_after_dropout(self, name: str, age: float) -> None:
+        """Disarm on a long input dropout — a silent resume would be surprising."""
+        self._enter_braking()
+        self.get_logger().warning(
+            f"{name} lost for {age:.2f} s (> {self._disarm_timeout_s} s) — disarming, "
+            f"a fresh start signal on {Topics.AGENT_START} is required"
+        )
 
     def _load_params(self) -> None:
         self.declare_parameter("run_dir", "")
@@ -358,6 +372,7 @@ class DataCollectionNode(Node):
         self.declare_parameter("prefer_best", True)
         self.declare_parameter("rate_hz", 50.0)
         self.declare_parameter("input_timeout_s", 0.3)
+        self.declare_parameter("disarm_timeout_s", 2.0)  # dropout longer than this disarms
         self.declare_parameter("gyro_mode", "soft")
         self.declare_parameter("gyro_gain", 0.0)
         # Exploration: sample the policy (deterministic=False) and clamp throttle so
@@ -378,6 +393,7 @@ class DataCollectionNode(Node):
         self._prefer_best = bool(self.get_parameter("prefer_best").value)
         self._rate_hz = float(self.get_parameter("rate_hz").value)
         self._input_timeout_s = float(self.get_parameter("input_timeout_s").value)
+        self._disarm_timeout_s = float(self.get_parameter("disarm_timeout_s").value)
         self._gyro_mode = self.get_parameter("gyro_mode").value
         self._gyro_gain = float(self.get_parameter("gyro_gain").value)
         self._deterministic = bool(self.get_parameter("deterministic").value)
