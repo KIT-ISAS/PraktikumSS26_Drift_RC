@@ -17,15 +17,24 @@ SteamVR ──openvr──> steamvr_bridge.py ──UDP :15250──> steamvr_no
 - SteamVR installed and running, with the lighthouses and the tracker (via its
   USB dongle) set up. Headset-less operation requires the usual tweaks
   (`requireHmd=false`, null driver enabled) — use the existing working setup.
-- Python 3 with the `openvr` package (`pip install openvr`).
+- Python ≥ 3.9 with the pinned `openvr` package. One-time setup:
+
+  ```bash
+  cd steamvr_bridge
+  python3 -m venv .venv
+  .venv/bin/pip install -r requirements.txt
+  ```
+
+  (`.venv/` is host-local and gitignored; `requirements.txt` pins the exact
+  `openvr` version the bridge was tested with.)
 - Note: SteamVR and libsurvive both claim the tracker dongle — stop the
   holodeck/libsurvive stack before starting SteamVR (and vice versa).
 
 ## Run
 
 ```bash
-python3 steamvr_bridge.py                 # defaults: 127.0.0.1:15250 @ 100 Hz
-python3 steamvr_bridge.py --rate 50 --universe raw
+.venv/bin/python steamvr_bridge.py        # defaults: 127.0.0.1:15250 @ 100 Hz
+.venv/bin/python steamvr_bridge.py --rate 50 --universe raw
 ```
 
 - `--universe standing` (default) uses the floor-calibrated room setup; its

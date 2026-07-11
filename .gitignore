@@ -7,6 +7,7 @@ esp32_controller/libraries/
 
 # Python packaging artifacts
 *.egg-info/
+.venv/
 
 # Recorded rosbags (large binaries; share out-of-band, do not commit)
 drift_ws/rosbag2_*/

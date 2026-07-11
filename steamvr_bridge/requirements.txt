@@ -1,0 +1,4 @@
+# Host-side bridge environment (Python >= 3.9).
+# If your tested setup uses a different openvr version, pin that instead
+# (check with: pip freeze | grep -i openvr).
+openvr==1.26.701
