@@ -8,12 +8,17 @@ system never depends on a specific tracking setup or re-derives coordinate maths
 ## The contract a tracking source must satisfy
 
 A source (libsurvive via `holodeck_pkg`, or SteamVR via `steamvr_pkg`) only has
-to provide:
+to provide, in its own gravity-aligned tracking frame (`libsurvive_world` /
+`steamvr_world`):
 
-1. **TF `world → tracker_link`** — the raw tracker pose. `world` is the shared,
-   fixed, gravity-aligned frame. The pose may be "raw" (e.g. upside-down); the
-   mount transform below corrects it.
-2. **A raw IMU** (`sensor_msgs/Imu`), if the tracker has one. `car_state_node`
+1. **TF `<source>_world → tracker_link`** — the raw tracker pose. The pose may
+   be "raw" (e.g. rotated); the mount transform below corrects it.
+2. **Static TFs `<source>_world → <serial>`** for the lighthouses it sees
+   (serial format `LHB-XXXXXXXX`). `world_anchor_node` (this package) fits and
+   latches `world → <source>_world` against them, completing the chain — the
+   lighthouse constellation *defines* the world frame, so both sources land in
+   the same playground and the track moves with the lighthouses.
+3. **A raw IMU** (`sensor_msgs/Imu`), if the tracker has one. `car_state_node`
    rotates it into `base_link` via TF from the message's `frame_id` — libsurvive
    stamps it `imu_link` (raw chip axes), steamvr stamps its pseudo-IMU
    `tracker_link` directly.
@@ -28,6 +33,14 @@ world ──(source)──▶ tracker_link ──(mount_tf_node, static)──�
                     tracker_link ──(mount_tf_node, static)──▶ imu_link
 ```
 
+- **`world_anchor_node`** — anchors `world → <source>_world` to the lighthouse
+  constellation: fits the planar transform against
+  `config/lighthouses_world.yaml` (`lighthouse_calibration.py`, pure/unit-
+  tested), latches it on `/tf_static`, publishes `/map/lighthouses` in the
+  world frame, and warns when a lighthouse no longer matches the reference
+  (moved relative to the others → re-record the file, see steamvr_pkg's
+  `steamvr_calibrate --record-reference`). Started by each tracking source's
+  launch with the matching `tracking_frame`.
 - **`mount_tf_node`** — publishes the static `tracker_link → base_link` (and
   `tracker_link → imu_link`) transforms, derived from the measured car
   parameters (`vehicle_simulation` `cars/*.yaml`). The mount orientation

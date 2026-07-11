@@ -37,6 +37,7 @@ setup(
     entry_points={
         "console_scripts": [
             "steamvr_node = steamvr_pkg.steamvr_node:main",
+            "steamvr_calibrate = steamvr_pkg.calibrate:main",
         ],
     },
 )

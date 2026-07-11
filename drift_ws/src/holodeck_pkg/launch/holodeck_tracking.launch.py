@@ -75,6 +75,17 @@ def generate_launch_description():
         ),
     ]
 
+    # Anchors world -> libsurvive_world to the lighthouse constellation (the
+    # lighthouses define the playground; same principle for every tracking
+    # source — see car_localization_pkg's world_anchor_node).
+    world_anchor_node = Node(
+        package="car_localization_pkg",
+        executable="world_anchor_node",
+        name="world_anchor_node",
+        output="screen",
+        parameters=[{"tracking_frame": "libsurvive_world"}],
+    )
+
     # Non-composable launch (regular node)
     libsurvive_node = Node(
         package="holodeck_pkg",
@@ -146,6 +157,7 @@ def generate_launch_description():
     return LaunchDescription(
         arguments
         + [
+            world_anchor_node,
             libsurvive_node,
             libsurvive_composable_node,
             foxbridge_node,

@@ -17,6 +17,8 @@ from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
+from shared_pkg import Frames
+
 BAG_FILE = os.path.join(launch.logging.launch_config.log_dir, "steamvr.bag")
 
 DEFAULT_PARAMS_FILE = os.path.join(
@@ -54,6 +56,16 @@ def generate_launch_description():
         parameters=[LaunchConfiguration("steamvr_params_file")],
     )
 
+    # Anchors world -> steamvr_world to the lighthouse constellation (the
+    # lighthouses define the playground; same principle for every source).
+    world_anchor_node = Node(
+        package="car_localization_pkg",
+        executable="world_anchor_node",
+        name="world_anchor_node",
+        output="screen",
+        parameters=[{"tracking_frame": Frames.STEAMVR_WORLD}],
+    )
+
     foxbridge_node = Node(
         package="foxglove_bridge",
         executable="foxglove_bridge",
@@ -75,6 +87,7 @@ def generate_launch_description():
         arguments
         + [
             steamvr_node,
+            world_anchor_node,
             foxbridge_node,
             bag_record_node,
         ]

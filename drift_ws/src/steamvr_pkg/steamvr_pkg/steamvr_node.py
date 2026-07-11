@@ -3,14 +3,18 @@ SteamVR tracking source node: turns bridge datagrams into the tracking contract.
 
 Receives the host bridge's UDP samples (see ``lib/protocol.py`` and
 ``steamvr_bridge/`` at the repo root), converts them from OpenVR's y-up
-tracking space (``lib/conversion.py``), and publishes what every tracking
-source owes downstream (see car_localization_pkg):
+tracking space (``lib/conversion.py``), and publishes the source-side half of
+the tracking contract (see car_localization_pkg):
 
   * TF ``steamvr_world -> tracker_link``   (dynamic, raw tracker pose)
-  * TF ``world -> steamvr_world``          (static, from calibration params)
+  * TF ``steamvr_world -> <serial>``       (static, one per lighthouse)
   * ``imu``   sensor_msgs/Imu              (pseudo-IMU, ``frame_id=tracker_link``)
-  * ``pose``  geometry_msgs/PoseStamped    (debug, world frame)
-  * ``/map/lighthouses``  geometry_msgs/PoseArray (world frame, calibration aid)
+  * ``pose``  geometry_msgs/PoseStamped    (debug, steamvr_world frame)
+
+The world side — fitting and latching ``world -> steamvr_world`` from the
+lighthouse constellation and publishing ``/map/lighthouses`` — is the job of
+car_localization_pkg's source-agnostic ``world_anchor_node`` (started by this
+package's launch file).
 
 OpenVR has no raw accelerometer API, so the IMU is synthesized: angular
 velocity comes from OpenVR directly, linear acceleration is finite-differenced
@@ -23,23 +27,17 @@ bridge's poll loop add ~ms-level latency that is currently uncorrected (the
 protocol carries the host monotonic sample time for a smarter scheme later).
 """
 
-import math
 import socket
 import threading
 
-from geometry_msgs.msg import Pose, PoseArray, PoseStamped, TransformStamped
+from geometry_msgs.msg import PoseStamped, TransformStamped
 import numpy as np
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
 
-from shared_pkg import Frames, Topics
-from vehicle_simulation.transforms import (
-    quaternion_from_yaw,
-    quaternion_multiply,
-    rotate_vector_by_quaternion,
-)
+from shared_pkg import Frames
 
 from .lib.conversion import pose_from_openvr, vector_from_openvr, vector_to_body
 from .lib.protocol import (
@@ -64,16 +62,8 @@ class SteamVrNode(Node):
         # Serial of the car's tracker. Empty = lock onto the first tracker seen
         # (mirrors holodeck's tracker_serial convention).
         self.declare_parameter("tracker_serial", "")
-        self.declare_parameter("world_frame", Frames.WORLD)
         self.declare_parameter("tracking_frame", Frames.STEAMVR_WORLD)
         self.declare_parameter("tracker_frame", Frames.TRACKER_LINK)
-        # Calibration of world -> steamvr_world (the SteamVR analogue of the
-        # constants hardcoded in holodeck's component.cpp). Tune per the
-        # procedure in the package README.
-        self.declare_parameter("world_x", 0.0)
-        self.declare_parameter("world_y", 0.0)
-        self.declare_parameter("world_z", 0.0)
-        self.declare_parameter("world_yaw_deg", 0.0)
         # Add +g up to the pseudo-IMU so it reads specific force like a real
         # accelerometer (car_state_node consumers expect gravity in the signal).
         self.declare_parameter("include_gravity", True)
@@ -81,35 +71,18 @@ class SteamVrNode(Node):
         self.declare_parameter("stale_timeout_s", 1.0)
 
         self._tracker_serial = str(self.get_parameter("tracker_serial").value)
-        self._world = str(self.get_parameter("world_frame").value)
         self._tracking = str(self.get_parameter("tracking_frame").value)
         self._tracker = str(self.get_parameter("tracker_frame").value)
         self._include_gravity = bool(self.get_parameter("include_gravity").value)
         self._publish_lighthouses = bool(self.get_parameter("publish_lighthouses").value)
 
-        # world -> steamvr_world from the calibration parameters.
-        self._cal_yaw_q = quaternion_from_yaw(
-            math.radians(float(self.get_parameter("world_yaw_deg").value))
-        )
-        self._cal_t = np.array(
-            [
-                float(self.get_parameter("world_x").value),
-                float(self.get_parameter("world_y").value),
-                float(self.get_parameter("world_z").value),
-            ]
-        )
-
         self._tf = TransformBroadcaster(self)
         self._tf_static = StaticTransformBroadcaster(self)
-        self._tf_static.sendTransform(
-            [self._transform(self._world, self._tracking, self._cal_t, self._cal_yaw_q)]
-        )
 
         self._imu_pub = self.create_publisher(Imu, "imu", 10)
         self._pose_pub = self.create_publisher(PoseStamped, "pose", 10)
-        self._lighthouse_pub = self.create_publisher(PoseArray, Topics.LIGHTHOUSE_POSES, 10)
 
-        self._lighthouses: dict[str, Pose] = {}
+        self._lighthouse_serials: set[str] = set()
         self._prev_velocity: np.ndarray | None = None
         self._prev_t_mono: float | None = None
         self._last_rx_mono: float | None = None
@@ -174,8 +147,12 @@ class SteamVrNode(Node):
 
         pose = PoseStamped()
         pose.header.stamp = stamp
-        pose.header.frame_id = self._world
-        self._fill_pose(pose.pose, *self._to_world(position, quat))
+        pose.header.frame_id = self._tracking
+        pose.pose.position.x, pose.pose.position.y, pose.pose.position.z = map(float, position)
+        pose.pose.orientation.x = float(quat[0])
+        pose.pose.orientation.y = float(quat[1])
+        pose.pose.orientation.z = float(quat[2])
+        pose.pose.orientation.w = float(quat[3])
         self._pose_pub.publish(pose)
 
     def _publish_imu(self, sample: TrackerSample, quat, stamp) -> None:
@@ -213,29 +190,16 @@ class SteamVrNode(Node):
         self._imu_pub.publish(imu)
 
     def _on_lighthouse(self, sample: TrackerSample) -> None:
-        if not sample.pose_valid:
+        if not sample.pose_valid or sample.serial in self._lighthouse_serials:
             return
+        self._lighthouse_serials.add(sample.serial)
         position, quat = pose_from_openvr(sample.matrix)
-        if sample.serial not in self._lighthouses:
-            self._tf_static.sendTransform(
-                [self._transform(self._tracking, sample.serial, position, quat)]
-            )
-            self.get_logger().info(f"Lighthouse {sample.serial} at {np.round(position, 3)}")
-        pose = Pose()
-        self._fill_pose(pose, *self._to_world(position, quat))
-        self._lighthouses[sample.serial] = pose
-
-        array = PoseArray()
-        array.header.stamp = self.get_clock().now().to_msg()
-        array.header.frame_id = self._world
-        array.poses = [self._lighthouses[serial] for serial in sorted(self._lighthouses)]
-        self._lighthouse_pub.publish(array)
-
-    def _to_world(self, position, quat) -> tuple[np.ndarray, np.ndarray]:
-        """Compose the calibration transform onto a steamvr_world pose."""
-        position_world = rotate_vector_by_quaternion(self._cal_yaw_q, position) + self._cal_t
-        quat_world = quaternion_multiply(self._cal_yaw_q, quat)
-        return position_world, quat_world
+        # Latch the raw lighthouse frame; world_anchor_node fits the world
+        # frame onto these (and publishes /map/lighthouses).
+        self._tf_static.sendTransform(
+            [self._transform(self._tracking, sample.serial, position, quat)]
+        )
+        self.get_logger().info(f"Lighthouse {sample.serial} at {np.round(position, 3)}")
 
     def _check_stale(self) -> None:
         now = self.get_clock().now().nanoseconds * 1e-9
@@ -260,14 +224,6 @@ class SteamVrNode(Node):
         tf.transform.rotation.z = float(quaternion[2])
         tf.transform.rotation.w = float(quaternion[3])
         return tf
-
-    @staticmethod
-    def _fill_pose(pose: Pose, position, quaternion) -> None:
-        pose.position.x, pose.position.y, pose.position.z = map(float, position)
-        pose.orientation.x = float(quaternion[0])
-        pose.orientation.y = float(quaternion[1])
-        pose.orientation.z = float(quaternion[2])
-        pose.orientation.w = float(quaternion[3])
 
 
 def main(args=None) -> None:

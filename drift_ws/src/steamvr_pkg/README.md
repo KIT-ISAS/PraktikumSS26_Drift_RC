@@ -9,11 +9,14 @@ source-agnostic.
 ```
 HOST                                       CONTAINER (host network)
 SteamVR ──openvr──> steamvr_bridge.py ──UDP JSON :15250──> steamvr_node
-  (see steamvr_bridge/ at the repo root)                     ├─ TF  world -> steamvr_world           (static, calibration params)
-                                                             ├─ TF  steamvr_world -> tracker_link    (dynamic)
+  (see steamvr_bridge/ at the repo root)                     ├─ TF  steamvr_world -> tracker_link    (dynamic, raw tracker pose)
+                                                             ├─ TF  steamvr_world -> <serial>        (static, one per lighthouse)
                                                              ├─ /steamvr/imu    sensor_msgs/Imu      (pseudo-IMU, frame_id=tracker_link)
-                                                             ├─ /steamvr/pose   geometry_msgs/PoseStamped (debug, world frame)
-                                                             └─ /map/lighthouses geometry_msgs/PoseArray  (world frame, calibration aid)
+                                                             └─ /steamvr/pose   geometry_msgs/PoseStamped (debug, steamvr_world frame)
+
+world_anchor_node (car_localization_pkg, started by this package's launch):
+  fits + latches TF world -> steamvr_world from the lighthouse frames and
+  publishes /map/lighthouses (world frame).
 ```
 
 SteamVR runs on the host (OpenVR needs local IPC to vrserver); the bridge
@@ -59,23 +62,45 @@ tracker flat on the table — the rate must appear on the IMU body z axis with
 positive sign for a counter-clockwise turn. If not, see the marked line in
 `steamvr_node._publish_imu`.
 
-## Calibration: `world -> steamvr_world`
+## World frame: defined by the lighthouses, fitted automatically
 
-The z-up conversion is fixed; what remains is a planar offset + yaw between
-SteamVR's room-setup origin and the physical `world` frame — the parameters
-`world_x/world_y/world_z/world_yaw_deg` in `config/steamvr_params.yaml`
-(holodeck hardcodes its equivalent in `component.cpp`; here they are params).
+The world frame is **defined by the lighthouse constellation** — identically
+for both tracking sources. The reference file
+`car_localization_pkg/config/lighthouses_world.yaml` states where each base
+station sits in world coordinates (serials are the libsurvive IDs in hex, so
+libsurvive and SteamVR refer to the same physical devices), and
+`world_anchor_node` (car_localization_pkg, started by every tracking launch)
+fits `world -> <source>_world` against it at startup. Consequences:
 
-1. **Coarse (lighthouse rectangle):** with the stack running, compare
-   `/map/lighthouses` in Foxglove against the known physical positions
-   (from holodeck's `component.cpp`: `(-2.70, ±2.33)` and `(2.80, ±2.33)` m).
-   Tune `world_yaw_deg`, then `world_x`/`world_y`, until they land.
-   `world_z` stays ≈ 0: the Standing universe is floor-calibrated.
-2. **Fine (known car pose):** place the car at a marked pose (e.g. world
-   origin, facing +x), read `/car/pose`, and trim the parameters.
+- **No routine calibration.** Redoing SteamVR room setup is harmless; the
+  fit follows the universe origin wherever it lands each session.
+- **A rigidly moved constellation moves the world (and track) with it** —
+  the arena recenters automatically, for both sources.
+- **A lighthouse moved relative to the others** shows up as fit residuals
+  above `warn_threshold_m` (default 0.15 m) and a warning naming it. That
+  means the reference file is stale — re-record it (below).
 
-Re-tune after redoing SteamVR room setup — the Standing-universe origin can
-shift. `--universe raw` on the bridge is the uncalibrated fallback.
+`ros2 run steamvr_pkg steamvr_calibrate` (no args) runs the same fit as a
+diagnostic without touching anything (works for libsurvive too:
+`--tracking-frame libsurvive_world`).
+
+### Re-recording the reference (arena rearranged)
+
+1. Bridge + `steamvr_node` running; place the tracker at the desired world
+   origin (floor center) with its **LED pointing along the desired +x axis**.
+2. ```bash
+   ros2 run steamvr_pkg steamvr_calibrate --record-reference drift_ws/src/car_localization_pkg/config/lighthouses_world.yaml
+   colcon build --packages-select car_localization_pkg   # launches read the INSTALLED copy!
+   ```
+3. Both sources pick the new frame up automatically — and remember the track
+   YAMLs assume the world origin is where the track belongs.
+
+### Manual mode
+
+`world_anchor_node` with `world_calibration: manual` uses fixed `world_*`
+parameters instead (solve them with `steamvr_calibrate --write <params
+yaml>`, tracker at the floor center) — useful if the frame must not change
+between sessions, e.g. for strictly comparable long-term recordings.
 
 ## Tracker body frame & mount
 

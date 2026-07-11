@@ -33,27 +33,6 @@
 // Scale factor to move from G to m/s^2.
 constexpr double SI_GRAVITY = 9.80665;
 
-// Rigid transform that maps a pose from the libsurvive tracking frame into a
-// physically meaningful, axis-aligned world frame.
-//
-// It is derived from the known base-station layout in config.json. The four
-// lighthouses sit at the following libsurvive XY positions, and we want them to
-// land on the physical world rectangle:
-//
-//   config        libsurvive XY        world XY
-//   lighthouse0   ( 0.00,  3.59)  ->  (-2.70, -2.33)
-//   lighthouse1   ( 3.54,  0.49)  ->  (-2.70,  2.33)
-//   lighthouse2   (-0.02, -3.56)  ->  ( 2.80,  2.33)
-//   lighthouse3   (-3.54, -0.56)  ->  ( 2.80, -2.33)
-//
-// That correspondence is a pure rotation about the (gravity-aligned) Z axis by
-// ~130.9 degrees at unit scale, plus a small XY offset of the origin. We do not
-// touch Z, since libsurvive's frame is already gravity-aligned via floor-offset.
-constexpr double WORLD_PI = 3.14159265358979323846;
-constexpr double WORLD_YAW = 130.9 * WORLD_PI / 180.0;
-constexpr double WORLD_OFFSET_X = 0.037;
-constexpr double WORLD_OFFSET_Y = -0.005;
-
 // We can only ever load one version of the driver, so we store a pointer to the instance of the
 // driver here, so the IMU callback can push data to it.
 libsurvive_ros2::Component * _singleton = nullptr;
@@ -97,44 +76,6 @@ static void ros_from_pose(
 }
 
 // Converts a raw libsurvive pose into a ROS pose (still in the tracking frame).
-static geometry_msgs::msg::Pose pose_from_survive(const SurvivePose & pose)
-{
-  geometry_msgs::msg::Pose p;
-  p.position.x = pose.Pos[0];
-  p.position.y = pose.Pos[1];
-  p.position.z = pose.Pos[2];
-  p.orientation.w = pose.Rot[0];
-  p.orientation.x = pose.Rot[1];
-  p.orientation.y = pose.Rot[2];
-  p.orientation.z = pose.Rot[3];
-  return p;
-}
-
-// Maps a pose expressed in the libsurvive tracking frame into the world frame,
-// applying the rotation about Z and origin offset described above (see
-// WORLD_YAW). Both the position and the orientation are rotated.
-static geometry_msgs::msg::Pose to_world_pose(const geometry_msgs::msg::Pose & in)
-{
-  static const double cy = std::cos(WORLD_YAW);
-  static const double sy = std::sin(WORLD_YAW);
-  static const double cw = std::cos(WORLD_YAW * 0.5);
-  static const double sw = std::sin(WORLD_YAW * 0.5);
-
-  geometry_msgs::msg::Pose out;
-  out.position.x = cy * in.position.x - sy * in.position.y + WORLD_OFFSET_X;
-  out.position.y = sy * in.position.x + cy * in.position.y + WORLD_OFFSET_Y;
-  out.position.z = in.position.z;
-
-  // out_orientation = q_yaw * in_orientation, where q_yaw is a rotation of
-  // WORLD_YAW about the Z axis: q_yaw = (cw, 0, 0, sw).
-  const auto & q = in.orientation;
-  out.orientation.w = cw * q.w - sw * q.z;
-  out.orientation.x = cw * q.x - sw * q.y;
-  out.orientation.y = cw * q.y + sw * q.x;
-  out.orientation.z = cw * q.z + sw * q.w;
-  return out;
-}
-
 namespace libsurvive_ros2
 {
 
@@ -150,8 +91,6 @@ Component::Component(const rclcpp::NodeOptions & options)
   // Global parameters
   this->declare_parameter("tracking_frame", "libsurvive_frame");
   this->get_parameter("tracking_frame", tracking_frame_);
-  this->declare_parameter("world_frame", "world");
-  this->get_parameter("world_frame", world_frame_);
   this->declare_parameter("lighthouse_rate", 4.0);
   this->get_parameter("lighthouse_rate", lighthouse_rate_);
 
@@ -171,14 +110,6 @@ Component::Component(const rclcpp::NodeOptions & options)
   this->declare_parameter("tracker_serial", "");
   this->get_parameter("tracker_serial", tracker_serial_);
 
-  // Setup topic for the lighthouse poses in world coordinates. The base stations
-  // are static, so we latch the latest sample for late-joining subscribers.
-  std::string lighthouse_poses_topic;
-  this->declare_parameter("lighthouse_poses_topic", "/map/lighthouses");
-  this->get_parameter("lighthouse_poses_topic", lighthouse_poses_topic);
-  lighthouse_poses_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>(
-    lighthouse_poses_topic, rclcpp::QoS(1).transient_local());
-
   // Setup topic for IMU.
   std::string imu_topic;
   this->declare_parameter("imu_topic", "imu");
@@ -197,25 +128,10 @@ Component::Component(const rclcpp::NodeOptions & options)
   this->get_parameter("cfg_topic", cfg_topic);
   cfg_publisher_ = this->create_publisher<diagnostic_msgs::msg::KeyValue>(cfg_topic, 10);
 
-  // Publish the static TF from world to the libsurvive tracking frame.
-  // This encodes the same rotation + offset applied in to_world_pose() so that
-  // downstream nodes can look up the transform via TF instead of inline math.
-  {
-    static const double cw = std::cos(WORLD_YAW * 0.5);
-    static const double sw = std::sin(WORLD_YAW * 0.5);
-    geometry_msgs::msg::TransformStamped world_to_tracking;
-    world_to_tracking.header.stamp = this->get_clock()->now();
-    world_to_tracking.header.frame_id = world_frame_;
-    world_to_tracking.child_frame_id = tracking_frame_;
-    world_to_tracking.transform.translation.x = WORLD_OFFSET_X;
-    world_to_tracking.transform.translation.y = WORLD_OFFSET_Y;
-    world_to_tracking.transform.translation.z = 0.0;
-    world_to_tracking.transform.rotation.w = cw;
-    world_to_tracking.transform.rotation.x = 0.0;
-    world_to_tracking.transform.rotation.y = 0.0;
-    world_to_tracking.transform.rotation.z = sw;
-    tf_static_broadcaster_->sendTransform(world_to_tracking);
-  }
+  // NOTE: the static world -> tracking_frame transform is no longer published
+  // here. car_localization_pkg's world_anchor_node fits it at runtime from the
+  // latched lighthouse frames below (the lighthouses define the world frame),
+  // identically for every tracking source.
 
   // Setup driver parameters.
   std::string driver_args;
@@ -416,9 +332,6 @@ void Component::work()
     auto time_now = this->get_clock()->now();
     if (time_now.seconds() - last_base_station_update_.seconds() > lighthouse_rate_) {
       last_base_station_update_ = time_now;
-      geometry_msgs::msg::PoseArray lighthouse_msg;
-      lighthouse_msg.header.stamp = time_now;
-      lighthouse_msg.header.frame_id = world_frame_;
       for (const SurviveSimpleObject * it = survive_simple_get_first_object(actx_); it != 0;
         it = survive_simple_get_next_object(actx_, it))
       {
@@ -428,7 +341,8 @@ void Component::work()
           if (timecode > 0) {
             // Lighthouses are static: latch each frame on /tf_static exactly once.
             // Re-broadcasting libsurvive's refined estimate would make the frame
-            // wobble. The live estimate still streams on the PoseArray topic below.
+            // wobble. world_anchor_node (car_localization_pkg) fits the world
+            // frame onto these frames and publishes /map/lighthouses.
             std::string serial = survive_simple_serial_number(it);
             if (published_lighthouse_frames_.insert(serial).second) {
               geometry_msgs::msg::TransformStamped pose_msg;
@@ -438,14 +352,8 @@ void Component::work()
               ros_from_pose(&pose_msg.transform, pose);
               tf_static_broadcaster_->sendTransform(pose_msg);
             }
-
-            // Collect the lighthouse pose in world coordinates.
-            lighthouse_msg.poses.push_back(to_world_pose(pose_from_survive(pose)));
           }
         }
-      }
-      if (lighthouse_poses_publisher_ && !lighthouse_msg.poses.empty()) {
-        lighthouse_poses_publisher_->publish(lighthouse_msg);
       }
     }
   }

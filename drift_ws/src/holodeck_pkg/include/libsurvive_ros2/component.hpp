@@ -38,7 +38,6 @@
 // Other
 #include "diagnostic_msgs/msg/key_value.hpp"
 #include "geometry_msgs/msg/point_stamped.hpp"
-#include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "libsurvive/survive_api.h"
@@ -76,7 +75,6 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr joy_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::KeyValue>::SharedPtr cfg_publisher_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr lighthouse_poses_publisher_;
   std::thread worker_thread_;
   rclcpp::Time last_base_station_update_;
   // Lighthouse serials whose static TF has already been latched. Lighthouses do
@@ -90,7 +88,6 @@ private:
   bool time_ref_initialized_ = false;
   rclcpp::Duration time_offset_{0, 0};
   std::string tracking_frame_;
-  std::string world_frame_;
   std::string tracker_frame_;
   std::string imu_frame_;
   // Which tracked object is the car. `tracker_serial_` is the configured serial

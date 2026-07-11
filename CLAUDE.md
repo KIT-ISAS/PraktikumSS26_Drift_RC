@@ -68,7 +68,9 @@ ROS 2 packages live in `drift_ws/src/`:
 
 Two interchangeable tracking sources exist (`tracking_source:=libsurvive|steamvr` on the top-level launch; they cannot run simultaneously — both claim the tracker dongle):
 - **libsurvive**: `holodeck_pkg` wraps the driver in-container.
-- **SteamVR**: `steamvr_bridge/steamvr_bridge.py` must run **on the host** (OpenVR needs local IPC to SteamVR) and streams raw poses over UDP to `steamvr_pkg`'s node; the wire format lives in `steamvr_pkg/steamvr_pkg/lib/protocol.py` (stdlib-only, imported by both ends). Calibration of `world -> steamvr_world` is via ROS params — see `steamvr_pkg/README.md`.
+- **SteamVR**: `steamvr_bridge/steamvr_bridge.py` must run **on the host** (OpenVR needs local IPC to SteamVR) and streams raw poses over UDP to `steamvr_pkg`'s node; the wire format lives in `steamvr_pkg/steamvr_pkg/lib/protocol.py` (stdlib-only, imported by both ends).
+
+The world frame is **defined by the lighthouse constellation**, identically for both sources: each source latches raw `<source>_world -> <lighthouse serial>` TFs, and `car_localization_pkg`'s `world_anchor_node` (started by both tracking launches) fits `world -> <source>_world` against `car_localization_pkg/config/lighthouses_world.yaml` at startup. Move the lighthouses and the world (and track) moves with them; a lighthouse moved relative to the others triggers a residual warning — see `steamvr_pkg/README.md`.
 
 ### Conventions
 

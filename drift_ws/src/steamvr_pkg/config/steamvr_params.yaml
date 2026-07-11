@@ -8,28 +8,14 @@
     # set it when a second tracker/controller may be live.
     tracker_serial: ""
 
-    # ---------------------------------------------------------------------
-    # Calibration of world -> steamvr_world (metres / degrees).
-    # The SteamVR analogue of the world offset hardcoded in holodeck's
-    # component.cpp — tune per the procedure in the package README, and
-    # re-tune after redoing SteamVR room setup (the Standing-universe origin
-    # can shift).
-    #
-    # Calibrated 2026-07-08: yaw solved from 3 lighthouse correspondences
-    # against the holodeck config.json world positions (XY residuals 2-6 cm),
-    # translation pinned to a tracker placed at the floor center (= world
-    # origin). The SteamVR origin sits at lighthouse height, hence world_z.
-    # ---------------------------------------------------------------------
-    world_x: -2.6279
-    world_y: -2.4075
-    world_z: 2.2230
-    world_yaw_deg: 42.398
-
     # Pseudo-IMU: add +g up so it reads specific force like a real
     # accelerometer at rest.
     include_gravity: true
 
-    # Latch lighthouse TFs and publish /map/lighthouses (calibration aid).
+    # Latch the raw steamvr_world -> <serial> lighthouse TFs. The world frame
+    # itself is anchored to them by car_localization_pkg's world_anchor_node
+    # (started by this package's launch) — see that node for the calibration
+    # parameters (reference file, auto/manual, thresholds).
     publish_lighthouses: true
 
     # Warn when no bridge datagrams arrive for this long [s].
