@@ -23,6 +23,11 @@ yaw +CCW; positive steering = left):
   the throttle hooks grip back up and the slide recovers. Countersteering works
   for free: steering rotates the body while the velocity lags, and grip bleeds
   the leftover lateral velocity away.
+* **Reverse needs a double-tap, like the real ESC.** Negative throttle only
+  brakes; holding it after the car stops does nothing. Reverse engages only
+  after the throttle returns to neutral and goes negative again (see
+  ``esp32_controller/README.md``, "Reverse / ESC arming"). Positive throttle
+  always drives forward and resets the sequence.
 
 ``grip`` is the headline knob: high grip behaves almost like the no-slip
 kinematic model; low grip gives long, loose slides. The defaults are tuned to
@@ -32,6 +37,7 @@ around 0.4 g).
 """
 
 from dataclasses import dataclass, field
+from enum import Enum, auto
 import math
 
 from .base import VehicleAction, VehicleModel, VehicleState
@@ -39,6 +45,15 @@ from .base import VehicleAction, VehicleModel, VehicleState
 
 def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
+
+
+class _EscState(Enum):
+    """Reverse-lockout states of the ESC's double-tap sequence."""
+
+    FORWARD = auto()  # negative throttle brakes
+    BRAKING = auto()  # first negative tap: braking, reverse locked out
+    ARMED = auto()  # brake released after a tap: next negative tap reverses
+    REVERSE = auto()  # negative throttle drives backwards
 
 
 @dataclass
@@ -75,11 +90,14 @@ class ArcadeDriftModel(VehicleModel):
     slip_accel_loss: float = 0.7  # fraction of engine force lost at full slip
     grip: float = 5.0  # 1/s — lateral grip with no slip (high = sticks, low = slides)
     drift_grip: float = 0.6  # 1/s — residual lateral grip at full slip (the slide)
+    neutral_deadband: float = 0.05  # |throttle| below this counts as neutral (ESC deadband)
 
-    # Runtime state (not a constructor argument): the throttle-driven slip carries
-    # across steps. Only meaningful when one model instance is stepped in sequence
-    # (the interactive sim / a rollout), which is exactly how the arcade model is used.
+    # Runtime state (not constructor arguments): the throttle-driven slip and the
+    # ESC reverse-lockout state carry across steps. Only meaningful when one model
+    # instance is stepped in sequence (the interactive sim / a rollout), which is
+    # exactly how the arcade model is used.
     _slip: float = field(init=False, default=0.0)
+    _esc_state: _EscState = field(init=False, default=_EscState.FORWARD)
 
     def step(self, state: VehicleState, action: VehicleAction, dt: float) -> VehicleState:
         steer = _clamp(action.steering, -1.0, 1.0)
@@ -101,8 +119,26 @@ class ArcadeDriftModel(VehicleModel):
             self._slip += (target_slip - self._slip) * (1.0 - math.exp(-self.slip_decay_rate * dt))
         slip = self._slip
 
+        # ESC reverse lockout (double-tap, like the real car): the first negative
+        # tap only brakes, releasing to neutral arms reverse, the second negative
+        # tap drives backwards. Positive throttle resets the sequence.
+        if throttle <= -self.neutral_deadband:
+            if self._esc_state is _EscState.ARMED:
+                self._esc_state = _EscState.REVERSE
+            elif self._esc_state is _EscState.FORWARD:
+                self._esc_state = _EscState.BRAKING
+        elif throttle >= self.neutral_deadband:
+            self._esc_state = _EscState.FORWARD
+        elif self._esc_state is _EscState.BRAKING:
+            self._esc_state = _EscState.ARMED
+
         # Longitudinal: spinning tires shed drive force, drag pulls toward zero.
-        vx += (1.0 - self.slip_accel_loss * slip) * throttle * self.max_accel * dt
+        if throttle < 0.0 and self._esc_state is not _EscState.REVERSE:
+            # Brake: decelerate toward standstill, never through it.
+            brake = abs(throttle) * self.max_accel * dt
+            vx -= math.copysign(min(brake, abs(vx)), vx)
+        else:
+            vx += (1.0 - self.slip_accel_loss * slip) * throttle * self.max_accel * dt
         vx -= self.drag * vx * dt
         vx = _clamp(vx, -self.max_reverse_speed, self.max_speed)
 
