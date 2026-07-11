@@ -100,6 +100,9 @@ def evaluate_agent(
 
     lateral = np.array(rows["lateral_error"])
     sideslip = np.array(rows["sideslip"])
+    # Drifting = sideslip within one sigma of the stage's drift bonus target.
+    reward_cfg = config.env.reward
+    drift_threshold = max(reward_cfg.drift_beta_target - reward_cfg.drift_beta_sigma, 0.0)
     metrics = {
         "episodes": episodes,
         "mean_episode_reward": float(np.mean(episode_rewards)),
@@ -110,7 +113,8 @@ def evaluate_agent(
         "rms_lateral_error": float(np.sqrt(np.mean(lateral**2))),
         "mean_abs_sideslip": float(np.mean(np.abs(sideslip))),
         "max_abs_sideslip": float(np.max(np.abs(sideslip))),
-        "drift_fraction": float(np.mean(np.abs(sideslip) > 0.3)),
+        "drift_threshold_rad": drift_threshold,
+        "drift_fraction": float(np.mean(np.abs(sideslip) > drift_threshold)),
         "termination_reasons": term_reasons,
     }
 
