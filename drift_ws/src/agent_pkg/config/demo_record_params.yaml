@@ -1,0 +1,13 @@
+demo_recorder_node:
+  ros__parameters:
+    # Stage whose reward/termination config scores the demonstrations — must match
+    # the stage you fine-tune on. A packaged stage name or a YAML path.
+    # Required — usually set via the launch argument stage_config:=...
+    stage_config: ""
+    # Sampling rate for the latched human command. Keep at 50 Hz (training dt = 0.02).
+    rate_hz: 50.0
+    # An input (odom / track progress / joystick command) older than this cuts the episode.
+    input_timeout_s: 0.3
+    # Where recorded .npz demonstration files are written, and how often to flush.
+    output_dir: "~/recordings/human"
+    flush_period_s: 10.0
