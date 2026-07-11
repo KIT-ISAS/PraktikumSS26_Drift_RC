@@ -7,21 +7,28 @@ Foxglove. It is a slip-state arcade model in the spirit of a top-down racing
 game, expressed in our SI + ISO 8855 body frame (``vx`` forward, ``vy`` left,
 yaw +CCW; positive steering = left):
 
-* **Normal driving = kinematic bicycle.** Yaw rate is ``vx / wheelbase *
-  tan(steer_angle)``, so the turn *radius* is ``wheelbase / tan(steer_angle)`` --
-  independent of speed. The car carves the same line whether you crawl or fly,
-  which is what makes it feel predictable (unlike a fixed-max-yaw model, whose
-  turns balloon with speed). At ``vx = 0`` it cannot turn; in reverse the yaw
+* **Normal driving = kinematic bicycle, until the front tires saturate.** Yaw
+  rate is ``vx / wheelbase * tan(steer_angle)``, so the turn *radius* is
+  ``wheelbase / tan(steer_angle)`` -- independent of speed. But the front axle
+  can only hold so much lateral acceleration (``a_lat = yaw_rate * vx``): past
+  ``front_grip_limit`` the front washes out and the yaw rate is capped, so
+  cranking the wheel at speed *understeers* (the radius grows) instead of
+  snapping the car around. At ``vx = 0`` it cannot turn; in reverse the yaw
   flips sign, so backing up steers intuitively.
-* **Throttle induces slip.** A throttle-driven ``slip`` scalar rises toward
-  ``slip_max`` above ``slip_lowerbound`` and decays when you lift off. Slip both
-  trims engine force and *loosens lateral grip*, so flooring it out of a corner
-  breaks the rear loose into a drift; easing the throttle hooks grip back up and
-  the slide recovers. Countersteering works for free: steering rotates the body
-  while the velocity lags, and grip bleeds the leftover lateral velocity away.
+* **Throttle induces slip.** Above ``slip_lowerbound`` the rear tires start to
+  spin: a throttle-driven ``slip`` scalar rises toward ``slip_max`` and decays
+  when you lift off. Spinning tires shed most of their drive force
+  (``slip_accel_loss``) *and loosen lateral grip*, so flooring it breaks the
+  rear loose into a slow, sustained drift rather than launching the car; easing
+  the throttle hooks grip back up and the slide recovers. Countersteering works
+  for free: steering rotates the body while the velocity lags, and grip bleeds
+  the leftover lateral velocity away.
 
 ``grip`` is the headline knob: high grip behaves almost like the no-slip
-kinematic model; low grip gives long, loose slides.
+kinematic model; low grip gives long, loose slides. The defaults are tuned to
+the real car: an RC car on plastic drift tires on a slick industrial floor,
+i.e. low friction all around (``front_grip_limit`` / ``rear_grip_limit``
+around 0.4 g).
 """
 
 from dataclasses import dataclass, field
@@ -46,19 +53,27 @@ class ArcadeDriftModel(VehicleModel):
     that lateral velocity away.
     """
 
-    max_speed: float = 5.0  # m/s — top forward speed
+    max_speed: float = 3.0  # m/s — top forward speed
     max_reverse_speed: float = 1.5  # m/s — top reverse speed
-    max_accel: float = 8.0  # m/s² — engine authority at full throttle
-    drag: float = 0.8  # 1/s — speed-proportional rolling drag
+    max_accel: float = 4.5  # m/s² — engine authority at full throttle, traction-limited
+    drag: float = 0.7  # 1/s — speed-proportional rolling drag
     wheelbase: float = 0.25  # m — front-to-rear axle distance (bicycle steering)
-    max_steer_angle: float = 1.309  # rad (75°) — full-lock road-wheel angle
-    # Throttle -> slip: below `lower` no slip builds; at/above `upper` it targets
-    # `slip_max`. Slip rises instantly and decays at `slip_decay_rate` on lift-off.
-    slip_lowerbound: float = 0.3
+    max_steer_angle: float = 1.396  # rad (80°) — full-lock road-wheel angle
+    # Friction limits: max lateral acceleration each axle can hold (≈ µ·g; drift
+    # tires on a slick floor → µ ≈ 0.4). The front limit caps the yaw rate
+    # (understeer); the rear limit caps how hard grip can pull `vy` back.
+    front_grip_limit: float = 4.0  # m/s²
+    rear_grip_limit: float = 4.0  # m/s²
+    # Throttle -> slip: below `lower` no slip builds (the tires hold); at/above
+    # `upper` it targets `slip_max`. Slip rises instantly and decays at
+    # `slip_decay_rate` on lift-off. Spinning tires deliver only kinetic
+    # friction: engine force is trimmed by `slip_accel_loss * slip`.
+    slip_lowerbound: float = 0.4
     slip_upperbound: float = 0.9
     slip_max: float = 0.95
     slip_decay_rate: float = 3.0  # 1/s — how fast grip returns when you ease off
-    grip: float = 8.0  # 1/s — lateral grip with no slip (high = sticks, low = slides)
+    slip_accel_loss: float = 0.7  # fraction of engine force lost at full slip
+    grip: float = 5.0  # 1/s — lateral grip with no slip (high = sticks, low = slides)
     drift_grip: float = 0.6  # 1/s — residual lateral grip at full slip (the slide)
 
     # Runtime state (not a constructor argument): the throttle-driven slip carries
@@ -86,8 +101,8 @@ class ArcadeDriftModel(VehicleModel):
             self._slip += (target_slip - self._slip) * (1.0 - math.exp(-self.slip_decay_rate * dt))
         slip = self._slip
 
-        # Longitudinal: slip trims engine force, drag always pulls toward zero.
-        vx += (1.0 - 0.5 * slip) * throttle * self.max_accel * dt
+        # Longitudinal: spinning tires shed drive force, drag pulls toward zero.
+        vx += (1.0 - self.slip_accel_loss * slip) * throttle * self.max_accel * dt
         vx -= self.drag * vx * dt
         vx = _clamp(vx, -self.max_reverse_speed, self.max_speed)
 
@@ -95,6 +110,12 @@ class ArcadeDriftModel(VehicleModel):
         # parked, sign flips in reverse (vx < 0) so backing up steers naturally.
         steer_angle = steer * self.max_steer_angle
         yaw_rate = (vx / self.wheelbase) * math.tan(steer_angle)
+        # ...but the front tires can only hold `front_grip_limit` of lateral
+        # acceleration (a_lat = yaw_rate * vx). Past that the front washes out
+        # and the car understeers: yaw saturates, the turn radius grows.
+        if abs(vx) > 1e-6:
+            yaw_limit = self.front_grip_limit / abs(vx)
+            yaw_rate = _clamp(yaw_rate, -yaw_limit, yaw_limit)
         dtheta = yaw_rate * dt
 
         # Rotate the velocity into the freshly-yawed body frame. Momentum is
@@ -104,9 +125,12 @@ class ArcadeDriftModel(VehicleModel):
         vx, vy = vx * cos_d - vy * sin_d, vx * sin_d + vy * cos_d
 
         # Grip pulls lateral velocity back toward zero; slip slackens it so a
-        # floored corner drifts and lifting off recovers.
+        # floored corner drifts and lifting off recovers. The pull is friction-
+        # limited (`rear_grip_limit`), so a big slide bleeds off slowly instead
+        # of the tires generating arbitrarily large lateral force.
         grip_eff = self.grip * (1.0 - slip) + self.drift_grip * slip
-        vy *= max(0.0, 1.0 - grip_eff * dt)
+        lat_decel = min(grip_eff * abs(vy), self.rear_grip_limit)
+        vy -= math.copysign(min(lat_decel * dt, abs(vy)), vy)
 
         # Integrate the pose in the world frame using the new heading.
         heading = math.atan2(math.sin(state.heading + dtheta), math.cos(state.heading + dtheta))

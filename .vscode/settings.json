@@ -13,5 +13,14 @@
         "/opt/ros/jazzy/lib/python3.12/site-packages",
         "",
         "/opt/venv/lib/python3.12/site-packages"
+    ],
+    "files.watcherExclude": {
+        "**/drift_ws/build/**": true,
+        "**/drift_ws/install/**": true,
+        "**/drift_ws/log/**": true
+    },
+    "python.analysis.exclude": [
+        "drift_ws/build",
+        "drift_ws/log"
     ]
 }

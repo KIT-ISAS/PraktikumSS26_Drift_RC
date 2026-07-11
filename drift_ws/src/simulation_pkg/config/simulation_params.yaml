@@ -19,4 +19,4 @@ simulation_node:
     # Initial pose of the simulated vehicle
     initial_x: 0.53077
     initial_y: -0.63897
-    initial_heading: 2.094  # ~120 deg — figure-8 start tangent direction
+    initial_heading: -0.8777  # ~-50 deg — figure-8 tangent at the first waypoint

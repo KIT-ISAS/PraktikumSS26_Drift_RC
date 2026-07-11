@@ -39,7 +39,7 @@ CFG_FILE = os.path.join(get_package_share_directory("holodeck_pkg"), "config", "
 PARAMETERS = [
     {
         "driver_args": (
-            "-v 5"
+            "-v 5 "
             "--disable-calibrate 1 "
             # Honest accelerometer noise at rest, automatic down-weighting while driving
             # (norm penalty), gyro de-trusted against vibration
@@ -93,10 +93,14 @@ PARAMETERS = [
 def generate_launch_description():
     arguments = [
         DeclareLaunchArgument(
-            "namespace", default_value="libsurvive", description="Namespace for the non-TF topics"
+            "namespace",
+            default_value="libsurvive",
+            description="Namespace for the non-TF topics",
         ),
         DeclareLaunchArgument(
-            "composable", default_value="false", description="Launch in a composable container"
+            "composable",
+            default_value="false",
+            description="Launch in a composable container",
         ),
         DeclareLaunchArgument(
             "rosbridge", default_value="false", description="Launch a rosbridge"

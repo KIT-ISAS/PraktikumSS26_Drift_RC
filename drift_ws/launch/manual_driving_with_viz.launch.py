@@ -3,7 +3,7 @@
 import os
 
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import GroupAction, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 
@@ -25,24 +25,39 @@ def generate_launch_description():
         src_dir, "car_localization_pkg", "launch", "car_localization.launch.py"
     )
 
-    joystick_include = IncludeLaunchDescription(PythonLaunchDescriptionSource(joystick_launch))
-    vehicle_include = IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))
-    holodeck_include = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(holodeck_launch),
-        launch_arguments={"foxbridge": "true"}.items(),
+    # Each include is wrapped in a scoped GroupAction: launch arguments declared
+    # inside one include (e.g. "params_file" in both the joystick and vehicle
+    # launches, "namespace" in holodeck's) would otherwise leak into the shared
+    # context and pre-empt the next include's own default. Scoping discards them
+    # when the group exits.
+    joystick_include = GroupAction(
+        [IncludeLaunchDescription(PythonLaunchDescriptionSource(joystick_launch))]
+    )
+    vehicle_include = GroupAction(
+        [IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))]
+    )
+    holodeck_include = GroupAction(
+        [
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(holodeck_launch),
+                launch_arguments={"foxbridge": "true"}.items(),
+            )
+        ]
     )
     # Derives the canonical CoG/ISO-8855 state from holodeck's raw tracker TF.
-    localization_include = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(localization_launch),
-        # namespace="" is passed explicitly: the holodeck include (processed first)
-        # declares a "namespace" arg defaulting to "libsurvive", which leaks into the
-        # shared launch context, so car_localization's own default_value="" would not
-        # take effect. Without this the real car lands under /libsurvive and its /car/*
-        # outputs get remapped to /libsurvive/car/*.
-        launch_arguments={
-            "namespace": "",
-            "raw_imu_topic": Topics.LIBSURVIVE_IMU,
-        }.items(),
+    # namespace="" is passed explicitly (belt and suspenders with the scoping
+    # above): the real car must stay un-namespaced or its /car/* outputs would be
+    # remapped to /libsurvive/car/*.
+    localization_include = GroupAction(
+        [
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(localization_launch),
+                launch_arguments={
+                    "namespace": "",
+                    "raw_imu_topic": Topics.LIBSURVIVE_IMU,
+                }.items(),
+            )
+        ]
     )
 
     track_publisher_node = Node(
