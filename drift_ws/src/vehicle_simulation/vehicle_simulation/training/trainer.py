@@ -33,7 +33,7 @@ def compute_normalization(windows: list[Window]) -> dict:
     dyn = batch["dyn_traj"]  # (N, H+1, 3)
     act = batch["actions"]  # (N, H, 2)
     dts = batch["dts"]  # (N, H)
-    inputs = np.concatenate([dyn[:, :-1, :], act], axis=-1).reshape(-1, 5)
+    inputs = np.concatenate([dyn[:, :-1, :], act], axis=-1).reshape(-1, 6)
     deriv = ((dyn[:, 1:, :] - dyn[:, :-1, :]) / dts[..., None]).reshape(-1, 3)
     return {
         "input_mean": inputs.mean(0),

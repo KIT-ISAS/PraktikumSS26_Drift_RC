@@ -9,11 +9,11 @@ _EPS = 1e-8
 
 
 class DynamicsNet(nn.Module):
-    """MLP mapping [vx, vy, yaw_rate, steering, throttle] to body-frame derivatives."""
+    """MLP mapping [vx, vy, yaw_rate, steering, drive, brake] to body-frame derivatives."""
 
     def __init__(
         self,
-        input_dim: int = 5,
+        input_dim: int = 6,
         output_dim: int = 3,
         hidden_dim: int = 256,
         stochastic: bool = False,
@@ -43,7 +43,8 @@ class NeuralDynamicsModel(TrainableModel):
     """
     Data-driven dynamics model: an MLP predicting body-frame velocity derivatives.
 
-    Input  [vx, vy, yaw_rate, steering, throttle]; output the per-second derivative
+    Input  [vx, vy, yaw_rate, steering, drive, brake] (the ESC-resolved motor
+    command, see :class:`~.esc.EscStateMachine`); output the per-second derivative
     of [vx, vy, yaw_rate]. :meth:`derivative` is the differentiable, batched source
     of truth used by training; ``step`` (inherited from :class:`TrainableModel`)
     integrates it for numpy inference. The stochastic variant adds a per-dim
