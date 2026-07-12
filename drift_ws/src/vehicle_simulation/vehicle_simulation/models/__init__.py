@@ -15,6 +15,7 @@ from .base import (
     VehicleModel,
     VehicleState,
 )
+from .esc import EscStateMachine, MotorCommand
 
 __all__ = [
     "VehicleAction",
@@ -22,6 +23,8 @@ __all__ = [
     "TrainableModel",
     "VehicleState",
     "Prediction",
+    "EscStateMachine",
+    "MotorCommand",
     "build_model",
 ]
 

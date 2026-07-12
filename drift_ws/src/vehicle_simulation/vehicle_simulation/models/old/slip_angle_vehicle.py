@@ -94,6 +94,11 @@ class OldSlipAngleVehicleModel(VehicleModel):
     _slip_sign: float = field(init=False, default=1.0)
     _reverse: bool = field(init=False, default=False)
 
+    # This port predates the ESC input stage and keeps the original game's
+    # brake/reverse behaviour, so it overrides step() and bypasses the ESC.
+    def _step_motor(self, state, steering, motor, dt):
+        raise NotImplementedError("old models override step() directly")
+
     def step(self, state: VehicleState, action: VehicleAction, dt: float) -> VehicleState:
         steer_angle = _clamp(action.steering, -1.0, 1.0) * self.max_steer_angle
         throttle = _clamp(action.throttle, -1.0, 1.0)

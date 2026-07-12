@@ -88,12 +88,18 @@ The ESP32 sends a status datagram back to the most recent sender at 10 Hz:
 
 ### Reverse / ESC arming
 
-Most RC ESCs require a double-tap to engage reverse:
-1. Throttle below neutral (braking)
-2. Return to neutral
-3. Throttle below neutral again → reverse engages
+Measured behaviour of the car's ESC (it senses motor standstill via back-EMF, readable only while the output is neutral):
 
-When driving with the joystick, this happens naturally. Automated scripts must perform this sequence explicitly (see `test_esp32.py`, Phase 3a–3c).
+- **Positive throttle always drives forward immediately** — even while rolling backwards (there is no braking in the reverse direction) — and sets the *reverse lockout*.
+- **Negative throttle brakes while the lockout is set and reverses while it is clear.** The lockout clears when the throttle is neutral *and* the car is stationary — whether it braked to a stop and was released, or coasted out on its own.
+
+Consequences:
+- Reversing out of forward driving needs the familiar "double-tap": brake to standstill, release to neutral, press again.
+- Pumping the brake while still rolling keeps braking — reverse stays locked out until the car has actually stopped once.
+- A freshly powered (or hand-pushed) car reverses on the very first negative throttle.
+- After coasting to a stop, reverse engages directly — no double-tap needed.
+
+When driving with the joystick, this happens naturally. Automated scripts must perform the sequence explicitly (see `test_esp32.py`, Phase 3a–3c). The simulation mirrors this behaviour exactly in `drift_ws/src/vehicle_simulation/vehicle_simulation/models/esc.py`.
 
 ## WiFi networks
 
