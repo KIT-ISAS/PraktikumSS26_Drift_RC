@@ -34,18 +34,78 @@ def test_dynamic_stable_at_low_speed():
     assert np.isfinite([out.vx, out.vy, out.yaw_rate]).all()
 
 
-def test_hybrid_starts_as_pure_physics():
-    from vehicle_simulation.models.dynamic import DynamicBicycleModel
+def test_hybrid_builds_and_steps():
     from vehicle_simulation.models.hybrid import PhysicsInformedModel
 
-    hybrid = PhysicsInformedModel.new(_NORM, hidden_dim=16)
-    physics = DynamicBicycleModel(hybrid._physics._car, hybrid._physics._p)
-    s = VehicleState(vx=2.0, vy=0.2, yaw_rate=0.3)
-    a = VehicleAction(0.4, 0.5)
-    h = hybrid.step(s, a, 0.03)
-    p = physics.step(s, a, 0.03)
-    for attr in ("vx", "vy", "yaw_rate"):
-        assert getattr(h, attr) == pytest.approx(getattr(p, attr), abs=1e-6)
+    model = PhysicsInformedModel.new(_NORM)
+    out = model.step(VehicleState(vx=2.0, vy=0.2, yaw_rate=0.3), VehicleAction(0.4, 0.5), 0.03)
+    assert np.isfinite([out.x, out.y, out.heading, out.vx, out.vy, out.yaw_rate]).all()
+
+
+def test_hybrid_stable_from_rest():
+    from vehicle_simulation.models.hybrid import PhysicsInformedModel
+
+    model = PhysicsInformedModel.new(_NORM)
+    s = VehicleState()
+    for _ in range(50):
+        s = model.step(s, VehicleAction(1.0, 1.0), 0.02)
+    assert np.isfinite([s.vx, s.vy, s.yaw_rate]).all()
+    assert s.vx > 0.1  # full throttle from rest must move the car forward
+
+
+def test_hybrid_steering_at_standstill_does_not_turn():
+    # A parked car steered at full lock must stay put: non-rolling wheels
+    # produce no slip force (regression: the slip-angle vx floor used to
+    # fabricate a front force from the steering angle alone).
+    from vehicle_simulation.models.hybrid import PhysicsInformedModel
+
+    model = PhysicsInformedModel.new(_NORM)
+    s = VehicleState()
+    for _ in range(100):
+        s = model.step(s, VehicleAction(1.0, 0.0), 0.02)
+    assert abs(s.yaw_rate) < 1e-3
+    assert abs(s.vy) < 1e-3
+
+
+def test_hybrid_servo_lag_delays_yaw_response():
+    # After a steering step from straight-line driving, the yaw response builds
+    # over the servo time constant instead of appearing instantly.
+    from vehicle_simulation.models.hybrid import PhysicsInformedModel
+
+    model = PhysicsInformedModel.new(_NORM)
+    s = VehicleState(vx=2.0)
+    s = model.step(s, VehicleAction(0.0, 0.3), 0.02)  # settle latents on neutral steering
+    first = model.step(s, VehicleAction(1.0, 0.3), 0.02)
+    later = first
+    for _ in range(15):
+        later = model.step(later, VehicleAction(1.0, 0.3), 0.02)
+    assert abs(later.yaw_rate) > 2.0 * abs(first.yaw_rate)
+
+
+def test_hybrid_reverse_weaker_than_forward():
+    # The ESC caps reverse force at 25% by default: the commanded drive force is
+    # asymmetric at init (realized thrust saturates the tire curve, so the
+    # asymmetry is asserted on the command force), and reverse must still move
+    # the car backward, no faster than forward.
+    import torch
+
+    from vehicle_simulation.models.hybrid import PhysicsInformedModel
+
+    model = PhysicsInformedModel.new(_NORM)
+    f_fwd = float(model._f_cmd(torch.tensor(1.0)))
+    f_rev = float(model._f_cmd(torch.tensor(-1.0)))
+    assert 0.0 < abs(f_rev) < 0.5 * f_fwd
+
+    def launch(throttle):
+        m = PhysicsInformedModel.new(_NORM)
+        s = VehicleState()
+        for _ in range(25):
+            s = m.step(s, VehicleAction(0.0, throttle), 0.02)
+        return s.vx
+
+    fwd, rev = launch(1.0), launch(-1.0)
+    assert fwd > 0.0 > rev
+    assert abs(rev) <= fwd
 
 
 def _train(tmp_path, windows, model_type, model_kwargs=None, loss="mse"):
@@ -74,15 +134,8 @@ def test_dynamic_trains_and_reloads(tmp_path, linear_windows):
 
 
 def test_hybrid_trains_and_reloads(tmp_path, linear_windows):
-    run_dir = _train(tmp_path, linear_windows, "hybrid", {"hidden_dim": 32})
+    run_dir = _train(tmp_path, linear_windows, "hybrid", {"n_terms": 3})
     assert (run_dir / "model.pt").exists()
     model = build_model(str(run_dir))
     out = model.step(VehicleState(vx=1.0), VehicleAction(0.2, 0.5), 0.02)
     assert np.isfinite([out.vx, out.vy, out.yaw_rate]).all()
-
-
-def test_hybrid_stochastic_nll_trains(tmp_path, linear_windows):
-    run_dir = _train(
-        tmp_path, linear_windows, "hybrid", {"hidden_dim": 32, "stochastic": True}, loss="nll"
-    )
-    assert (run_dir / "model.pt").exists()

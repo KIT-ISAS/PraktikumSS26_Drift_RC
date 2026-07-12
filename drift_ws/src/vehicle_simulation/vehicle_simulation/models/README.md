@@ -45,7 +45,7 @@ comparing models is the core experiment loop.
 | `old_slip_angle` | predecessor (WS 25/26) scripted drift model | no | yes (drift state machine) | comparison with predecessor sim |
 | `neural` | fully data-driven MLP | yes | learned from data | learning the real car's dynamics from rosbags |
 | `dynamic` | physics single-track bicycle | yes | yes | physics baseline; learnable tire/inertia params |
-| `hybrid` | physics + neural residual | yes | yes | best of both; the likely end-state model |
+| `hybrid` | neural-tire bicycle (physics + learned tire curves + actuator lags) | yes | yes | best of both; the likely end-state model |
 
 ### `kinematic` — `KinematicBicycleModel`
 No-slip rear-wheel bicycle. Speed from `throttle·max_accel − drag·speed` (clamped to
@@ -103,12 +103,19 @@ low-speed stability. Deterministic. Usable untrained as a physics baseline
 `[neural]` extra (torch). Param: `car` (which `CarParameters` to load).
 
 ### `hybrid` — `PhysicsInformedModel`
-Physics-informed: the dynamic-bicycle derivative **plus a small neural residual**
-that absorbs what the physics misses (tire nonlinearity, actuator maps, unmodeled
-dynamics). The residual net's last layer is zero-initialized, so the model **starts
-as pure physics** and learns the correction; an optional stochastic diffusion head
-gives a Neural-SDE-style uncertainty estimate. The likely end-state model. Requires
-the `[neural]` extra. Knobs: `car`, `hidden_dim`, `stochastic`.
+Physics-informed **neural-tire bicycle** (after Djeumou et al., arXiv:2410.20990):
+the single-track force balance stays fixed physics, and the learned parts are small
+**constrained tire-force curves** (`Phi(s) = Σ aᵢ tanh(bᵢ s) exp(-cᵢ s²)` — odd,
+saturating, with optional post-peak falloff) plus a handful of positive scalars.
+Unlike a free additive residual, the learned functions are physically-shaped force
+laws, so the model cannot cancel its own physics and extrapolate unstably in closed
+loop. The rear tire is one **combined-slip** curve decomposed along the slip
+direction — a smooth friction circle (power-over drift without the hard-clamp yaw
+jitter). Two **latent actuator states** are integrated alongside the dynamic state
+(`latent_dim = 2`): servo angle (steering lag) and a drive-force surrogate (ESC
+punch/spool-up; asymmetric forward/reverse gains — the QuicRun ESC caps reverse at
+25% by default). Deterministic. The likely end-state model. Requires the `[neural]`
+extra. Knobs: `car`, `n_terms` (tire-basis size).
 
 ## Adding a new model
 

@@ -48,11 +48,18 @@ def rollout(model, dyn0: torch.Tensor, actions: torch.Tensor, dts: torch.Tensor)
     """
     Free-running rollout integrating the model's per-second derivative.
 
+    Models with ``latent_dim > 0`` (internal actuator states) get their latents
+    initialized quasi-steady from the first action and integrated alongside the
+    dynamic state; the returned trajectory is stripped back to the dynamic dims.
+
     Returns the predicted dynamic trajectory ``(B, H+1, D)`` and the per-step
     *increment* covariances (``per-second cov · dt``; ``None`` for deterministic).
     """
     horizon = actions.shape[1]
+    n_dyn = dyn0.shape[-1]
     d = dyn0
+    if getattr(model, "latent_dim", 0):
+        d = torch.cat([dyn0, model.init_latent(dyn0, actions[:, 0, :])], dim=-1)
     dyns = [d]
     covs = []
     for k in range(horizon):
@@ -61,7 +68,7 @@ def rollout(model, dyn0: torch.Tensor, actions: torch.Tensor, dts: torch.Tensor)
         d = d + pred.mean * dt
         covs.append(pred.cov * dt if pred.cov is not None else None)
         dyns.append(d)
-    return torch.stack(dyns, dim=1), covs
+    return torch.stack(dyns, dim=1)[..., :n_dyn], covs
 
 
 def rollout_loss(dyn_pred, covs, dyn_gt, loss_type: str, dyn_std: torch.Tensor):
@@ -102,8 +109,7 @@ def _build_trainable_model(cfg: TrainConfig, normalization: dict, device: str):
         return PhysicsInformedModel.new(
             normalization,
             car=m.get("car", "drift_rc"),
-            hidden_dim=m.get("hidden_dim", 64),
-            stochastic=m.get("stochastic", False),
+            n_terms=m.get("n_terms", 4),
             device=device,
         )
     raise ValueError(f"Trainer does not support model_type={cfg.model_type!r} yet")
