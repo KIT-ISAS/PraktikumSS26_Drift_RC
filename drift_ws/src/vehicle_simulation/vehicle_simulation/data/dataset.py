@@ -19,7 +19,17 @@ import pandas as pd
 from scipy.interpolate import interp1d
 
 DYNAMIC_COLS = ("vx", "vy", "yaw_rate")
-_INTERP_COLS = ("x", "y", "heading_unwrapped", "vx", "vy", "yaw_rate", "steering", "throttle")
+_INTERP_COLS = (
+    "x",
+    "y",
+    "heading_unwrapped",
+    "vx",
+    "vy",
+    "yaw_rate",
+    "steering",
+    "drive",
+    "brake",
+)
 
 
 @dataclass
@@ -27,7 +37,7 @@ class Window:
     """One training/eval window over a contiguous slice of an episode."""
 
     dyn0: np.ndarray  # (D,) canonical [vx, vy, yaw_rate] at the window start
-    actions: np.ndarray  # (H, 2) [steering, throttle] applied each step
+    actions: np.ndarray  # (H, 3) [steering, drive, brake] ESC-resolved command each step
     dts: np.ndarray  # (H,) per-step timestep [s]
     dyn_traj: np.ndarray  # (H+1, D) ground-truth dynamic states
     pose_traj: np.ndarray  # (H+1, 3) ground-truth [x, y, heading]
@@ -39,7 +49,8 @@ def _episode_interpolators(ep: pd.DataFrame):
     """Build linear interpolators for an episode (heading is unwrapped first)."""
     t = ep["t"].to_numpy()
     data = {
-        c: ep[c].to_numpy() for c in ("x", "y", "vx", "vy", "yaw_rate", "steering", "throttle")
+        c: ep[c].to_numpy()
+        for c in ("x", "y", "vx", "vy", "yaw_rate", "steering", "drive", "brake")
     }
     data["heading_unwrapped"] = np.unwrap(ep["heading"].to_numpy())
     interp = {c: interp1d(t, v, kind="linear", fill_value="extrapolate") for c, v in data.items()}
@@ -54,6 +65,8 @@ def build_windows(
     stride: int = 5,
     resample: bool = True,
     seed: int = 0,
+    max_dyn_accel: float = 30.0,
+    max_yaw_accel: float = 150.0,
 ) -> list[Window]:
     """
     Slice episodes into fixed-horizon windows with (optionally) variable dt.
@@ -63,6 +76,13 @@ def build_windows(
     uniform ``horizon+1`` grid; otherwise the episode's median dt is used. Windows
     that would run past the episode end are skipped. ``regime`` requires a
     ``regime`` column (else labelled ``"unknown"``).
+
+    Windows containing physically impossible transitions are discarded: implied
+    linear acceleration above ``max_dyn_accel`` [m/s²] or yaw acceleration above
+    ``max_yaw_accel`` [rad/s²] (the car manages roughly 6 m/s² / 40 rad/s²).
+    Such samples are tracker-solver glitches that slipped past the row-level
+    sanitizer bounds — a handful of them dominates an MSE loss, so the guard
+    sits here at the consumer end where the derivative labels are formed.
     """
     rng = np.random.default_rng(seed)
     windows: list[Window] = []
@@ -85,12 +105,15 @@ def build_windows(
 
             cols = {c: interp[c](grid) for c in _INTERP_COLS}
             dyn_traj = np.stack([cols[c] for c in DYNAMIC_COLS], axis=-1).astype(np.float64)
+            implied = np.abs(np.diff(dyn_traj, axis=0)) / dt
+            if implied[:, :2].max() > max_dyn_accel or implied[:, 2].max() > max_yaw_accel:
+                continue
             pose_traj = np.stack(
                 [cols["x"], cols["y"], cols["heading_unwrapped"]], axis=-1
             ).astype(np.float64)
-            actions = np.stack([cols["steering"][:-1], cols["throttle"][:-1]], axis=-1).astype(
-                np.float64
-            )
+            actions = np.stack(
+                [cols["steering"][:-1], cols["drive"][:-1], cols["brake"][:-1]], axis=-1
+            ).astype(np.float64)
             dts = np.full(horizon, dt, dtype=np.float64)
 
             if regimes is not None:
@@ -168,14 +191,14 @@ def stack_windows(windows: list[Window]) -> dict:
     """
     Stack a list of (equal-horizon) windows into batched numpy arrays.
 
-    Returns a dict with ``dyn0 (N,D)``, ``actions (N,H,2)``, ``dts (N,H)``,
+    Returns a dict with ``dyn0 (N,D)``, ``actions (N,H,3)``, ``dts (N,H)``,
     ``dyn_traj (N,H+1,D)``, ``pose_traj (N,H+1,3)``, ``regime (N,)``,
     ``episode (N,)``. The trainer converts the numeric arrays to tensors.
     """
     if not windows:
         return {
             "dyn0": np.empty((0, 3)),
-            "actions": np.empty((0, 0, 2)),
+            "actions": np.empty((0, 0, 3)),
             "dts": np.empty((0, 0)),
             "dyn_traj": np.empty((0, 0, 3)),
             "pose_traj": np.empty((0, 0, 3)),

@@ -100,10 +100,17 @@ def build_dataset_from_spec(
     min_len = spec.filters.get("min_len", 10)
 
     # 1. read + segment into continuous episodes. Body velocities come recorded
-    #    in /car/odom, so nothing is re-derived from the pose here.
+    #    in /car/odom, so nothing is re-derived from the pose here. With the
+    #    gyro_off filter, spans driven with the steering-stabilizer gyro active
+    #    are dropped first (the gyro alters the steering->servo map, so gyro-on
+    #    data teaches a different steering response); the resulting time gaps
+    #    split into separate episodes below.
+    gyro_off = bool(spec.filters.get("gyro_off", False))
     episodes = []
     for bag in spec.bags:
         df = read_driving_data(bag)
+        if gyro_off:
+            df = df[df["gyro_gain"] <= 0.01].reset_index(drop=True)
         episodes.extend(segment_episodes(df, max_gap_s=max_gap_s))
 
     # 2. cut localization jumps, then label regimes.

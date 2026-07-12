@@ -28,6 +28,8 @@ def _episode(n: int = 200, dt: float = 0.01) -> pd.DataFrame:
             "yaw_rate": yaw_rate,
             "steering": 0.1 * np.sin(t),
             "throttle": np.full(n, 0.5),
+            "drive": np.full(n, 0.5),
+            "brake": np.zeros(n),
             "regime": np.where(np.abs(yaw_rate) > 0.15, "corner", "straight"),
         }
     )
@@ -41,7 +43,7 @@ def test_window_shapes_and_dt_range():
     )
     assert windows
     for w in windows:
-        assert w.actions.shape == (horizon, 2)
+        assert w.actions.shape == (horizon, 3)
         assert w.dts.shape == (horizon,)
         assert w.dyn_traj.shape == (horizon + 1, 3)
         assert w.pose_traj.shape == (horizon + 1, 3)
@@ -73,7 +75,7 @@ def test_stack_windows_shapes():
     batch = stack_windows(windows)
     n = len(windows)
     assert batch["dyn0"].shape == (n, 3)
-    assert batch["actions"].shape == (n, 5, 2)
+    assert batch["actions"].shape == (n, 5, 3)
     assert batch["dyn_traj"].shape == (n, 6, 3)
     assert batch["regime"].shape == (n,)
 
