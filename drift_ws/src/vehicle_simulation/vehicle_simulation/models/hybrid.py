@@ -16,6 +16,7 @@ from .dynamic import DynamicBicycleModel, _BicycleParams
 from .neural import DynamicsNet
 
 _EPS = 1e-8
+_RESIDUAL_FADE_SPEED = 0.3  # m/s scale over which the residual fades in above standstill
 
 
 class PhysicsInformedModel(TrainableModel):
@@ -112,8 +113,16 @@ class PhysicsInformedModel(TrainableModel):
         else:
             mu, log_std = out, None
 
-        deriv = deriv_phys + mu
-        cov = (torch.exp(log_std) ** 2) if log_std is not None else None
+        # Fade the residual out toward standstill: near zero speed the physics
+        # (nothing moves without input) is trustworthy and low-speed transients
+        # are sparse in the data, so an ungated residual extrapolates spurious
+        # forces there — the car creeps instead of stopping and never reaches
+        # the ESC's standstill threshold.
+        speed = torch.hypot(dynamic[..., 0], dynamic[..., 1])
+        gate = torch.tanh(speed / _RESIDUAL_FADE_SPEED)[..., None]
+
+        deriv = deriv_phys + gate * mu
+        cov = (torch.exp(log_std) ** 2) * gate**2 if log_std is not None else None
         return Prediction(mean=deriv, cov=cov)
 
     def trainable_parameters(self):

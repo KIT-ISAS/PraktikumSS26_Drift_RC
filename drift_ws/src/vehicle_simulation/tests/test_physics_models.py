@@ -13,8 +13,8 @@ from vehicle_simulation.training.config import TrainConfig  # noqa: E402
 from vehicle_simulation.training.trainer import Trainer  # noqa: E402
 
 _NORM = {
-    "input_mean": np.zeros(5),
-    "input_std": np.ones(5),
+    "input_mean": np.zeros(6),
+    "input_std": np.ones(6),
     "output_mean": np.zeros(3),
     "output_std": np.ones(3),
     "dyn_std": np.ones(3),
