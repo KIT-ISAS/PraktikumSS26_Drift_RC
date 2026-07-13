@@ -42,6 +42,21 @@ def test_simulate_runs_kinematic_rollout():
     assert states[-1].x > 0.0  # moved forward
 
 
+def test_kinematic_reverses_when_esc_allows_and_brakes_when_locked():
+    model = KinematicBicycleModel()
+    actions = np.tile([0.0, -1.0], (100, 1))  # fresh ESC: negative pedal = reverse
+    states = simulate(model, VehicleState(), actions, 0.02)
+    assert states[-1].vx < 0.0
+    assert states[-1].vx >= -model.max_reverse_speed - 1e-6
+
+    model = KinematicBicycleModel()
+    forward = np.tile([0.0, 1.0], (100, 1))  # sets the reverse lockout...
+    state = simulate(model, VehicleState(), forward, 0.02)[-1]
+    braking = np.tile([0.0, -1.0], (500, 1))  # ...so the same pedal only brakes
+    states = simulate(model, state, braking, 0.02)
+    assert states[-1].vx == 0.0
+
+
 def test_build_model_kinematic_and_unknown():
     assert isinstance(build_model("kinematic"), KinematicBicycleModel)
     with pytest.raises(ValueError):
