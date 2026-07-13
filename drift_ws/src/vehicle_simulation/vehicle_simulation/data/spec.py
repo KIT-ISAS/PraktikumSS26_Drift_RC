@@ -15,10 +15,13 @@ from datetime import datetime, timezone
 import yaml
 
 from .dataset import Window, build_windows, split_windows, stack_windows
-from .preprocessing import segment_episodes
+from .preprocessing import segment_episodes, split_contiguous
 from .regimes import label_regimes, regime_counts
 from .rosbag_reader import read_driving_data
 from .sanity import sanitize_episodes
+
+# gyro_gain at or below this counts as "gyro off" (the commanded gain is a float).
+GYRO_OFF_MAX = 0.01
 
 
 @dataclass
@@ -100,18 +103,27 @@ def build_dataset_from_spec(
     min_len = spec.filters.get("min_len", 10)
 
     # 1. read + segment into continuous episodes. Body velocities come recorded
-    #    in /car/odom, so nothing is re-derived from the pose here. With the
-    #    gyro_off filter, spans driven with the steering-stabilizer gyro active
-    #    are dropped first (the gyro alters the steering->servo map, so gyro-on
-    #    data teaches a different steering response); the resulting time gaps
-    #    split into separate episodes below.
+    #    in /car/odom, so nothing is re-derived from the pose here.
+    #
+    #    With the gyro_off filter, spans driven with the steering-stabilizer gyro
+    #    active are excluded (the gyro alters the steering->servo map, so gyro-on
+    #    data teaches a different plant). They are *split out*, not dropped in
+    #    place: the gain is adjusted in 0.1 steps from the d-pad, so dialling it
+    #    down walks through a run of short intermediate-gain spans, each far below
+    #    max_gap_s. Row-dropping would leave those as sub-second holes inside a
+    #    single "continuous" episode, and build_windows would interpolate straight
+    #    across them — fabricating dynamics over exactly the interval that was
+    #    excluded for having a different plant. Splitting makes each hole an
+    #    episode boundary instead.
     gyro_off = bool(spec.filters.get("gyro_off", False))
     episodes = []
     for bag in spec.bags:
-        df = read_driving_data(bag)
-        if gyro_off:
-            df = df[df["gyro_gain"] <= 0.01].reset_index(drop=True)
-        episodes.extend(segment_episodes(df, max_gap_s=max_gap_s))
+        df = read_driving_data(bag, max_gap_s=max_gap_s)
+        spans = (
+            split_contiguous(df, df["gyro_gain"].to_numpy() <= GYRO_OFF_MAX) if gyro_off else [df]
+        )
+        for span in spans:
+            episodes.extend(segment_episodes(span, max_gap_s=max_gap_s))
 
     # 2. cut localization jumps, then label regimes.
     episodes, jump_report = sanitize_episodes(
