@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from vehicle_simulation.data.dataset import build_windows, split_windows, stack_windows
-from vehicle_simulation.data.preprocessing import build_dataset
+from vehicle_simulation.data.preprocessing import build_dataset, segment_episodes, split_contiguous
 from vehicle_simulation.data.spec import DatasetSpec
 
 
@@ -80,6 +80,44 @@ def test_stack_windows_shapes():
     assert batch["regime"].shape == (n,)
 
 
+def _pedal_transition_episode() -> pd.DataFrame:
+    """An episode that switches from driving to braking mid-way (ESC-resolved)."""
+    n, dt = 40, 0.01
+    ep = _episode(n=n, dt=dt)
+    drive = np.where(np.arange(n) < n // 2, 0.5, 0.0)
+    brake = np.where(np.arange(n) < n // 2, 0.0, 0.3)
+    return ep.assign(drive=drive, brake=brake)
+
+
+def test_actions_are_held_not_blended_across_a_pedal_transition():
+    # Linear interpolation of the action columns would emit rows with drive AND
+    # brake both nonzero — a command the ESC can never output (they are mutually
+    # exclusive). A zero-order hold keeps every resampled action a command the car
+    # actually received.
+    windows = build_windows(
+        [_pedal_transition_episode()], horizon=5, dt_range=(0.02, 0.05), stride=1, seed=0
+    )
+    assert windows
+    for w in windows:
+        drive, brake = w.actions[:, 1], w.actions[:, 2]
+        assert not np.any((np.abs(drive) > 1e-9) & (brake > 1e-9)), "blended drive/brake"
+        # Every resampled action is one the episode actually contains.
+        assert set(np.round(drive, 6)) <= {0.5, 0.0}
+        assert set(np.round(brake, 6)) <= {0.0, 0.3}
+
+
+def test_states_still_interpolate_linearly():
+    # The hold applies to actions only — states remain continuous signals.
+    ep = _episode(n=50, dt=0.01)
+    windows = build_windows([ep], horizon=2, dt_range=(0.015, 0.015), stride=10, seed=0)
+    assert windows
+    # A 0.015 s grid lands between the 0.01 s samples, so vx must take a value
+    # strictly between two recorded ones rather than repeating a sample.
+    recorded = set(np.round(ep["vx"].to_numpy(), 9))
+    resampled = {np.round(w.dyn_traj[1, 0], 9) for w in windows}
+    assert resampled - recorded
+
+
 def test_dataset_spec_yaml_round_trip(tmp_path):
     spec = DatasetSpec(
         bags=["/data/bag_a", "/data/bag_b"],
@@ -98,6 +136,25 @@ def test_dataset_spec_yaml_round_trip(tmp_path):
     assert loaded.regimes_included == ["drift"]
     assert loaded.notes == spec.notes
     assert loaded.filters["sideslip_thresh"] == 0.2
+
+
+def test_split_contiguous_makes_an_excised_span_a_hard_boundary():
+    # A short gyro-on span (rows 20..24) excised from a 0.01 s episode leaves a
+    # 0.05 s hole — far below the 1.0 s max_gap_s, so segment_episodes would keep
+    # the survivors in ONE episode and build_windows would interpolate across the
+    # hole. Splitting first makes it two episodes, which nothing can bridge.
+    ep = _episode(n=60, dt=0.01)
+    keep = np.ones(60, dtype=bool)
+    keep[20:25] = False
+
+    spliced = segment_episodes(ep[keep].reset_index(drop=True), max_gap_s=1.0)
+    assert len(spliced) == 1  # the hole is invisible to the time-gap heuristic
+
+    split = [
+        e for span in split_contiguous(ep, keep) for e in segment_episodes(span, max_gap_s=1.0)
+    ]
+    assert len(split) == 2
+    assert [len(e) for e in split] == [20, 35]
 
 
 def test_build_dataset_is_deprecated():
