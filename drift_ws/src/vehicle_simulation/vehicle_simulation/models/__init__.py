@@ -50,10 +50,12 @@ def build_model(
 
     1. ``run_dir`` given, or ``model_type`` points at a run dir / ``.pt`` file
        -> load the trained model via :func:`models.loader.load_model_from_run`.
-    2. ``model_type`` is a registry name. Basic models here: ``"kinematic"``,
+    2. ``model_type`` is a registry name. Basic models: ``"kinematic"``,
        ``"arcade"``, and the predecessor ports ``"old_standard"`` /
-       ``"old_slip_angle"`` (all accept an optional YAML ``config``). Trainable
-       models (``"neural"``, ``"dynamic"``, ``"hybrid"``) are added in later PRs.
+       ``"old_slip_angle"`` (all accept an optional YAML ``config``). The
+       trainable ``"neural"`` model is built from a ``.pt`` checkpoint
+       (``weights``); the remaining trainable models (``"dynamic"``,
+       ``"hybrid"``) are added in later PRs.
 
     Args:
         model_type: registry name, run-directory path, or ``.pt`` path.
@@ -104,6 +106,18 @@ def build_model(
             return OldSlipAngleVehicleModel.from_config(config)
         return OldSlipAngleVehicleModel(**kwargs)
 
-    # Trainable (torch) models — neural / dynamic / hybrid — register their own
+    if model_type == "neural":
+        # Validate before importing: .neural needs torch, and a missing checkpoint
+        # must surface as this ValueError, not as torch's ImportError.
+        if not weights:
+            raise ValueError(
+                "build_model('neural', ...) needs a trained checkpoint: pass "
+                "weights='<path.pt>' or a run_dir / run-dir path."
+            )
+        from .neural import NeuralDynamicsModel
+
+        return NeuralDynamicsModel.from_weights(weights, device=device, stochastic=stochastic)
+
+    # Remaining trainable (torch) models — dynamic / hybrid — register their own
     # build_model branches in the PRs that add them.
     raise ValueError(f"Unknown model_type: {model_type!r}")

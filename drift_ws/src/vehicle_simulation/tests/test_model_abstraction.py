@@ -63,10 +63,18 @@ def test_build_model_kinematic_and_unknown():
         build_model("does_not_exist")
 
 
+def test_build_model_neural_requires_weights():
+    # The neural model is implemented on this PR but needs a trained checkpoint:
+    # without weights/run_dir it must raise a clean ValueError (not ImportError),
+    # and the error must mention how to supply the checkpoint.
+    with pytest.raises(ValueError, match="weights"):
+        build_model("neural")
+
+
 def test_build_model_unimplemented_models_fail_cleanly():
-    # Trainable models (neural/dynamic/hybrid) are added in later PRs; on this PR
-    # they must raise a clean ValueError, never an ImportError.
-    for name in ("neural", "dynamic", "hybrid"):
+    # Trainable models dynamic/hybrid are added in later PRs; on this PR they must
+    # raise a clean ValueError, never an ImportError.
+    for name in ("dynamic", "hybrid"):
         with pytest.raises(ValueError):
             build_model(name)
 
