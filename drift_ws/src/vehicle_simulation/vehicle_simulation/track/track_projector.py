@@ -13,13 +13,19 @@ from math import atan2, ceil, copysign, hypot
 
 @dataclass
 class Projection:
-    """Result of projecting a point onto the track."""
+    """
+    Result of projecting a point onto the track.
+
+    ``lap_progress`` is not monotonic: after an uncredited shortcut it is capped at the
+    next unpassed checkpoint and can drop across the wrap without a lap increment.
+    """
 
     x: float  # projected point on the centerline
     y: float
     heading: float  # track tangent direction at the projection (rad)
     distance: float  # arc length along the centerline (m)
     lateral_error: float  # signed car->centerline distance (m), + = car left of path
+    off_track: bool  # |lateral_error| > track_width_m / 2
     lap: int  # completed laps since start, validated by in-order checkpoint passage
     lap_progress: float  # current-lap fraction, 0..1, capped at the next unpassed checkpoint
 
@@ -39,6 +45,19 @@ class TrackProjector:
     across the figure-8 crossing onto the other branch, or being carried elsewhere)
     moves ``distance`` to the true position but skips no checkpoints, so shortcuts
     earn neither progress nor laps until the missed section is actually driven.
+    ``lap`` is non-decreasing (race-timekeeper semantics): backward motion never
+    un-passes checkpoints, and re-entering forward at the frontier resumes correctly.
+
+    Off-track is a measurement only (``|lateral_error| > track_width_m / 2``); policing
+    it — e.g. restarting a run that collects checkpoints from a parallel line — belongs
+    to a supervising consumer. Two deliberate non-goals:
+
+    - Checkpoint collection is NOT gated on being on-track: sliding wide at the moment
+      of a crossing would silently miss the checkpoint and stall the lap counter for an
+      entire extra lap.
+    - ``lost_distance_m`` must exceed ``track_width_m / 2`` so a merely-off-track car
+      stays tracked (truthful position and lateral error) instead of triggering global
+      re-localization; the constructor enforces this.
     """
 
     def __init__(
@@ -48,8 +67,24 @@ class TrackProjector:
         search_window_m: float = 0.6,
         lost_distance_m: float = 0.5,
         checkpoint_spacing_m: float = 1.0,
+        track_width_m: float = 0.8,
+        continuity_threshold_m: float = 3.0,
     ) -> None:
-        """Store the centerline and configure search window, lost threshold, checkpoints."""
+        """
+        Store the centerline and configure search window, thresholds, checkpoints.
+
+        ``continuity_threshold_m`` separates continuous motion from re-localization
+        jumps; size it as max car speed x plausible tracking-dropout duration, well
+        below the shortest physically-impossible branch hop (~8 m on the figure-8).
+        """
+        if checkpoint_spacing_m <= 0.0:
+            raise ValueError(f"checkpoint_spacing_m must be > 0, got {checkpoint_spacing_m}")
+        if lost_distance_m <= track_width_m / 2.0:
+            raise ValueError(
+                f"lost_distance_m ({lost_distance_m}) must exceed track_width_m / 2 "
+                f"({track_width_m / 2.0}) so an off-track car stays tracked instead of "
+                "triggering global re-localization"
+            )
         self._wp = [(float(x), float(y)) for x, y, _ in waypoints]
         self._n = len(self._wp)
         self._cumul = [float(d) for d in cumulative_distance]
@@ -64,16 +99,15 @@ class TrackProjector:
 
         self._search_window_m = search_window_m
         self._lost_distance_m = lost_distance_m
+        self._half_width_m = track_width_m / 2.0
+        self._continuity_m = continuity_threshold_m
 
         if self.total_length > 0.0:
             self._n_cp = max(1, round(self.total_length / checkpoint_spacing_m))
             self._cp_spacing = self.total_length / self._n_cp
-            # Larger jumps than the search window can produce are re-localizations.
-            self._continuity_m = search_window_m + 2.0 * self.total_length / self._n
         else:
             self._n_cp = 1
             self._cp_spacing = 0.0
-            self._continuity_m = 0.0
 
         self._last_s: float | None = None
         self._lap = 0
@@ -162,6 +196,7 @@ class TrackProjector:
             heading=heading,
             distance=s,
             lateral_error=lateral,
+            off_track=abs(lateral) > self._half_width_m,
             lap=self._lap,
             lap_progress=min(s % self.total_length, cap) / self.total_length,
         )
@@ -173,28 +208,19 @@ class TrackProjector:
 
     def _pass_checkpoints(self, s_from: float, ds: float) -> None:
         """
-        Advance checkpoints crossed by a continuous move of ``ds`` starting at ``s_from``.
+        Advance checkpoints crossed by a continuous forward move of ``ds`` from ``s_from``.
 
-        Only the next expected checkpoint can be passed (forward) or the previously
-        passed one un-passed (backward); crossing any other checkpoint is ignored, so
-        arc-length progress skipped via a shortcut stays unvalidated. The lap count
-        changes only when checkpoint 0 (the start line) is passed in order.
+        Only the next expected checkpoint can be passed; crossing any other checkpoint
+        is ignored, so arc-length progress skipped via a shortcut stays unvalidated.
+        Backward motion never un-passes checkpoints, keeping the lap count (incremented
+        only when checkpoint 0, the start line, is passed in order) non-decreasing.
         """
-        max_crossings = int(abs(ds) / self._cp_spacing) + 1
-        if ds > 0.0:
-            for _ in range(max_crossings):
-                gap = (self._next_cp * self._cp_spacing - s_from) % self.total_length
-                if not 0.0 <= gap < ds:
-                    return
-                if self._next_cp == 0:
-                    self._lap += 1
-                self._next_cp = (self._next_cp + 1) % self._n_cp
-        elif ds < 0.0:
-            for _ in range(max_crossings):
-                prev = (self._next_cp - 1) % self._n_cp
-                gap = (s_from - prev * self._cp_spacing) % self.total_length
-                if not 0.0 < gap <= -ds:
-                    return
-                if prev == 0:
-                    self._lap = max(0, self._lap - 1)
-                self._next_cp = prev
+        if ds <= 0.0:
+            return
+        for _ in range(int(ds / self._cp_spacing) + 1):
+            gap = (self._next_cp * self._cp_spacing - s_from) % self.total_length
+            if not 0.0 <= gap < ds:
+                return
+            if self._next_cp == 0:
+                self._lap += 1
+            self._next_cp = (self._next_cp + 1) % self._n_cp
