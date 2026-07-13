@@ -29,7 +29,10 @@ comparing models is the core experiment loop.
   ```python
   build_model("arcade")                  # basic, hand-tuned
   build_model("kinematic")               # no-slip baseline
-  # neural / dynamic / hybrid and run-dir loading ("runs/<id>/") are added later
+  build_model("dynamic")                 # physics bicycle, untrained baseline
+  build_model("neural", weights="m.pt")  # trained data-driven model
+  build_model(run_dir="runs/<id>/")      # any trained model from its run dir
+  # "hybrid" likewise loads from weights / a run dir
   ```
 
 ## Models
@@ -41,6 +44,8 @@ comparing models is the core experiment loop.
 | `old_standard` | predecessor (WS 25/26) kinematic bicycle | no | no (`vy ≡ 0`) | comparison with predecessor sim |
 | `old_slip_angle` | predecessor (WS 25/26) scripted drift model | no | yes (drift state machine) | comparison with predecessor sim |
 | `neural` | fully data-driven MLP | yes | learned from data | learning the real car's dynamics from rosbags |
+| `dynamic` | physics single-track bicycle | yes | yes | physics baseline; learnable tire/inertia params |
+| `hybrid` | neural-tire bicycle (physics + learned tire curves + actuator lags) | yes | yes | best of both; the likely end-state model |
 
 ### `kinematic` — `KinematicBicycleModel`
 No-slip rear-wheel bicycle. Speed from `throttle·max_accel − drag·speed` (clamped to
@@ -87,8 +92,30 @@ applies `dt` Euler–Maruyama-style). Trained via the Trainer and loaded with
 weights=...)`). Requires the `[neural]` extra (torch). Key knobs: `hidden_dim`,
 `stochastic`.
 
-> Physical models (`dynamic`, `hybrid`) are documented in the sections added with
-> their respective PRs.
+### `dynamic` — `DynamicBicycleModel`
+Single-track **dynamic** bicycle with real lateral dynamics (so it can drift).
+Known geometry/mass come from `CarParameters` (mass, CoM split `a`/`b`, wheelbase);
+the unmeasured quantities are **learnable** positive parameters — front/rear
+cornering stiffness `Cf`/`Cr`, yaw inertia `Izz`, and the normalized-`steering`→angle
+and normalized-`throttle`→force maps. Slip-angle denominators are floored for
+low-speed stability. Deterministic. Usable untrained as a physics baseline
+(`build_model("dynamic")`) or fit to data through the Trainer. Requires the
+`[neural]` extra (torch). Param: `car` (which `CarParameters` to load).
+
+### `hybrid` — `PhysicsInformedModel`
+Physics-informed **neural-tire bicycle** (after Djeumou et al., arXiv:2410.20990):
+the single-track force balance stays fixed physics, and the learned parts are small
+**constrained tire-force curves** (`Phi(s) = Σ aᵢ tanh(bᵢ s) exp(-cᵢ s²)` — odd,
+saturating, with optional post-peak falloff) plus a handful of positive scalars.
+Unlike a free additive residual, the learned functions are physically-shaped force
+laws, so the model cannot cancel its own physics and extrapolate unstably in closed
+loop. The rear tire is one **combined-slip** curve decomposed along the slip
+direction — a smooth friction circle (power-over drift without the hard-clamp yaw
+jitter). Two **latent actuator states** are integrated alongside the dynamic state
+(`latent_dim = 2`): servo angle (steering lag) and a drive-force surrogate (ESC
+punch/spool-up; asymmetric forward/reverse gains — the QuicRun ESC caps reverse at
+25% by default). Deterministic. The likely end-state model. Requires the `[neural]`
+extra. Knobs: `car`, `n_terms` (tire-basis size).
 
 ## Adding a new model
 
