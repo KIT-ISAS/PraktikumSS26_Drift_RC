@@ -30,26 +30,19 @@ def _register_bag_types(typestore: Typestore, reader: Reader) -> None:
                 typestore.register(get_types_from_msg(msgdef.data, connection.msgtype))
 
 
-def _label_motor_commands(df: pd.DataFrame) -> pd.DataFrame:
+def _replay_esc(df: pd.DataFrame) -> pd.DataFrame | None:
     """
-    Replay the recorded pedal stream through the ESC to label ``(drive, brake)``.
+    Replay one continuously-observed span through a fresh ESC, or None if it can't sync.
 
-    Raw negative throttle is ambiguous (brake or reverse, depending on command
-    history), so ``derivative()`` training must use the ESC-*resolved* motor
-    command. One :class:`EscStateMachine` per bag, fed the samples in time order
-    with the measured forward speed as the standstill input, reproduces what the
-    real ESC did — a deterministic replay, not inference.
-
-    The machine synchronizes on the first forward-throttle sample (forward
-    throttle forces the lockout set from any state), so the bag prefix before it
-    — where the recorded lockout state is unknowable — is trimmed.
+    The machine synchronizes on the first forward-throttle sample (forward throttle
+    forces the lockout set from any state), so the prefix before it — where the
+    recorded lockout state is unknowable — is trimmed. A span that never drives
+    forward can never be synchronized and is dropped.
     """
     esc = EscStateMachine()
     forward = df["throttle"].to_numpy() >= esc.neutral_deadband
     if not forward.any():
-        raise ValueError(
-            "Bag never drives forward; the ESC replay cannot synchronize its lockout state"
-        )
+        return None
     df = df.iloc[int(np.argmax(forward)) :].reset_index(drop=True)
 
     drive = np.empty(len(df))
@@ -61,7 +54,44 @@ def _label_motor_commands(df: pd.DataFrame) -> pd.DataFrame:
     return df.assign(drive=drive, brake=brake)
 
 
-def read_driving_data(bag_path: str | Path) -> pd.DataFrame:
+def _label_motor_commands(df: pd.DataFrame, max_gap_s: float) -> pd.DataFrame:
+    """
+    Replay the recorded pedal stream through the ESC to label ``(drive, brake)``.
+
+    Raw negative throttle is ambiguous (brake or reverse, depending on command
+    history), so ``derivative()`` training must use the ESC-*resolved* motor
+    command. Feeding an :class:`EscStateMachine` the samples in time order, with the
+    measured forward speed as the standstill input, reproduces what the real ESC did
+    — a deterministic replay, not inference.
+
+    The replay is restarted at every observation gap longer than ``max_gap_s``
+    (tracking dropout, recording pause). The lockout flag is only reconstructible
+    from *observed* commands and speeds: across a gap the car may well have rolled
+    to a stop with a neutral pedal — the event that *clears* the lockout — and
+    carrying the pre-gap flag over it would mislabel every subsequent negative pedal
+    as brake when it was in fact reverse, destroying the very Markov property this
+    labeling exists to provide. Each span therefore re-synchronizes from scratch, and
+    a span that never drives forward is dropped rather than guessed at.
+    """
+    spans = [_replay_esc(span) for span in _split_on_gaps(df, max_gap_s)]
+    kept = [span for span in spans if span is not None]
+    if not kept:
+        raise ValueError(
+            "No continuously-observed span in the bag ever drives forward; the ESC "
+            "replay cannot synchronize its lockout state"
+        )
+    return pd.concat(kept, ignore_index=True)
+
+
+def _split_on_gaps(df: pd.DataFrame, max_gap_s: float) -> list[pd.DataFrame]:
+    """Split rows into spans separated by observation gaps longer than ``max_gap_s``."""
+    t_s = df["t_ns"].to_numpy() / 1e9
+    cuts = np.where(np.diff(t_s) > max_gap_s)[0] + 1
+    bounds = [0, *cuts.tolist(), len(df)]
+    return [df.iloc[a:b].reset_index(drop=True) for a, b in zip(bounds[:-1], bounds[1:]) if b > a]
+
+
+def read_driving_data(bag_path: str | Path, max_gap_s: float = 1.0) -> pd.DataFrame:
     """
     Read a rosbag2 directory and return a time-aligned DataFrame.
 
@@ -73,8 +103,10 @@ def read_driving_data(bag_path: str | Path) -> pd.DataFrame:
     odom timestamps via merge_asof.
 
     The raw throttle pedal is additionally replayed through the ESC state machine
-    (:func:`_label_motor_commands`) into the resolved motor command, and samples
-    before the first forward-throttle command are trimmed.
+    (:func:`_label_motor_commands`) into the resolved motor command. The replay
+    restarts at every observation gap longer than ``max_gap_s`` — keep this in sync
+    with the ``max_gap_s`` used to segment episodes downstream — and samples before
+    each span's first forward-throttle command are trimmed.
 
     Columns: t (s), x (m), y (m), heading (rad), vx (m/s, body forward),
     vy (m/s, body left), yaw_rate (rad/s), steering [-1,1], throttle [-1,1],
@@ -135,7 +167,7 @@ def read_driving_data(bag_path: str | Path) -> pd.DataFrame:
     # Forward-fill: each odom sample gets the most recent action before it
     merged = pd.merge_asof(odom_df, action_df, on="t_ns", direction="backward").dropna()
 
-    merged = _label_motor_commands(merged)
+    merged = _label_motor_commands(merged, max_gap_s)
 
     t0 = merged["t_ns"].iloc[0]
     merged["t"] = (merged["t_ns"] - t0) / 1e9

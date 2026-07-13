@@ -239,8 +239,6 @@ class PhysicsInformedModel(TrainableModel):
         delta_dot = (p.steer_gain * steering - delta) / p.tau_s
         f_drive_dot = (self._f_cmd(drive) - f_drive) / p.tau_w
 
-        # Sign-preserving magnitude floor: reverse driving (vx < 0) exists in the
-        # data, so the denominator must keep the sign, not clamp up to +_VX_MIN.
         # Slip *angles* feed the curves directly (not tan(alpha) as in the paper:
         # tan flips sign and explodes past 90°, which spins in this data reach).
         # The denominator is |vx| (floored): the lateral force must oppose the

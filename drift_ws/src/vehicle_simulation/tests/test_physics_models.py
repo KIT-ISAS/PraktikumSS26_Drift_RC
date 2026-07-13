@@ -34,6 +34,27 @@ def test_dynamic_stable_at_low_speed():
     assert np.isfinite([out.vx, out.vy, out.yaw_rate]).all()
 
 
+def test_dynamic_straight_reverse_settles():
+    # Straight-line reverse must damp back to vy = r = 0. A sign-preserving vx in
+    # the slip-angle denominator puts alpha near ±π, saturating the tire curve at
+    # full grip with a sign that flips with vy: a sustained bang-bang limit cycle.
+    # Its period is 4 steps, so it aliases away under stroboscopic sampling —
+    # every step must be inspected, and the assertion is on the decay envelope.
+    import torch
+
+    model = build_model("dynamic")
+    state = torch.tensor([[-1.0, 0.05, 0.0]])  # reversing at 1 m/s, lateral perturbation
+    action = torch.tensor([[0.0, -0.3, 0.0]])  # straight, light reverse throttle
+    vy = []
+    with torch.no_grad():
+        for _ in range(60):
+            state = state + 0.02 * model.derivative(state, action).mean
+            vy.append(abs(float(state[0, 1])))
+
+    assert max(vy[-10:]) < 0.1 * max(vy[:10])  # the perturbation decays...
+    assert max(vy[-10:]) < 1e-2  # ...to standstill, rather than holding a limit cycle
+
+
 def test_hybrid_builds_and_steps():
     from vehicle_simulation.models.hybrid import PhysicsInformedModel
 

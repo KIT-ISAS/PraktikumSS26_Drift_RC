@@ -19,17 +19,16 @@ import pandas as pd
 from scipy.interpolate import interp1d
 
 DYNAMIC_COLS = ("vx", "vy", "yaw_rate")
-_INTERP_COLS = (
-    "x",
-    "y",
-    "heading_unwrapped",
-    "vx",
-    "vy",
-    "yaw_rate",
-    "steering",
-    "drive",
-    "brake",
-)
+# States are continuous signals: linear interpolation between samples is the right
+# reconstruction. Actions are not — they are held constant between commands (the
+# ESP32 holds the PWM output until the next datagram arrives), so they resample as
+# a zero-order hold. Interpolating them linearly would blend across command changes
+# and fabricate commands the car never received — in particular a drive/brake
+# transition would emit rows with *both* nonzero, which the ESC cannot output
+# (see EscStateMachine: brake and drive are mutually exclusive).
+_STATE_COLS = ("x", "y", "heading_unwrapped", "vx", "vy", "yaw_rate")
+_ACTION_COLS = ("steering", "drive", "brake")
+_INTERP_COLS = _STATE_COLS + _ACTION_COLS
 
 
 @dataclass
@@ -46,14 +45,24 @@ class Window:
 
 
 def _episode_interpolators(ep: pd.DataFrame):
-    """Build linear interpolators for an episode (heading is unwrapped first)."""
+    """
+    Build per-column interpolators for an episode (heading is unwrapped first).
+
+    States interpolate linearly; actions are held (zero-order hold) — see the
+    ``_ACTION_COLS`` note above.
+    """
     t = ep["t"].to_numpy()
-    data = {
-        c: ep[c].to_numpy()
-        for c in ("x", "y", "vx", "vy", "yaw_rate", "steering", "drive", "brake")
-    }
+    data = {c: ep[c].to_numpy() for c in _INTERP_COLS if c != "heading_unwrapped"}
     data["heading_unwrapped"] = np.unwrap(ep["heading"].to_numpy())
-    interp = {c: interp1d(t, v, kind="linear", fill_value="extrapolate") for c, v in data.items()}
+    interp = {
+        c: interp1d(
+            t,
+            v,
+            kind="previous" if c in _ACTION_COLS else "linear",
+            fill_value="extrapolate",
+        )
+        for c, v in data.items()
+    }
     return t, interp
 
 

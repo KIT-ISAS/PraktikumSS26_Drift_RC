@@ -24,6 +24,28 @@ def test_drift_takes_priority_over_corner():
     assert out["regime"].iloc[0] == "drift"
 
 
+def test_straight_reverse_is_not_drift():
+    # Backing up in a straight line: arctan2(~0, -vx) is ~pi, which clears any
+    # sideslip threshold. It is reverse, not drift.
+    df = pd.DataFrame({"vx": [-1.5], "vy": [0.0], "yaw_rate": [0.0]})
+    out = label_regimes(df)
+    assert out["regime"].iloc[0] == "reverse"
+
+
+def test_reverse_while_turning_is_still_reverse():
+    # Cornering and drift are forward-motion verdicts; reversing is its own regime.
+    df = pd.DataFrame({"vx": [-1.5], "vy": [0.3], "yaw_rate": [3.0]})
+    out = label_regimes(df)
+    assert out["regime"].iloc[0] == "reverse"
+
+
+def test_slow_reverse_is_stationary():
+    # Below speed_min the car is stationary regardless of direction.
+    df = pd.DataFrame({"vx": [-0.1], "vy": [0.0], "yaw_rate": [0.0]})
+    out = label_regimes(df, speed_min=0.3)
+    assert out["regime"].iloc[0] == "stationary"
+
+
 def test_regime_counts_zero_filled():
     df = pd.DataFrame({"vx": [2.0, 2.0], "vy": [0.0, 0.0], "yaw_rate": [0.0, 0.0]})
     counts = regime_counts(label_regimes(df))
