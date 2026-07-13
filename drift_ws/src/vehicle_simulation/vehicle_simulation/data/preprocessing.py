@@ -11,6 +11,32 @@ def filter_stationary(df: pd.DataFrame, min_speed: float = 0.05) -> pd.DataFrame
     return df[speed >= min_speed].reset_index(drop=True)
 
 
+def split_contiguous(df: pd.DataFrame, keep: np.ndarray) -> list[pd.DataFrame]:
+    """
+    Return the maximal runs of rows where ``keep`` is True, as separate DataFrames.
+
+    Use this instead of boolean row-dropping whenever the survivors feed a
+    consumer that interpolates between adjacent rows. Dropping rows in place
+    leaves the excised span as a *hole* the downstream interpolator will happily
+    bridge, fabricating data across exactly the interval that was excluded for
+    being unrepresentative. Splitting into separate runs makes the hole a real
+    boundary that no interpolation can cross.
+
+    Only the time-gap heuristic in :func:`segment_episodes` would otherwise catch
+    such a hole, and only if the excised span happened to be longer than its
+    ``max_gap_s``.
+    """
+    keep = np.asarray(keep, dtype=bool)
+    if len(keep) != len(df):
+        raise ValueError(f"keep has {len(keep)} entries but df has {len(df)} rows")
+    if not keep.any():
+        return []
+    # Boundaries wherever the mask flips; slice out the True runs.
+    edges = np.flatnonzero(np.diff(np.concatenate(([False], keep, [False]))))
+    starts, stops = edges[0::2], edges[1::2]
+    return [df.iloc[a:b].reset_index(drop=True) for a, b in zip(starts, stops)]
+
+
 def segment_episodes(df: pd.DataFrame, max_gap_s: float = 1.0) -> list[pd.DataFrame]:
     """
     Split DataFrame into continuous episodes separated by time gaps > max_gap_s.
