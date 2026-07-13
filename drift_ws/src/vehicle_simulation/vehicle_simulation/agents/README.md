@@ -117,8 +117,14 @@ ros2 launch drift_ws/launch/human_demo_recording.launch.py stage_config:=stage3_
 
 Recording starts automatically once the car is on track and moving; episodes end on
 off-track/stall exactly like the training env, and recording holds until the car has
-recovered. Files land in `~/recordings/human/` as `<timestamp>__human_demo.npz`
-(with `gyro_mode`/`gyro_gain` metadata — the logged steering is pre-gyro-correction).
+recovered. Files land in `~/recordings/human/` as `<timestamp>__human_demo.npz`.
+
+**Drive with gyro gain 0** (d-pad down; the manual-driving config defaults to 1.0):
+the ESP32's gyro assist corrects the steering *after* it is logged, and the training
+sim has no such assist, so assisted demos teach dynamics the agent will never see.
+The recorder latches the session's `gyro_mode`/`gyro_gain` into the npz metadata,
+warns if the gain is nonzero, and holds recording if the settings change mid-session
+until they are restored.
 
 **2. Fine-tune off-board** exactly as above, pointing `--data` at the demo files:
 

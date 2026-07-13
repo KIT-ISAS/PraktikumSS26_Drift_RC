@@ -74,6 +74,12 @@ class DemoRecorderNode(Node):
         # Start in the recovery hold: recording begins once the car is on track
         # and moving, not while it is still being carried to the start.
         self._recovering = True
+        # Gyro assist settings, latched when the first transition is armed. The
+        # ESP32 applies the correction after the command is logged, so all
+        # transitions in a session file must share one setting for the npz
+        # metadata to be truthful; a mid-session change cuts the episode and
+        # holds recording until the latched settings are restored.
+        self._gyro: tuple[str, float] | None = None
 
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self._recorder = TransitionRecorder(
@@ -121,7 +127,7 @@ class DemoRecorderNode(Node):
 
     def _tick(self) -> None:
         """Score the pending transition, then latch the human's current command."""
-        if not self._inputs_ready():
+        if not self._inputs_ready() or not self._gyro_matches():
             self._cut_episode()
             return
         odom, progress, track = self._odom, self._progress, self._track
@@ -149,6 +155,7 @@ class DemoRecorderNode(Node):
                     f"recovers; {len(self._recorder)} transitions so far"
                 )
                 self._begin_episode()
+                self.flush()
                 return
 
         if self._recovering:
@@ -158,9 +165,38 @@ class DemoRecorderNode(Node):
             self._recovering = False
             self.get_logger().info("Car on track and moving — recording")
 
+        if self._gyro is None:
+            self._latch_gyro()
         action = np.array([self._action_msg.steering, self._action_msg.throttle], dtype=np.float32)
         self._recorder.arm(obs, action, self._prev_action, progress.distance)
         self._prev_action = action
+
+    def _latch_gyro(self) -> None:
+        """Latch the session's gyro assist settings into the npz metadata."""
+        self._gyro = (self._action_msg.gyro_mode, self._action_msg.gyro_gain)
+        self._recorder.metadata["gyro_mode"] = self._gyro[0]
+        self._recorder.metadata["gyro_gain"] = np.float32(self._gyro[1])
+        if self._gyro[1] != 0.0:
+            self.get_logger().warning(
+                f"Recording with gyro gain {self._gyro[1]:.2f}: the ESP32 corrects the "
+                "steering after it is logged and the training sim has no such assist — "
+                "set the gain to 0 (d-pad down) for clean demos"
+            )
+
+    def _gyro_matches(self) -> bool:
+        """The latched gyro settings still apply; hold recording otherwise."""
+        if self._action_msg is None or self._gyro is None:
+            return True
+        current = (self._action_msg.gyro_mode, self._action_msg.gyro_gain)
+        if current == self._gyro:
+            return True
+        self.get_logger().warning(
+            f"Gyro settings changed to {current[0]}/{current[1]:.2f} mid-session — recording "
+            f"on hold; restore {self._gyro[0]}/{self._gyro[1]:.2f} (the session's npz "
+            "metadata) to resume",
+            throttle_duration_sec=2.0,
+        )
+        return False
 
     def _inputs_ready(self) -> bool:
         """All inputs present and fresh; warn (throttled) otherwise."""
@@ -194,14 +230,12 @@ class DemoRecorderNode(Node):
     # --- episode lifecycle ---------------------------------------------------
 
     def _cut_episode(self) -> None:
-        """An input gap cuts the episode (see data_collection_node._on_inputs_stale)."""
+        """An input gap or gyro change cuts the episode (mirrors the policy recorder)."""
         if not self._recorder.pending:
             return
         self._recorder.truncate_last()
         self._begin_episode()
-        self.get_logger().warning(
-            "Inputs went stale — episode cut, dropping the pending transition"
-        )
+        self.get_logger().warning("Episode cut — dropping the pending transition")
 
     def _begin_episode(self) -> None:
         """Reset per-episode state and hold recording until the car has recovered."""
@@ -212,15 +246,16 @@ class DemoRecorderNode(Node):
 
     def flush(self) -> None:
         """Write the accumulated buffer to the session npz (atomic overwrite)."""
-        if self._action_msg is not None:
-            # Executed steering depends on the ESP32's gyro correction, so the
-            # assist settings are needed to interpret the logged commands.
-            self._recorder.metadata["gyro_mode"] = self._action_msg.gyro_mode
-            self._recorder.metadata["gyro_gain"] = np.float32(self._action_msg.gyro_gain)
         track_name = self._track.name if self._track is not None else ""
         count = self._recorder.flush(track_name)
         if count:
             self.get_logger().info(f"Wrote {count} transitions to {self._recorder.out_path}")
+
+    def shutdown(self) -> None:
+        """Truncate the interrupted episode (a shutdown is not a true terminal) and persist."""
+        self._recorder.truncate_last()
+        self._recorder.drop_pending()
+        self.flush()
 
     # --- config ----------------------------------------------------------------
 
@@ -252,7 +287,7 @@ def main(args=None) -> None:
         pass
     finally:
         if node is not None:
-            node.flush()
+            node.shutdown()
             node.destroy_node()
         rclpy.shutdown()
 

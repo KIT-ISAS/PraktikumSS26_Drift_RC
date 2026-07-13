@@ -1,6 +1,7 @@
 # QoS overrides for `ros2 bag record` during demo recording: the centerline is
 # latched (TRANSIENT_LOCAL, published once at startup), so the recorder must
 # request transient-local durability or the bag never captures it.
+# The key must match Topics.TRACK_CENTERLINE (shared_pkg) — keep in sync by hand.
 /track/centerline:
   reliability: reliable
   durability: transient_local
