@@ -183,11 +183,14 @@ class DynamicBicycleModel(TrainableModel):
         p, m, a, b = self._p, self._m, self._a, self._b
 
         delta = p.steer_gain * steering
-        # Sign-preserving magnitude floor: reverse driving (vx < 0) exists in the
-        # data, so the denominator must keep the sign, not clamp up to +_VX_MIN.
-        vx_safe = torch.where(vx >= 0, vx.clamp(min=_VX_MIN), vx.clamp(max=-_VX_MIN))
-        alpha_f = torch.atan2(vy + a * r, vx_safe) - delta
-        alpha_r = torch.atan2(vy - b * r, vx_safe)
+        # The denominator is |vx| (floored), not a sign-preserving vx: the lateral
+        # force must oppose the axle's lateral slip in *both* driving directions.
+        # A signed vx puts alpha near ±π in reverse (vx < 0, which the data has),
+        # where the tanh curve saturates at full grip and the force sign flips with
+        # the sign of vy — a bang-bang limit cycle instead of a settling trajectory.
+        vx_mag = vx.abs().clamp(min=_VX_MIN)
+        alpha_f = torch.atan2(vy + a * r, vx_mag) - delta
+        alpha_r = torch.atan2(vy - b * r, vx_mag)
         # Friction-limited lateral force: linear (-C α) for small slip, saturating
         # smoothly at the grip limit D — past it the axle slides instead of
         # gripping harder, which is what makes drifting possible at all.
