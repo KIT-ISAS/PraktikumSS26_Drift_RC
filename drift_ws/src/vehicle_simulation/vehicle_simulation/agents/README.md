@@ -99,6 +99,43 @@ Useful flags: `--batch-size`, `--learning-rate` (keep modest — offline SAC can
 `--sim-rollout-steps N` (interleave a little sim experience as a regularizer), `--device`,
 `--config` (override the stage).
 
+## Learning from human demonstrations
+
+Same offline pipeline, but a human drives: `agent_pkg`'s `demo_recorder_node`
+passively reconstructs training-format transitions from the joystick's
+`VehicleActionRequest` commands (SAC is off-policy, so human transitions are valid
+replay data). No `run_dir`/policy is needed — a `stage_config` supplies the
+reward/termination config, and it must match the stage you fine-tune on.
+
+**1. Record while driving manually.** The full-stack launch also captures a raw
+rosbag (`~/recordings/human/bags/`) so observations can be recomputed offline if
+the observation format ever changes:
+
+```bash
+ros2 launch drift_ws/launch/human_demo_recording.launch.py stage_config:=stage3_drift
+```
+
+Recording starts automatically once the car is on track and moving; episodes end on
+off-track/stall exactly like the training env, and recording holds until the car has
+recovered. Files land in `~/recordings/human/` as `<timestamp>__human_demo.npz`.
+
+**Drive with gyro gain 0** (d-pad down; the manual-driving config defaults to 1.0):
+the ESP32's gyro assist corrects the steering *after* it is logged, and the training
+sim has no such assist, so assisted demos teach dynamics the agent will never see.
+The recorder latches the session's `gyro_mode`/`gyro_gain` into the npz metadata,
+warns if the gain is nonzero, and holds recording if the settings change mid-session
+until they are restored.
+
+**2. Fine-tune off-board** exactly as above, pointing `--data` at the demo files:
+
+```bash
+/opt/venv/bin/python -m vehicle_simulation.agents.finetune_agent \
+    --init-from runs/<sim_run> --data recordings/*__human_demo.npz --tag human-s3
+```
+
+Human demos are off-distribution for the critic; mixing them with the policy's own
+recordings and/or `--sim-rollout-steps` keeps offline SAC better behaved.
+
 ## Local CPU training
 
 No GPU needed for a quick smoke run or a short curriculum — the same commands work
