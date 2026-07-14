@@ -160,25 +160,40 @@ class TrainableModel(VehicleModel):
 
     requires_torch: ClassVar[bool] = True
 
+    #: Number of model-internal latent states (e.g. actuator lags) integrated
+    #: alongside the canonical dynamic state. When nonzero, ``derivative`` takes
+    #: and returns ``(B, 3 + latent_dim)`` and :meth:`init_latent` provides the
+    #: latents' start values; the framework (training rollout and ``step``)
+    #: threads them through the integration and strips them from all outputs.
+    latent_dim: ClassVar[int] = 0
+
     def __init__(self, device: str = "cpu") -> None:
         import torch
 
         self._device = torch.device(device)
         self._can_sample = False
+        self._sim_latent = None
 
     @abstractmethod
     def derivative(self, dynamic, action) -> Prediction:
         """
         Per-second derivative of ``[vx, vy, yaw_rate]`` (timestep-free).
 
-        ``dynamic`` ``(B, 3)``, ``action`` ``(B, 3)`` of ``[steering, drive,
-        brake]`` — the ESC-*resolved* motor command, not the raw pedal — as torch
-        tensors. Training data must be labeled the same way: replay the recorded
-        throttle stream through :class:`~.esc.EscStateMachine` (raw negative
-        throttle is ambiguous between brake and reverse; the resolved command is
-        Markov). Deterministic models return ``Prediction(mean, None)``;
-        stochastic models also return a per-second covariance ``cov``.
+        ``dynamic`` ``(B, 3 + latent_dim)``, ``action`` ``(B, 3)`` of
+        ``[steering, drive, brake]`` — the ESC-*resolved* motor command, not the
+        raw pedal — as torch tensors. Training data must be labeled the same way:
+        replay the recorded throttle stream through
+        :class:`~.esc.EscStateMachine` (raw negative throttle is ambiguous
+        between brake and reverse; the resolved command is Markov).
+        Deterministic models return ``Prediction(mean, None)``; stochastic
+        models also return a per-second covariance ``cov``.
         """
+
+    def init_latent(self, dynamic, action):
+        """Latent start values ``(B, latent_dim)`` (quasi-steady; override with latents)."""
+        import torch
+
+        return torch.zeros(*dynamic.shape[:-1], 0, device=dynamic.device, dtype=dynamic.dtype)
 
     @abstractmethod
     def trainable_parameters(self):
@@ -224,12 +239,21 @@ class TrainableModel(VehicleModel):
             [[steering, motor.drive, motor.brake]], dtype=torch.float32, device=self._device
         )
         with torch.no_grad():
+            if self.latent_dim:
+                # Latent actuator states persist across steps (like the ESC state);
+                # they initialize quasi-steady on the first command of the session.
+                if self._sim_latent is None:
+                    self._sim_latent = self.init_latent(dynamics, action_t)
+                dynamics = torch.cat([dynamics, self._sim_latent], dim=-1)
             pred = self.derivative(dynamics, action_t)
             new_dynamics = dynamics + pred.mean * dt
             if sample and pred.cov is not None:
                 new_dynamics = new_dynamics + torch.sqrt(
                     pred.cov.clamp_min(0.0) * dt
                 ) * torch.randn_like(new_dynamics)
+            if self.latent_dim:
+                self._sim_latent = new_dynamics[:, 3:]
+                new_dynamics = new_dynamics[:, :3]
         new_dynamics = new_dynamics[0].cpu().numpy()
         # Semi-implicit Euler: advance the pose with the *updated* velocities so the
         # returned pose and velocities are consistent (one integration of the step).
