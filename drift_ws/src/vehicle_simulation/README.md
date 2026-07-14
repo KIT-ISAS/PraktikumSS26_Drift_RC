@@ -82,7 +82,15 @@ python -m vehicle_simulation.evaluation.evaluate \
 ```
 
 A trained model is reloaded by passing its run directory to `build_model(run_dir)`,
-including into the ROS simulator (`simulation_pkg`).
+including into the ROS simulator (`simulation_pkg`) — which is how you drive a
+trained model yourself, by keyboard or gamepad:
+
+```bash
+ros2 launch simulation_pkg simulation_demo.launch.py model_type:=runs/<id>
+ros2 run joystick_pkg keyboard_control     # separate terminal (or joystick:=true above)
+```
+
+Connect Foxglove to `ws://localhost:8765` to watch it.
 
 ## RL agent (needs the `[rl]` extra)
 

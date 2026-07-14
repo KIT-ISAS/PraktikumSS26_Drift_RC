@@ -111,7 +111,8 @@ class TestLapCounting:
         assert projection.lap == 1
         assert projection.distance == pytest.approx(1.0)
 
-    def test_reverse_traversal_decrements(self):
+    def test_reverse_traversal_does_not_decrement(self):
+        # Timekeeper semantics: a finished lap cannot be un-finished by reversing.
         waypoints, _ = _square_centerline()
         projector = _square_projector()
         _drive(projector, waypoints)
@@ -120,15 +121,17 @@ class TestLapCounting:
         # Drive backwards across the start line.
         projector.project(*waypoints[0][:2])
         projection = projector.project(*waypoints[-1][:2])
-        assert projection.lap == 0
+        assert projection.lap == 1
 
-    def test_lap_never_negative(self):
+    def test_reverse_over_start_then_forward_mints_no_lap(self):
         waypoints, _ = _square_centerline()
         projector = _square_projector()
         projector.project(*waypoints[1][:2])
-        # Reverse over the start line without ever completing a lap.
+        # Reverse over the start line, then re-cross it forward: no lap was driven.
         projector.project(*waypoints[0][:2])
-        projection = projector.project(*waypoints[-1][:2])
+        projector.project(*waypoints[-1][:2])
+        projector.project(*waypoints[0][:2])
+        projection = projector.project(*waypoints[1][:2])
         assert projection.lap == 0
 
     def test_reset_clears_lap_and_relocalizes(self):
@@ -142,6 +145,106 @@ class TestLapCounting:
         projection = projector.project(10.0, 1.5)  # far off-track, near side two
         assert projection.lap == 0
         assert projection.distance == pytest.approx(5.5)
+
+
+class TestCheckpointValidation:
+    """Shortcuts (re-localization jumps) must not earn progress or laps (issue #78)."""
+
+    def _shortcut(self) -> TrackProjector:
+        """Seed at s=1.5, then teleport to s=13.5 — a lost re-localization jump."""
+        projector = _square_projector()
+        projector.project(1.5, 0.0)
+        projector.project(0.0, 2.5)
+        return projector
+
+    def test_jump_moves_position_but_freezes_progress(self):
+        projector = _square_projector()
+        projector.project(1.5, 0.0)
+        jumped = projector.project(0.0, 2.5)
+        # Position is truthful, but progress is capped at the next unpassed
+        # checkpoint (s=2) instead of leaping to 13.5/16.
+        assert jumped.distance == pytest.approx(13.5)
+        assert jumped.lap == 0
+        assert jumped.lap_progress == pytest.approx(2.0 / 16.0)
+
+    def test_start_crossing_after_shortcut_earns_no_lap(self):
+        projector = self._shortcut()
+        projection = None
+        for i in range(26):  # s = 13.5 -> 16 -> wrap -> 1.0 in 0.5 m steps
+            s = 13.5 + 0.5 * (i + 1)
+            x, y = (0.0, 16.0 - s) if s < 16.0 else (s - 16.0, 0.0)
+            projection = projector.project(x, y)
+            if s - 16.0 >= 1.0:
+                break
+        assert projection.lap == 0
+        assert projection.lap_progress == pytest.approx(1.0 / 16.0)
+
+    def test_dropout_sized_gap_is_continuous(self):
+        # A tracking dropout (here 3 m, within continuity_threshold_m) skips no
+        # checkpoints even though it re-localizes globally.
+        projector = _square_projector()
+        projector.project(1.5, 0.0)
+        projection = projector.project(4.0, 0.5)  # s = 4.5
+        assert projection.distance == pytest.approx(4.5)
+        assert projection.lap_progress == pytest.approx(4.5 / 16.0)
+
+    def test_continuity_threshold_is_configurable(self):
+        waypoints, cumulative = _square_centerline()
+        projector = TrackProjector(waypoints, cumulative, continuity_threshold_m=1.0)
+        projector.project(1.5, 0.0)
+        projection = projector.project(4.0, 0.5)  # same 3 m gap, now a re-localization
+        assert projection.distance == pytest.approx(4.5)
+        assert projection.lap_progress == pytest.approx(2.0 / 16.0)
+
+    def test_lap_counts_after_driving_missed_section(self):
+        projector = self._shortcut()
+        # Drive continuously from the jump landing all the way around, through the
+        # missed checkpoint at s=2, and across the start line again.
+        s = 13.5
+        projection = None
+        while s < 16.0 + 16.0 + 1.0:
+            s += 0.5
+            s_mod = s % 16.0
+            side, along = int(s_mod // 4.0), s_mod % 4.0
+            x, y = [(along, 0.0), (4.0, along), (4.0 - along, 4.0), (0.0, 4.0 - along)][side]
+            projection = projector.project(x, y)
+        assert projection.lap == 1
+
+
+class TestOffTrack:
+    """The off_track verdict shares one definition between sim and real car."""
+
+    def test_on_track_within_half_width(self):
+        projection = _square_projector().project(1.5, 0.39)
+        assert not projection.off_track
+
+    def test_off_track_beyond_half_width(self):
+        projection = _square_projector().project(1.5, -0.45)
+        assert projection.off_track
+        assert projection.lateral_error == pytest.approx(-0.45)
+
+    def test_off_track_car_still_collects_checkpoints(self):
+        # Deliberate: collection is not gated on being on-track (see class docstring);
+        # policing off-track driving belongs to a supervising consumer.
+        projector = _square_projector()
+        projector.project(0.5, -0.45)
+        projection = projector.project(2.5, -0.45)
+        assert projection.off_track
+        assert projection.lap_progress == pytest.approx(2.5 / 16.0)
+
+
+class TestValidation:
+    """Misconfiguration fails loudly in the constructor."""
+
+    def test_zero_checkpoint_spacing_rejected(self):
+        waypoints, cumulative = _square_centerline()
+        with pytest.raises(ValueError, match="checkpoint_spacing_m"):
+            TrackProjector(waypoints, cumulative, checkpoint_spacing_m=0.0)
+
+    def test_lost_distance_must_exceed_half_track_width(self):
+        waypoints, cumulative = _square_centerline()
+        with pytest.raises(ValueError, match="lost_distance_m"):
+            TrackProjector(waypoints, cumulative, lost_distance_m=0.4, track_width_m=0.8)
 
 
 class TestBranchDisambiguation:
