@@ -7,7 +7,7 @@ done)`` transitions from the human's joystick commands (``.npz`` files for
 ``vehicle_simulation.agents.finetune_agent``), and ``ros2 bag record`` keeps the
 raw topics so observations can be recomputed offline if the format ever changes:
 
-    holodeck tracking (+ foxglove bridge) -> car_localization -> track_publisher
+    libsurvive tracking (+ foxglove bridge) -> car_localization -> track_publisher
     joystick -> VehicleActionRequest -> vehicle_communication -> ESP32
                                      -> demo_recorder_node (+ rosbag)
 
@@ -46,8 +46,8 @@ def generate_launch_description():
     vehicle_launch = os.path.join(
         src_dir, "vehicle_communication_pkg", "launch", "vehicle_communication.launch.py"
     )
-    holodeck_launch = os.path.join(
-        src_dir, "holodeck_pkg", "launch", "holodeck_tracking.launch.py"
+    libsurvive_launch = os.path.join(
+        src_dir, "libsurvive_pkg", "launch", "libsurvive_tracking.launch.py"
     )
     localization_launch = os.path.join(
         src_dir, "car_localization_pkg", "launch", "car_localization.launch.py"
@@ -69,10 +69,10 @@ def generate_launch_description():
     vehicle_include = GroupAction(
         [IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))]
     )
-    holodeck_include = GroupAction(
+    libsurvive_include = GroupAction(
         [
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(holodeck_launch),
+                PythonLaunchDescriptionSource(libsurvive_launch),
                 launch_arguments={"foxbridge": "true"}.items(),
             )
         ]
@@ -136,7 +136,7 @@ def generate_launch_description():
             stage_config_arg,
             joystick_include,
             vehicle_include,
-            holodeck_include,
+            libsurvive_include,
             localization_include,
             track_publisher_node,
             demo_record_include,

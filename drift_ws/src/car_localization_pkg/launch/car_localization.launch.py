@@ -5,7 +5,7 @@ mount_tf_node (static tracker->CoG/IMU) + car_state_node (canonical
 pose/odom/imu) + car_viz_node (mesh marker). Reusable per car: a simulated car
 is launched with a different ``namespace`` + ``frame_prefix`` and ``color`` so it
 coexists with the real car in the shared ``world`` frame. It does NOT start a
-tracking source — that is the job of the source adapter (e.g. holodeck) or the
+tracking source — that is the job of the source adapter (e.g. libsurvive) or the
 simulation node, which publishes ``world -> <prefix>tracker_link``.
 """
 

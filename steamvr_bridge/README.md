@@ -28,7 +28,7 @@ SteamVR ──openvr──> steamvr_bridge.py ──UDP :15250──> steamvr_no
   (`.venv/` is host-local and gitignored; `requirements.txt` pins the exact
   `openvr` version the bridge was tested with.)
 - Note: SteamVR and libsurvive both claim the tracker dongle — stop the
-  holodeck/libsurvive stack before starting SteamVR (and vice versa).
+  libsurvive stack before starting SteamVR (and vice versa).
 
 ## Run
 

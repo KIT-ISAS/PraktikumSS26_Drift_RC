@@ -49,7 +49,7 @@ from .lib.protocol import (
     decode_sample,
 )
 
-# Standard gravity; must match holodeck's SI_GRAVITY (component.cpp) so both
+# Standard gravity; must match libsurvive's SI_GRAVITY (component.cpp) so both
 # sources' rest readings agree at the shared car_state_node consumer.
 GRAVITY = 9.80665
 
@@ -62,7 +62,7 @@ class SteamVrNode(Node):
         self.declare_parameter("bind_address", "127.0.0.1")
         self.declare_parameter("udp_port", DEFAULT_PORT)
         # Serial of the car's tracker. Empty = lock onto the first tracker seen
-        # (mirrors holodeck's tracker_serial convention).
+        # (mirrors libsurvive's tracker_serial convention).
         self.declare_parameter("tracker_serial", "")
         self.declare_parameter("tracking_frame", Frames.STEAMVR_WORLD)
         self.declare_parameter("tracker_frame", Frames.TRACKER_LINK)

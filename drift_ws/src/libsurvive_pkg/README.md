@@ -1,10 +1,10 @@
-# Holodeck Package
+# libsurvive_pkg
 
 This package is largely taken from https://github.com/asymingt/libsurvive_ros2#, a ROS2 wrapper for the [libsurvive](https://github.com/collabora/libsurvive) library, which provides support for the HTC Vive tracking system. The package includes ROS2 nodes and interfaces to interact with the Vive tracking hardware, allowing users to integrate Vive tracking data into their ROS2 applications. Then we don't have to use SteamVR which doesn't work well with Linux.
 
 ### Modifications
 The original package has been modified slightly. The main changes include:
-- Changed the package name to `holodeck_pkg` to fit the context of our project.
+- Changed the package name to `libsurvive_pkg` to fit the context of our project.
 - Added a patch for the libsurvive library to reduce stderr prints to have a clean build output.See `patches/stderr.patch` for details.
 - Calibrated the tracking system and saved the config to `config/config.yaml`. Deactivated force recalibration in params. See next section for details.
 

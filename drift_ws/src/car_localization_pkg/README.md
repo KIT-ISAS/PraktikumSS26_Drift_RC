@@ -7,7 +7,7 @@ system never depends on a specific tracking setup or re-derives coordinate maths
 
 ## The contract a tracking source must satisfy
 
-A source (libsurvive via `holodeck_pkg`, or SteamVR via `steamvr_pkg`) only has
+A source (libsurvive via `libsurvive_pkg`, or SteamVR via `steamvr_pkg`) only has
 to provide, in its own gravity-aligned tracking frame (`libsurvive_world` /
 `steamvr_world`):
 

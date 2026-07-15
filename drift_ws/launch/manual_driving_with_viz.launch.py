@@ -20,15 +20,15 @@ def generate_launch_description():
     vehicle_launch = os.path.join(
         src_dir, "vehicle_communication_pkg", "launch", "vehicle_communication.launch.py"
     )
-    holodeck_launch = os.path.join(
-        src_dir, "holodeck_pkg", "launch", "holodeck_tracking.launch.py"
+    libsurvive_launch = os.path.join(
+        src_dir, "libsurvive_pkg", "launch", "libsurvive_tracking.launch.py"
     )
     steamvr_launch = os.path.join(src_dir, "steamvr_pkg", "launch", "steamvr_tracking.launch.py")
     localization_launch = os.path.join(
         src_dir, "car_localization_pkg", "launch", "car_localization.launch.py"
     )
 
-    # Exclusive tracking source: libsurvive (holodeck) or steamvr (needs the
+    # Exclusive tracking source: libsurvive (libsurvive) or steamvr (needs the
     # host-side bridge running, see steamvr_bridge/). They cannot run at the
     # same time anyway — both claim the tracker's USB dongle.
     tracking_source = LaunchConfiguration("tracking_source")
@@ -46,10 +46,10 @@ def generate_launch_description():
     vehicle_include = GroupAction(
         [IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))]
     )
-    holodeck_include = GroupAction(
+    libsurvive_include = GroupAction(
         [
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(holodeck_launch),
+                PythonLaunchDescriptionSource(libsurvive_launch),
                 condition=IfCondition(use_libsurvive),
                 launch_arguments={"foxbridge": "true"}.items(),
             )
@@ -114,7 +114,7 @@ def generate_launch_description():
             ),
             joystick_include,
             vehicle_include,
-            holodeck_include,
+            libsurvive_include,
             steamvr_include,
             localization_include,
             track_publisher_node,

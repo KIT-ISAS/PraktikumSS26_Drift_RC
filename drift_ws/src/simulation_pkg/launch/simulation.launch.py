@@ -1,7 +1,7 @@
 r"""
 Launch the simulation stack: vehicle model + joystick + track publisher.
 
-Replaces holodeck_tracking.launch.py — publishes /car/pose from a model
+Replaces libsurvive_tracking.launch.py — publishes /car/pose from a model
 instead of real lighthouse tracking. All downstream nodes (track_pkg,
 visualization, RL agent) work unchanged.
 

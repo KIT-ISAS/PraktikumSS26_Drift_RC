@@ -6,8 +6,8 @@
 # its entry (moved lighthouse or stale calibration).
 #
 # Serials are SteamVR's LHB-<id in hex>; the values were computed from the
-# holodeck/libsurvive calibration (holodeck_pkg/config/config.json lighthouse
-# poses mapped through the world transform in holodeck_pkg/src/component.cpp),
+# libsurvive calibration (libsurvive_pkg/config/config.json lighthouse
+# poses mapped through the world transform in libsurvive_pkg/src/component.cpp),
 # so both tracking sources agree on the same world frame. If the lighthouses
 # are physically rearranged, re-measure/re-derive these AND recalibrate both
 # sources.

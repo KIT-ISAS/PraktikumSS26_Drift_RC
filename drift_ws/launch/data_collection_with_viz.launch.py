@@ -7,7 +7,7 @@ agent node as the control source: it drives the car with the sim-trained policy
 ``(obs, action, reward, next_obs, done)`` transitions to ``.npz`` files for
 off-board fine-tuning:
 
-    holodeck tracking (+ foxglove bridge) -> car_localization -> track_publisher
+    libsurvive tracking (+ foxglove bridge) -> car_localization -> track_publisher
     -> data_collection_node -> VehicleActionRequest -> vehicle_communication -> ESP32
 
 The joystick stays up as an emergency override (agent_override_mode): it is
@@ -40,8 +40,8 @@ def generate_launch_description():
     vehicle_launch = os.path.join(
         src_dir, "vehicle_communication_pkg", "launch", "vehicle_communication.launch.py"
     )
-    holodeck_launch = os.path.join(
-        src_dir, "holodeck_pkg", "launch", "holodeck_tracking.launch.py"
+    libsurvive_launch = os.path.join(
+        src_dir, "libsurvive_pkg", "launch", "libsurvive_tracking.launch.py"
     )
     localization_launch = os.path.join(
         src_dir, "car_localization_pkg", "launch", "car_localization.launch.py"
@@ -55,7 +55,7 @@ def generate_launch_description():
 
     # Each include is wrapped in a scoped GroupAction: launch arguments declared
     # inside one include (e.g. "params_file" in both the joystick and vehicle
-    # launches, "namespace" in holodeck's) would otherwise leak into the shared
+    # launches, "namespace" in libsurvive's) would otherwise leak into the shared
     # context and pre-empt the next include's own default. Scoping discards them
     # when the group exits; top-level arguments like run_dir still flow in.
     #
@@ -72,15 +72,15 @@ def generate_launch_description():
     vehicle_include = GroupAction(
         [IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))]
     )
-    holodeck_include = GroupAction(
+    libsurvive_include = GroupAction(
         [
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(holodeck_launch),
+                PythonLaunchDescriptionSource(libsurvive_launch),
                 launch_arguments={"foxbridge": "true"}.items(),
             )
         ]
     )
-    # Derives the canonical CoG/ISO-8855 state from holodeck's raw tracker TF.
+    # Derives the canonical CoG/ISO-8855 state from libsurvive's raw tracker TF.
     # namespace="" is passed explicitly (belt and suspenders with the scoping
     # above): the real car must stay un-namespaced or its /car/* outputs would be
     # remapped to /libsurvive/car/*.
@@ -116,7 +116,7 @@ def generate_launch_description():
             run_dir_arg,
             joystick_include,
             vehicle_include,
-            holodeck_include,
+            libsurvive_include,
             localization_include,
             track_publisher_node,
             record_include,

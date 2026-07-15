@@ -1,7 +1,7 @@
 """
 Anchor the shared ``world`` frame to the lighthouse constellation.
 
-Source-agnostic: whichever tracking source is running (holodeck/libsurvive or
+Source-agnostic: whichever tracking source is running (libsurvive or
 steamvr) only has to latch static TFs ``<tracking_frame> -> <serial>`` for
 the base stations it sees. This node polls those frames, fits the planar
 ``world -> <tracking_frame>`` transform against the reference positions in

@@ -33,7 +33,7 @@ from launch_ros.descriptions import ComposableNode
 BAG_FILE = os.path.join(launch.logging.launch_config.log_dir, "libsurvive.bag")
 
 # Default libsurvive configuration file
-CFG_FILE = os.path.join(get_package_share_directory("holodeck_pkg"), "config", "config.json")
+CFG_FILE = os.path.join(get_package_share_directory("libsurvive_pkg"), "config", "config.json")
 
 # Sow we don't have to repeat for composable and non-composable versions.
 PARAMETERS = [
@@ -126,7 +126,7 @@ def generate_launch_description():
 
     # Non-composable launch (regular node)
     libsurvive_node = Node(
-        package="holodeck_pkg",
+        package="libsurvive_pkg",
         executable="libsurvive_ros2_node",
         name="libsurvive_ros2_node",
         namespace=LaunchConfiguration("namespace"),
@@ -144,7 +144,7 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration("composable")),
         composable_node_descriptions=[
             ComposableNode(
-                package="holodeck_pkg",
+                package="libsurvive_pkg",
                 plugin="libsurvive_ros2::Component",
                 name="libsurvive_ros2_component",
                 parameters=PARAMETERS,

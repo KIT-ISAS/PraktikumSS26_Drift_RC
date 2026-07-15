@@ -25,5 +25,5 @@ class Frames:
 
     # Native frame of the SteamVR tracking source (z-up, see steamvr_pkg). The
     # calibrated static ``world -> steamvr_world`` transform is published by
-    # steamvr_node, mirroring holodeck's ``world -> libsurvive_world``.
+    # steamvr_node, mirroring libsurvive's ``world -> libsurvive_world``.
     STEAMVR_WORLD: str = "steamvr_world"

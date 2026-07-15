@@ -22,7 +22,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 # Set the project name
-project(holodeck_pkg)
+project(libsurvive_pkg)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)

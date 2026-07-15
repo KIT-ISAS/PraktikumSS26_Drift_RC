@@ -1,7 +1,7 @@
 # steamvr_pkg
 
 SteamVR/OpenVR tracking source — the switchable alternative to the
-libsurvive-based `holodeck_pkg`. It fulfils the tracking-source contract from
+libsurvive-based `libsurvive_pkg`. It fulfils the tracking-source contract from
 `car_localization_pkg`: publish TF `world -> tracker_link` plus a raw IMU
 topic; everything downstream (`/car/pose`, `/car/odom`, track progress) is
 source-agnostic.

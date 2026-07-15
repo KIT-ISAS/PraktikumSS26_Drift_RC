@@ -145,7 +145,7 @@ Component::Component(const rclcpp::NodeOptions & options)
   std::vector<const char *> args;
   // libsurvive's parser treats argv[0] as the program name and skips it,
   // so prepend a placeholder to keep the first real flag from being dropped.
-  args.push_back("holodeck");
+  args.push_back("libsurvive_pkg");
   for (const auto & t : tokens) {
     args.push_back(t.c_str());
   }

@@ -3,7 +3,7 @@ Bring up the SteamVR tracking source.
 
 Container-side half of the SteamVR pipeline — the host must be running
 ``steamvr_bridge/steamvr_bridge.py`` (see that README). Mirrors
-holodeck_tracking.launch.py's options so the two sources are interchangeable
+libsurvive_tracking.launch.py's options so the two sources are interchangeable
 behind the ``tracking_source`` argument of the top-level launch files.
 """
 
