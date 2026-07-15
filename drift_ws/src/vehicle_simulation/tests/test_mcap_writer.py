@@ -54,3 +54,58 @@ def test_rollout_from_recording_shapes():
     times, rec, pred, actions = rollout_from_recording(model, df, start_idx=0, horizon=20)
     assert rec.shape == pred.shape == (21, 3)
     assert times.shape == (21,)
+
+
+def _glitchy_df(jump_at: int, n: int = 50):
+    import pandas as pd
+
+    t = np.arange(n) * 0.02
+    x = t * 1.0
+    x[jump_at:] += 5.0  # a 5 m teleport: ~250 m/s over one 20 ms step
+    speed = np.ones(n)
+    speed[jump_at] = 60.0  # the corrupt finite-differenced twist on the jumped row
+    return pd.DataFrame(
+        {
+            "t": t,
+            "x": x,
+            "y": np.zeros(n),
+            "heading": np.zeros(n),
+            "vx": speed,
+            "vy": np.zeros(n),
+            "yaw_rate": np.zeros(n),
+            "steering": np.zeros(n),
+            "throttle": np.full(n, 0.5),
+        }
+    )
+
+
+def test_rollout_truncates_at_a_localization_jump():
+    # A tracker jump mid-window must not be integrated across: the clean rollout ends
+    # at the jump instead of "predicting" the teleport.
+    from vehicle_simulation.evaluation.mcap_writer import rollout_from_recording
+    from vehicle_simulation.models import build_model
+
+    df = _glitchy_df(jump_at=10)
+    model = build_model("kinematic")
+    times, rec, pred, _ = rollout_from_recording(model, df, start_idx=0, horizon=40)
+    assert len(rec) == len(pred) == 10  # stops before the jump at row 10
+    assert np.isfinite(pred).all()
+
+
+def test_rollout_refuses_to_seed_from_a_glitch():
+    # Seeding the rollout from the corrupted sample itself is the failure that made a
+    # good model look broken; it must raise, not silently roll from a 60 m/s state.
+    import pytest
+
+    from vehicle_simulation.evaluation.mcap_writer import rollout_from_recording
+    from vehicle_simulation.models import build_model
+
+    df = _glitchy_df(jump_at=10)
+    model = build_model("kinematic")
+    with pytest.raises(ValueError, match="localization jump"):
+        rollout_from_recording(model, df, start_idx=9, horizon=20)
+    # ...but the escape hatch still rolls over it.
+    times, rec, pred, _ = rollout_from_recording(
+        model, df, start_idx=9, horizon=20, sanitize=False
+    )
+    assert len(pred) == 21
