@@ -26,13 +26,13 @@
 
 // Smoke test: the libsurvive component must be registered with the ament index
 // so that rclcpp_components can discover and load it at runtime.
-TEST(HolodeckPkg, component_is_registered)
+TEST(LibsurvivePkg, component_is_registered)
 {
   std::string content;
   std::string prefix;
   const bool found = ament_index_cpp::get_resource(
-    "rclcpp_components", "holodeck_pkg", content, &prefix);
-  ASSERT_TRUE(found) << "holodeck_pkg has no rclcpp_components resource registered";
+    "rclcpp_components", "libsurvive_pkg", content, &prefix);
+  ASSERT_TRUE(found) << "libsurvive_pkg has no rclcpp_components resource registered";
   EXPECT_NE(content.find("libsurvive_ros2::Component"), std::string::npos)
     << "component class not listed in the rclcpp_components resource: " << content;
 }

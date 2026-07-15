@@ -1,7 +1,7 @@
 """
 Launch the RL agent node as the control source.
 
-Works against either the real car stack (holodeck + track publisher + vehicle
+Works against either the real car stack (libsurvive + track publisher + vehicle
 communication) or the simulation (simulation_pkg + track publisher) — the node
 only sees the canonical topics.
 

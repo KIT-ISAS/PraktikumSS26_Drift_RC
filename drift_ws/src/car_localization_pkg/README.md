@@ -7,12 +7,21 @@ system never depends on a specific tracking setup or re-derives coordinate maths
 
 ## The contract a tracking source must satisfy
 
-A source (libsurvive today, SteamVR or anything else later) only has to provide:
+A source (libsurvive via `libsurvive_pkg`, or SteamVR via `steamvr_pkg`) only has
+to provide, in its own gravity-aligned tracking frame (`libsurvive_world` /
+`steamvr_world`):
 
-1. **TF `world → tracker_link`** — the raw tracker pose. `world` is the shared,
-   fixed, gravity-aligned frame. The pose may be "raw" (e.g. upside-down); the
-   mount transform below corrects it.
-2. **A raw IMU** (`sensor_msgs/Imu`) in `imu_link`, if the tracker has one.
+1. **TF `<source>_world → tracker_link`** — the raw tracker pose. The pose may
+   be "raw" (e.g. rotated); the mount transform below corrects it.
+2. **Static TFs `<source>_world → <serial>`** for the lighthouses it sees
+   (serial format `LHB-XXXXXXXX`). `world_anchor_node` (this package) fits and
+   latches `world → <source>_world` against them, completing the chain — the
+   lighthouse constellation *defines* the world frame, so both sources land in
+   the same playground and the track moves with the lighthouses.
+3. **A raw IMU** (`sensor_msgs/Imu`), if the tracker has one. `car_state_node`
+   rotates it into `base_link` via TF from the message's `frame_id` — libsurvive
+   stamps it `imu_link` (raw chip axes), steamvr stamps its pseudo-IMU
+   `tracker_link` directly.
 
 That is the entire boundary. Nothing downstream of `tracker_link` is
 source-specific.
@@ -24,6 +33,17 @@ world ──(source)──▶ tracker_link ──(mount_tf_node, static)──�
                     tracker_link ──(mount_tf_node, static)──▶ imu_link
 ```
 
+- **`world_anchor_node`** — anchors `world → <source>_world` to the lighthouse
+  constellation: fits the planar transform against
+  `config/lighthouses_world.yaml` (`lighthouse_calibration.py`, pure/unit-
+  tested), latches it on `/tf_static`, publishes `/map/lighthouses` in the
+  world frame, and warns when a lighthouse no longer matches the reference
+  (moved relative to the others → re-record the file, see steamvr_pkg's
+  `steamvr_calibrate --record-reference`). It waits up to `settle_timeout_s`
+  for the full reference constellation before the first fit, and if a changed
+  lighthouse set later forces a re-fit, it warns with the resulting frame
+  delta (downstream poses jump by that amount). Started by each tracking
+  source's launch with the matching `tracking_frame`.
 - **`mount_tf_node`** — publishes the static `tracker_link → base_link` (and
   `tracker_link → imu_link`) transforms, derived from the measured car
   parameters (`vehicle_simulation` `cars/*.yaml`). The mount orientation
@@ -47,7 +67,10 @@ ros2 launch car_localization_pkg car_localization.launch.py
 ```
 
 Real pipeline: included automatically by `manual_driving_with_viz.launch.py`
-(holodeck publishes the raw tracker TF + IMU; this package derives the rest).
+(the selected tracking source — `tracking_source:=libsurvive|steamvr` —
+publishes the raw tracker TF + IMU; this package derives the rest). The mount
+knobs are forwarded as launch arguments (`tracker_yaw_offset_deg`,
+`tracker_upside_down`) since the tracker body frame can differ per source.
 
 ### Real + simulated car together
 

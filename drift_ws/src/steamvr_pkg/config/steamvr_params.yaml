@@ -1,0 +1,22 @@
+/**:
+  ros__parameters:
+    # UDP endpoint the host-side bridge (steamvr_bridge/) sends to.
+    bind_address: "127.0.0.1"
+    udp_port: 15250
+
+    # Serial of the car's tracker. Empty = lock onto the first tracker seen;
+    # set it when a second tracker/controller may be live.
+    tracker_serial: ""
+
+    # Pseudo-IMU: add +g up so it reads specific force like a real
+    # accelerometer at rest.
+    include_gravity: true
+
+    # Latch the raw steamvr_world -> <serial> lighthouse TFs. The world frame
+    # itself is anchored to them by car_localization_pkg's world_anchor_node
+    # (started by this package's launch) — see that node for the calibration
+    # parameters (reference file, auto/manual, thresholds).
+    publish_lighthouses: true
+
+    # Warn when no bridge datagrams arrive for this long [s].
+    stale_timeout_s: 1.0

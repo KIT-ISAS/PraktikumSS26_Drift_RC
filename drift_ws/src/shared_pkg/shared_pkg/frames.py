@@ -22,3 +22,8 @@ class Frames:
     BASE_LINK: str = "base_link"
     TRACKER_LINK: str = "tracker_link"
     IMU_LINK: str = "imu_link"
+
+    # Native frame of the SteamVR tracking source (z-up, see steamvr_pkg). The
+    # calibrated static ``world -> steamvr_world`` transform is published by
+    # steamvr_node, mirroring libsurvive's ``world -> libsurvive_world``.
+    STEAMVR_WORLD: str = "steamvr_world"

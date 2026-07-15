@@ -5,7 +5,7 @@ mount_tf_node (static tracker->CoG/IMU) + car_state_node (canonical
 pose/odom/imu) + car_viz_node (mesh marker). Reusable per car: a simulated car
 is launched with a different ``namespace`` + ``frame_prefix`` and ``color`` so it
 coexists with the real car in the shared ``world`` frame. It does NOT start a
-tracking source — that is the job of the source adapter (e.g. holodeck) or the
+tracking source — that is the job of the source adapter (e.g. libsurvive) or the
 simulation node, which publishes ``world -> <prefix>tracker_link``.
 """
 
@@ -13,6 +13,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 from shared_pkg import Topics
 
@@ -68,13 +69,37 @@ def generate_launch_description():
                 description="Tracking source's raw IMU topic (set this to the source's "
                 "output, e.g. /libsurvive/imu; the default 'imu' rarely matches a real source).",
             ),
+            # Empirical mount knobs. The defaults encode the libsurvive tracker
+            # body convention (y-forward, mounted upside-down); other tracking
+            # sources (e.g. steamvr) may report a different body frame.
+            DeclareLaunchArgument(
+                "tracker_yaw_offset_deg",
+                default_value="90.0",
+                description="Yaw of the car's forward axis in the tracker pose frame.",
+            ),
+            DeclareLaunchArgument(
+                "tracker_upside_down",
+                default_value="true",
+                description="Whether the tracker pose frame is mounted z-down.",
+            ),
             Node(
                 package="car_localization_pkg",
                 executable="mount_tf_node",
                 name="mount_tf_node",
                 namespace=namespace,
                 output="screen",
-                parameters=[{"car": car, **frames}],
+                parameters=[
+                    {
+                        "car": car,
+                        **frames,
+                        "tracker_yaw_offset_deg": ParameterValue(
+                            LaunchConfiguration("tracker_yaw_offset_deg"), value_type=float
+                        ),
+                        "tracker_upside_down": ParameterValue(
+                            LaunchConfiguration("tracker_upside_down"), value_type=bool
+                        ),
+                    }
+                ],
             ),
             Node(
                 package="car_localization_pkg",
