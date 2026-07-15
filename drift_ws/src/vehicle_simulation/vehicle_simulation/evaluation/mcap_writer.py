@@ -66,7 +66,8 @@ def rollout_from_recording(
         seed_yaw = abs(float(seg["yaw_rate"][0]))
         mask, _ = detect_discontinuities(seg)
         seeds_from_jump = seed_speed > _SEED_MAX_SPEED or seed_yaw > _SEED_MAX_YAW_RATE
-        if (mask.any() and mask[0]) or seeds_from_jump:
+        # mask is non-empty here (len(seg) >= 2), and mask[0] truthy implies mask.any().
+        if mask[0] or seeds_from_jump:
             raise ValueError(
                 f"start_idx={start_idx} seeds from a localization jump (recorded state "
                 f"there is physically implausible: {seed_speed:.1f} m/s, {seed_yaw:.1f} "
