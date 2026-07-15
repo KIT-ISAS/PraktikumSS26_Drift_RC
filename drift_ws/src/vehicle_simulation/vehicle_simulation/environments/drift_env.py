@@ -133,6 +133,10 @@ class DriftEnv(gymnasium.Env):
             else:
                 speed += self.np_random.normal(0.0, spawn.speed_noise_std)
         self._state = VehicleState(x=x, y=y, heading=heading, vx=max(0.0, speed))
+        # A rolling spawn stands in for a car already driving under its own power,
+        # so its ESC has the reverse lockout set. (A standing spawn's first neutral
+        # tick would clear it anyway.)
+        self._model.esc.reverse_locked = self._state.vx >= self._model.esc.standstill_speed
 
         self._projector.reset()
         projection = self._projector.project(self._state.x, self._state.y)

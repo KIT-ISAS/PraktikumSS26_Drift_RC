@@ -27,6 +27,7 @@ Example::
 
 from dataclasses import dataclass
 from importlib.resources import files
+import math
 from pathlib import Path
 
 import yaml
@@ -60,9 +61,15 @@ class CarParameters:
     tire_width_full_m: float
     tire_width_contact_m: float
 
+    # Steering [deg]
+    max_steer_angle_deg: float
+
     # Drivetrain
     primary_reduction_teeth: tuple[int, int]
     secondary_reduction: float
+    motor_kv_rpm_per_volt: float
+    battery_cells: int
+    cell_nominal_voltage_v: float
 
     # Vive tracker mounting: position in the vehicle frame [m] (x, y, z)
     tracker_position_m: Vec3
@@ -86,6 +93,11 @@ class CarParameters:
         return self.tire_diameter_m / 2.0
 
     @property
+    def max_steer_angle_rad(self) -> float:
+        """Front-wheel angle at full steering command [rad]."""
+        return math.radians(self.max_steer_angle_deg)
+
+    @property
     def track_width_mean_m(self) -> float:
         """Mean of the front and rear track widths [m]."""
         return (self.track_width_front_m + self.track_width_rear_m) / 2.0
@@ -95,6 +107,22 @@ class CarParameters:
         """Overall reduction from motor shaft to wheel (output/input)."""
         pinion, spur = self.primary_reduction_teeth
         return (spur / pinion) * self.secondary_reduction
+
+    @property
+    def battery_nominal_voltage_v(self) -> float:
+        """Nominal pack voltage [V]."""
+        return self.battery_cells * self.cell_nominal_voltage_v
+
+    @property
+    def motor_noload_speed_rad_s(self) -> float:
+        """Motor no-load speed at the nominal pack voltage [rad/s]."""
+        rpm = self.motor_kv_rpm_per_volt * self.battery_nominal_voltage_v
+        return rpm * 2.0 * math.pi / 60.0
+
+    @property
+    def wheel_noload_speed_rad_s(self) -> float:
+        """Wheel no-load speed [rad/s]: where the drivetrain's torque-speed line hits zero."""
+        return self.motor_noload_speed_rad_s / self.total_gear_reduction
 
     @property
     def mass_total_kg(self) -> float:

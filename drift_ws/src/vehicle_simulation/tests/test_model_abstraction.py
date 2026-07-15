@@ -42,18 +42,50 @@ def test_simulate_runs_kinematic_rollout():
     assert states[-1].x > 0.0  # moved forward
 
 
+def test_kinematic_reverses_when_esc_allows_and_brakes_when_locked():
+    model = KinematicBicycleModel()
+    actions = np.tile([0.0, -1.0], (100, 1))  # fresh ESC: negative pedal = reverse
+    states = simulate(model, VehicleState(), actions, 0.02)
+    assert states[-1].vx < 0.0
+    assert states[-1].vx >= -model.max_reverse_speed - 1e-6
+
+    model = KinematicBicycleModel()
+    forward = np.tile([0.0, 1.0], (100, 1))  # sets the reverse lockout...
+    state = simulate(model, VehicleState(), forward, 0.02)[-1]
+    braking = np.tile([0.0, -1.0], (500, 1))  # ...so the same pedal only brakes
+    states = simulate(model, state, braking, 0.02)
+    assert states[-1].vx == 0.0
+
+
 def test_build_model_kinematic_and_unknown():
     assert isinstance(build_model("kinematic"), KinematicBicycleModel)
     with pytest.raises(ValueError):
         build_model("does_not_exist")
 
 
-def test_build_model_unimplemented_models_fail_cleanly():
-    # Trainable models (neural/dynamic/hybrid) are added in later PRs; on this PR
-    # they must raise a clean ValueError, never an ImportError.
-    for name in ("neural", "dynamic", "hybrid"):
-        with pytest.raises(ValueError):
-            build_model(name)
+def test_build_model_neural_requires_weights():
+    # The neural model is implemented on this PR but needs a trained checkpoint:
+    # without weights/run_dir it must raise a clean ValueError (not ImportError),
+    # and the error must mention how to supply the checkpoint.
+    with pytest.raises(ValueError, match="weights"):
+        build_model("neural")
+
+
+def test_build_model_dynamic_baseline():
+    # The physics bicycle has physically-motivated initial params, so it builds
+    # (untrained) as a baseline with no checkpoint.
+    pytest.importorskip("torch")
+    from vehicle_simulation.models.dynamic import DynamicBicycleModel
+
+    assert isinstance(build_model("dynamic"), DynamicBicycleModel)
+
+
+def test_build_model_hybrid_requires_weights():
+    # The hybrid's residual net needs training, so without weights/run_dir it must
+    # raise a clean ValueError (not ImportError) pointing at the checkpoint.
+    pytest.importorskip("torch")
+    with pytest.raises(ValueError, match="weights"):
+        build_model("hybrid")
 
 
 def test_kinematic_path_imports_without_torch():

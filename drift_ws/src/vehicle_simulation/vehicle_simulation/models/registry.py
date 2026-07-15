@@ -3,7 +3,7 @@ Central registry mapping model-type names to their classes (lazily imported).
 
 Lazy getters keep the torch-free light path intact: resolving ``"kinematic"`` /
 ``"arcade"`` does not import torch. Trainable (torch) models register themselves
-here as they are added in later PRs (neural, dynamic, hybrid).
+here too — their getter imports torch only when called.
 """
 
 from collections.abc import Callable
@@ -35,6 +35,24 @@ def _old_slip_angle() -> type[VehicleModel]:
     return OldSlipAngleVehicleModel
 
 
+def _neural() -> type[VehicleModel]:
+    from .neural import NeuralDynamicsModel
+
+    return NeuralDynamicsModel
+
+
+def _dynamic() -> type[VehicleModel]:
+    from .dynamic import DynamicBicycleModel
+
+    return DynamicBicycleModel
+
+
+def _hybrid() -> type[VehicleModel]:
+    from .hybrid import PhysicsInformedModel
+
+    return PhysicsInformedModel
+
+
 # model_type -> zero-arg callable returning the class. Only implemented models are
 # registered, so resolving an unknown name fails cleanly (never an ImportError).
 MODEL_REGISTRY: dict[str, Callable[[], type[VehicleModel]]] = {
@@ -42,6 +60,9 @@ MODEL_REGISTRY: dict[str, Callable[[], type[VehicleModel]]] = {
     "arcade": _arcade,
     "old_standard": _old_standard,
     "old_slip_angle": _old_slip_angle,
+    "neural": _neural,
+    "dynamic": _dynamic,
+    "hybrid": _hybrid,
 }
 
 

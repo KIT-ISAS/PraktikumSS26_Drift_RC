@@ -32,6 +32,7 @@ setup(
         "console_scripts": [
             "agent_node = agent_pkg.agent_node:main",
             "data_collection_node = agent_pkg.data_collection_node:main",
+            "demo_recorder_node = agent_pkg.demo_recorder_node:main",
         ],
     },
 )

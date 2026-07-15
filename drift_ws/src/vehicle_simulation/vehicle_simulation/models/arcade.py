@@ -23,6 +23,11 @@ yaw +CCW; positive steering = left):
   the throttle hooks grip back up and the slide recovers. Countersteering works
   for free: steering rotates the body while the velocity lags, and grip bleeds
   the leftover lateral velocity away.
+* **Brake vs reverse is decided upstream, by the ESC input stage** (see
+  :mod:`vehicle_simulation.models.esc` for the measured lockout behaviour).
+  This model only supplies the physics of the resolved command: ``drive`` is
+  engine force (backwards in reverse, capped at ``max_reverse_speed``);
+  ``brake`` decelerates toward standstill and never through it.
 
 ``grip`` is the headline knob: high grip behaves almost like the no-slip
 kinematic model; low grip gives long, loose slides. The defaults are tuned to
@@ -34,7 +39,8 @@ around 0.4 g).
 from dataclasses import dataclass, field
 import math
 
-from .base import VehicleAction, VehicleModel, VehicleState
+from .base import VehicleModel, VehicleState
+from .esc import MotorCommand
 
 
 def _clamp(value: float, low: float, high: float) -> float:
@@ -81,16 +87,17 @@ class ArcadeDriftModel(VehicleModel):
     # (the interactive sim / a rollout), which is exactly how the arcade model is used.
     _slip: float = field(init=False, default=0.0)
 
-    def step(self, state: VehicleState, action: VehicleAction, dt: float) -> VehicleState:
-        steer = _clamp(action.steering, -1.0, 1.0)
-        throttle = _clamp(action.throttle, -1.0, 1.0)
+    def _step_motor(
+        self, state: VehicleState, steering: float, motor: MotorCommand, dt: float
+    ) -> VehicleState:
+        steer = _clamp(steering, -1.0, 1.0)
 
         vx = state.vx
         vy = state.vy
 
-        # Throttle-driven slip: instant rise, exponential decay back to target.
+        # Drive-driven slip: instant rise, exponential decay back to target.
         slip_factor = _clamp(
-            (throttle - self.slip_lowerbound) / (self.slip_upperbound - self.slip_lowerbound),
+            (motor.drive - self.slip_lowerbound) / (self.slip_upperbound - self.slip_lowerbound),
             0.0,
             1.0,
         )
@@ -102,7 +109,13 @@ class ArcadeDriftModel(VehicleModel):
         slip = self._slip
 
         # Longitudinal: spinning tires shed drive force, drag pulls toward zero.
-        vx += (1.0 - self.slip_accel_loss * slip) * throttle * self.max_accel * dt
+        # Drive and brake are mutually exclusive (the ESC emits one or the other):
+        # drive is engine force (backwards in reverse), brake decelerates toward
+        # standstill and never through it.
+        vx += (1.0 - self.slip_accel_loss * slip) * motor.drive * self.max_accel * dt
+        if motor.brake > 0.0:
+            decel = motor.brake * self.max_accel * dt
+            vx -= math.copysign(min(decel, abs(vx)), vx)
         vx -= self.drag * vx * dt
         vx = _clamp(vx, -self.max_reverse_speed, self.max_speed)
 

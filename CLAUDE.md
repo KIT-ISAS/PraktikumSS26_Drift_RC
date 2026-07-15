@@ -82,7 +82,7 @@ The world frame is **defined by the lighthouse constellation**, identically for 
 Track geometry is defined as closed cubic Bézier splines in YAML files under `track_pkg/config/` (e.g. `figure_8.yaml`). The pipeline is:
 
 1. **`BezierTrack`** (`bezier_track.py`) — loads a YAML file and `discretize()`s it into `(x, y, heading)` waypoints plus curvature and cumulative arc-length arrays.
-2. **`TrackProjector`** (`track_projector.py`) — projects a 2D car position onto the closed centerline, returns a `Projection` (arc-length distance, lateral error, lap count, lap progress). ROS-free; unit-testable in isolation. Uses a sliding search window to disambiguate crossings (e.g. the figure-8 origin).
+2. **`TrackProjector`** (`track_projector.py`) — projects a 2D car position onto the closed centerline, returns a `Projection` (arc-length distance, lateral error, off-track flag, lap count, lap progress). ROS-free; unit-testable in isolation. Uses a sliding search window to disambiguate crossings (e.g. the figure-8 origin), and validates lap count/progress via in-order arc-length checkpoints so shortcuts across a crossing earn no progress; the lap count is non-decreasing.
 3. **`track_publisher_node`** — subscribes to `/car/pose`, runs the projector, and publishes:
    - `Track` on `/track/centerline` (latched, on startup)
    - `TrackProgress` on `/track/progress` (each car pose update)
