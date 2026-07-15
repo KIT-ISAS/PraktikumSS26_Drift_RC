@@ -60,26 +60,31 @@ world ──(source)──▶ tracker_link ──(mount_tf_node, static)──�
 
 ## Running
 
-One car (real or sim):
+This launch is the **single place that picks the tracking source.** It starts
+the selected source, then derives the raw IMU topic and the tracker mount
+convention (`tracker_yaw_offset_deg`, `tracker_upside_down`) from it — so the
+tracker body frame, which differs per source, is handled in one place and the
+parent launches only forward `tracking_source`.
 
 ```bash
-ros2 launch car_localization_pkg car_localization.launch.py
+ros2 launch car_localization_pkg car_localization.launch.py            # libsurvive (default)
+ros2 launch car_localization_pkg car_localization.launch.py tracking_source:=steamvr
 ```
 
-Real pipeline: included automatically by `manual_driving_with_viz.launch.py`
-(the selected tracking source — `tracking_source:=libsurvive|steamvr` —
-publishes the raw tracker TF + IMU; this package derives the rest). The mount
-knobs are forwarded as launch arguments (`tracker_yaw_offset_deg`,
-`tracker_upside_down`) since the tracker body frame can differ per source.
+Real pipeline: included automatically by the top-level launches
+(`manual_driving_with_viz.launch.py`, `agent_driving_with_viz.launch.py`, …),
+which just pass `tracking_source:=libsurvive|steamvr` straight through.
 
 ### Real + simulated car together
 
 Bring up a second instance namespaced and frame-prefixed so it coexists in the
-shared `world` frame:
+shared `world` frame. A sim car provides its own tracker TF, so pass
+`start_tracking_source:=false` to skip the source adapter:
 
 ```bash
 ros2 launch car_localization_pkg car_localization.launch.py \
-    namespace:=sim frame_prefix:=sim/ color_rgba:="[0.2, 0.6, 1.0, 1.0]"
+    namespace:=sim frame_prefix:=sim/ color_rgba:="[0.2, 0.6, 1.0, 1.0]" \
+    start_tracking_source:=false
 ```
 
 `world` is never prefixed; `base_link`/`tracker_link`/`imu_link` become

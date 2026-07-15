@@ -1,16 +1,28 @@
 """
-Bring up the source-agnostic localization subgraph for one car.
+Bring up the localization subgraph for one car and (optionally) its tracking source.
 
+This launch is the **single place that decides the tracking source**. Selected
+with ``tracking_source:=libsurvive|steamvr``, it starts the matching source
+adapter (which publishes ``world -> <prefix>tracker_link`` + the lighthouse
+frames), then derives the source-specific bits internally — the raw IMU topic
+and the tracker mount convention — so the parent launches only have to forward
+the ``tracking_source`` argument.
+
+The rest is source-agnostic and reusable per car:
 mount_tf_node (static tracker->CoG/IMU) + car_state_node (canonical
-pose/odom/imu) + car_viz_node (mesh marker). Reusable per car: a simulated car
-is launched with a different ``namespace`` + ``frame_prefix`` and ``color`` so it
-coexists with the real car in the shared ``world`` frame. It does NOT start a
-tracking source — that is the job of the source adapter (e.g. libsurvive) or the
-simulation node, which publishes ``world -> <prefix>tracker_link``.
+pose/odom/imu) + car_viz_node (mesh marker). A simulated car is launched with a
+different ``namespace`` + ``frame_prefix`` + ``color`` so it coexists with the
+real car in the shared ``world`` frame; such a car provides its own tracker TF,
+so it passes ``start_tracking_source:=false`` to skip the source adapter.
 """
 
+import os
+
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -19,12 +31,62 @@ from shared_pkg import Topics
 
 
 def generate_launch_description():
-    """Launch mount_tf, car_state, and car_viz for one (real or sim) car."""
+    """Launch the tracking source (optional) plus mount_tf, car_state, car_viz."""
     car = LaunchConfiguration("car")
     namespace = LaunchConfiguration("namespace")
     prefix = LaunchConfiguration("frame_prefix")
     color = LaunchConfiguration("color_rgba")
-    raw_imu_topic = LaunchConfiguration("raw_imu_topic")
+    tracking_source = LaunchConfiguration("tracking_source")
+    start_source = LaunchConfiguration("start_tracking_source")
+    foxbridge = LaunchConfiguration("foxbridge")
+
+    libsurvive_launch = os.path.join(
+        get_package_share_directory("libsurvive_pkg"), "launch", "libsurvive_tracking.launch.py"
+    )
+    steamvr_launch = os.path.join(
+        get_package_share_directory("steamvr_pkg"), "launch", "steamvr_tracking.launch.py"
+    )
+
+    # Everything below is derived from tracking_source, so callers pick the
+    # source in one place. is_libsurvive gates both the source adapter and the
+    # per-source knobs (a steamvr tracker reports a different body frame + IMU).
+    is_libsurvive = PythonExpression(["'", tracking_source, "' == 'libsurvive'"])
+    raw_imu_topic = PythonExpression(
+        [
+            f"'{Topics.LIBSURVIVE_IMU}' if '",
+            tracking_source,
+            f"' == 'libsurvive' else '{Topics.STEAMVR_IMU}'",
+        ]
+    )
+    # steamvr's tracker_link is y-forward (LED toward the car front) and
+    # right-side up (see steamvr_pkg/lib/conversion.py), so it only needs a
+    # -90 deg yaw and no flip; libsurvive's is y-forward but mounted upside-down.
+    tracker_yaw_offset_deg = PythonExpression(["'90.0' if ", is_libsurvive, " else '-90.0'"])
+    tracker_upside_down = PythonExpression(["'true' if ", is_libsurvive, " else 'false'"])
+
+    # The source adapters are included here, gated on start_tracking_source AND a
+    # source match, so exactly one — or none (sim car / externally started
+    # source) — comes up. The source's own namespace is passed explicitly: this
+    # launch's "namespace" arg (the car's, "" for the real car) would otherwise
+    # be inherited by the include and clobber the source's default, dropping its
+    # topics from /steamvr/* and /libsurvive/* down to bare /imu, /pose.
+    should_start = PythonExpression(["'", start_source, "' == 'true'"])
+    tracking_source_group = GroupAction(
+        [
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(libsurvive_launch),
+                condition=IfCondition(PythonExpression([should_start, " and ", is_libsurvive])),
+                launch_arguments={"foxbridge": foxbridge, "namespace": "libsurvive"}.items(),
+            ),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(steamvr_launch),
+                condition=IfCondition(
+                    PythonExpression([should_start, " and not ", is_libsurvive])
+                ),
+                launch_arguments={"foxbridge": foxbridge, "namespace": "steamvr"}.items(),
+            ),
+        ]
+    )
 
     # world stays shared/unprefixed; the per-car frames are prefixed.
     base = PythonExpression(["'", prefix, "' + 'base_link'"])
@@ -64,24 +126,24 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument("color_rgba", default_value="[1.0, 1.0, 1.0, 1.0]"),
             DeclareLaunchArgument(
-                "raw_imu_topic",
-                default_value="imu",
-                description="Tracking source's raw IMU topic (set this to the source's "
-                "output, e.g. /libsurvive/imu; the default 'imu' rarely matches a real source).",
-            ),
-            # Empirical mount knobs. The defaults encode the libsurvive tracker
-            # body convention (y-forward, mounted upside-down); other tracking
-            # sources (e.g. steamvr) may report a different body frame.
-            DeclareLaunchArgument(
-                "tracker_yaw_offset_deg",
-                default_value="90.0",
-                description="Yaw of the car's forward axis in the tracker pose frame.",
+                "tracking_source",
+                default_value="libsurvive",
+                choices=["libsurvive", "steamvr"],
+                description="Which tracking source to start and derive the mount/IMU "
+                "convention from (steamvr needs steamvr_bridge.py on the host).",
             ),
             DeclareLaunchArgument(
-                "tracker_upside_down",
+                "start_tracking_source",
                 default_value="true",
-                description="Whether the tracker pose frame is mounted z-down.",
+                description="Start the selected tracking source. Set false for a "
+                "simulated car or when the source is launched elsewhere.",
             ),
+            DeclareLaunchArgument(
+                "foxbridge",
+                default_value="false",
+                description="Forwarded to the tracking source: start a foxglove bridge.",
+            ),
+            tracking_source_group,
             Node(
                 package="car_localization_pkg",
                 executable="mount_tf_node",
@@ -93,10 +155,10 @@ def generate_launch_description():
                         "car": car,
                         **frames,
                         "tracker_yaw_offset_deg": ParameterValue(
-                            LaunchConfiguration("tracker_yaw_offset_deg"), value_type=float
+                            tracker_yaw_offset_deg, value_type=float
                         ),
                         "tracker_upside_down": ParameterValue(
-                            LaunchConfiguration("tracker_upside_down"), value_type=bool
+                            tracker_upside_down, value_type=bool
                         ),
                     }
                 ],
