@@ -45,7 +45,7 @@ comparing models is the core experiment loop.
 | `old_slip_angle` | predecessor (WS 25/26) scripted drift model | no | yes (drift state machine) | comparison with predecessor sim |
 | `neural` | fully data-driven MLP | yes | learned from data | learning the real car's dynamics from rosbags |
 | `dynamic` | physics single-track bicycle | yes | yes | physics baseline; learnable tire/inertia params |
-| `hybrid` | neural-tire bicycle (physics + learned tire curves + actuator lags) | yes | yes | best of both; the likely end-state model |
+| `hybrid` | neural-tire bicycle: physics + learned tire curves + latent wheel speed | yes | yes | best of both; the end-state model |
 
 ### `kinematic` — `KinematicBicycleModel`
 No-slip rear-wheel bicycle. Speed from `throttle·max_accel − drag·speed` (clamped to
@@ -105,17 +105,26 @@ low-speed stability. Deterministic. Usable untrained as a physics baseline
 ### `hybrid` — `PhysicsInformedModel`
 Physics-informed **neural-tire bicycle** (after Djeumou et al., arXiv:2410.20990):
 the single-track force balance stays fixed physics, and the learned parts are small
-**constrained tire-force curves** (`Phi(s) = Σ aᵢ tanh(bᵢ s) exp(-cᵢ s²)` — odd,
-saturating, with optional post-peak falloff) plus a handful of positive scalars.
-Unlike a free additive residual, the learned functions are physically-shaped force
-laws, so the model cannot cancel its own physics and extrapolate unstably in closed
-loop. The rear tire is one **combined-slip** curve decomposed along the slip
-direction — a smooth friction circle (power-over drift without the hard-clamp yaw
-jitter). Two **latent actuator states** are integrated alongside the dynamic state
-(`latent_dim = 2`): servo angle (steering lag) and a drive-force surrogate (ESC
-punch/spool-up; asymmetric forward/reverse gains — the QuicRun ESC caps reverse at
-25% by default). Deterministic. The likely end-state model. Requires the `[neural]`
-extra. Knobs: `car`, `n_terms` (tire-basis size).
+**constrained tire-force curves** whose peak is a bounded friction coefficient
+(`F(s) = µ·Fz·φ(s)`, µ bounded to the car's *measured* acceleration envelope) plus a
+handful of scalars. Because the learned functions are physically-shaped force laws,
+the model cannot cancel its own physics and extrapolate unstably in closed loop.
+
+The rear tire is one **combined-slip** curve decomposed along the slip direction — a
+smooth friction circle — but its longitudinal input is the paper's true **slip
+ratio**, `σ = (R·ω − vx)/max(|vx|, v_floor)`, where the rear wheel speed `ω` is a
+**latent state** integrated from the wheel's own torque balance (the car has no
+wheel-speed sensor). This is what lets the wheel spin up when the tire saturates and
+erode rear grip, i.e. actually drift — a drive-force surrogate cannot. Three latent
+states (`latent_dim = 3`): servo angle, ESC drive torque, and wheel speed. The wheel
+mode is stiff (~2 ms), so it gets a linearly-implicit `advance` step while the
+chassis stays explicit Euler. Several parameters are *measured*, not learned:
+steering lock, tire radius, and the motor's torque-speed droop (from the car's kV and
+pack voltage). Deterministic. The end-state model. Requires the `[neural]` extra.
+Knobs: `car`, `n_terms` (tire-basis size).
+
+> Its checkpoints carry `mu_bounds`; a pre-2026-07 `hybrid` checkpoint (a drive-force
+> bicycle with a 2-D latent that could not drift) is rejected with a clear message.
 
 ## Adding a new model
 

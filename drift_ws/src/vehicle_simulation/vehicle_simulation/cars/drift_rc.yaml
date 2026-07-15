@@ -39,12 +39,28 @@ tire_diameter_m: 0.0603     # 6.03 cm outer diameter (radius is derived)
 tire_width_full_m: 0.026    # 2.6 cm, full moulded tread width
 tire_width_contact_m: 0.019 # 1.9 cm, width actually contacting the ground
 
+# --- Steering ---------------------------------------------------------------
+# Front-wheel angle at full stick. A drift chassis runs modded knuckles for
+# extreme lock, so this is far larger than a normal car's ~30 deg: fitting it
+# from driving data instead landed at 30 deg, and the tire curves distorted
+# themselves to compensate. Measured, not learned.
+max_steer_angle_deg: 75.0   # measured 2026-07-14
+
 # --- Drivetrain -------------------------------------------------------------
 # Reduction is expressed as output/input. Primary stage is the motor pinion
 # meshing the spur gear (24 -> 83 teeth); secondary is the gearbox/diff stage.
 # Total reduction (motor rev -> wheel rev) is the derived total_gear_reduction.
 primary_reduction_teeth: [24, 83]  # pinion : spur
 secondary_reduction: 2.6           # 1 : 2.6
+
+# Motor + battery. These two numbers fix the drivetrain's torque-speed line: the
+# no-load speed is kV * V_batt, and dividing by the gear reduction gives the wheel's
+# no-load speed (the derived motor_noload_* properties). Fitting that from driving
+# data instead gave 170 rad/s against a physical ~396 — and with no speed droop at
+# all, a wheel spun up in a donut freewheeled for ~20 s and the car drifted forever.
+motor_kv_rpm_per_volt: 4600   # Hobbywing Xerun D10 10.5T brushless drift motor
+battery_cells: 2              # 2S LiPo
+cell_nominal_voltage_v: 3.7
 
 # --- Vive tracker mounting --------------------------------------------------
 # Position of the tracker in the vehicle frame (x rearward of the front axle is
