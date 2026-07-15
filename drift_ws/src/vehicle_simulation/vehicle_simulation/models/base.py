@@ -189,6 +189,18 @@ class TrainableModel(VehicleModel):
         models also return a per-second covariance ``cov``.
         """
 
+    def advance(self, dynamic, action, deriv, dt):
+        """
+        Advance the (dynamic + latent) state one step from its derivative.
+
+        Explicit Euler by default — which is what every model here wants, *unless* it
+        carries a state whose dynamics are stiff relative to the step size. Models with
+        such a state override this to integrate that dimension stably (see
+        :class:`~vehicle_simulation.models.hybrid.PhysicsInformedModel`, whose wheel speed
+        has a ~2 ms time constant while the data steps at 20-50 ms).
+        """
+        return dynamic + deriv * dt
+
     def init_latent(self, dynamic, action):
         """Latent start values ``(B, latent_dim)`` (quasi-steady; override with latents)."""
         import torch
@@ -246,7 +258,7 @@ class TrainableModel(VehicleModel):
                     self._sim_latent = self.init_latent(dynamics, action_t)
                 dynamics = torch.cat([dynamics, self._sim_latent], dim=-1)
             pred = self.derivative(dynamics, action_t)
-            new_dynamics = dynamics + pred.mean * dt
+            new_dynamics = self.advance(dynamics, action_t, pred.mean, dt)
             if sample and pred.cov is not None:
                 new_dynamics = new_dynamics + torch.sqrt(
                     pred.cov.clamp_min(0.0) * dt

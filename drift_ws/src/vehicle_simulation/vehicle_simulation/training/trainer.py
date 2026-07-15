@@ -65,7 +65,7 @@ def rollout(model, dyn0: torch.Tensor, actions: torch.Tensor, dts: torch.Tensor)
     for k in range(horizon):
         dt = dts[:, k].unsqueeze(-1)  # (B, 1)
         pred = model.derivative(d, actions[:, k, :])
-        d = d + pred.mean * dt
+        d = model.advance(d, actions[:, k, :], pred.mean, dt)
         covs.append(pred.cov * dt if pred.cov is not None else None)
         dyns.append(d)
     return torch.stack(dyns, dim=1)[..., :n_dyn], covs

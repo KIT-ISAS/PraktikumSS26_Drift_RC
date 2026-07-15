@@ -130,8 +130,7 @@ def build_model(
         return DynamicBicycleModel.new(device=device, **kwargs)
 
     if model_type == "hybrid":
-        # The hybrid's residual net needs training (and dataset normalization), so it
-        # is only built from a trained checkpoint.
+        # The learned tire curves need training, so it is only built from a checkpoint.
         if not weights:
             raise ValueError(
                 "build_model('hybrid', ...) needs a trained checkpoint: pass "
