@@ -28,7 +28,7 @@ def generate_launch_description():
         src_dir, "car_localization_pkg", "launch", "car_localization.launch.py"
     )
 
-    # Exclusive tracking source: libsurvive (libsurvive) or steamvr (needs the
+    # Exclusive tracking source: libsurvive or steamvr (needs the
     # host-side bridge running, see steamvr_bridge/). They cannot run at the
     # same time anyway — both claim the tracker's USB dongle.
     tracking_source = LaunchConfiguration("tracking_source")
