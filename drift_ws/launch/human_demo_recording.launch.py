@@ -7,7 +7,7 @@ done)`` transitions from the human's joystick commands (``.npz`` files for
 ``vehicle_simulation.agents.finetune_agent``), and ``ros2 bag record`` keeps the
 raw topics so observations can be recomputed offline if the format ever changes:
 
-    libsurvive tracking (+ foxglove bridge) -> car_localization -> track_publisher
+    tracking (+ foxglove bridge) -> car_localization -> track_publisher
     joystick -> VehicleActionRequest -> vehicle_communication -> ESP32
                                      -> demo_recorder_node (+ rosbag)
 
@@ -46,9 +46,6 @@ def generate_launch_description():
     vehicle_launch = os.path.join(
         src_dir, "vehicle_communication_pkg", "launch", "vehicle_communication.launch.py"
     )
-    libsurvive_launch = os.path.join(
-        src_dir, "libsurvive_pkg", "launch", "libsurvive_tracking.launch.py"
-    )
     localization_launch = os.path.join(
         src_dir, "car_localization_pkg", "launch", "car_localization.launch.py"
     )
@@ -60,6 +57,13 @@ def generate_launch_description():
         default_value="stage3_drift",
         description="Stage whose reward/termination config scores the demos (name or YAML path)",
     )
+    tracking_source_arg = DeclareLaunchArgument(
+        "tracking_source",
+        default_value="libsurvive",
+        choices=["libsurvive", "steamvr"],
+        description="Which tracking system publishes world -> tracker_link "
+        "(steamvr needs steamvr_bridge.py running on the host)",
+    )
 
     # Each include is wrapped in a scoped GroupAction so launch arguments declared
     # inside one include cannot leak into the next (see data_collection_with_viz).
@@ -69,21 +73,16 @@ def generate_launch_description():
     vehicle_include = GroupAction(
         [IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))]
     )
-    libsurvive_include = GroupAction(
-        [
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(libsurvive_launch),
-                launch_arguments={"foxbridge": "true"}.items(),
-            )
-        ]
-    )
+    # car_localization owns the tracking source: it starts the one selected by
+    # tracking_source and derives the raw IMU topic + mount convention from it.
     localization_include = GroupAction(
         [
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(localization_launch),
                 launch_arguments={
                     "namespace": "",
-                    "raw_imu_topic": Topics.LIBSURVIVE_IMU,
+                    "tracking_source": LaunchConfiguration("tracking_source"),
+                    "foxbridge": "true",
                 }.items(),
             )
         ]
@@ -134,9 +133,9 @@ def generate_launch_description():
     return LaunchDescription(
         [
             stage_config_arg,
+            tracking_source_arg,
             joystick_include,
             vehicle_include,
-            libsurvive_include,
             localization_include,
             track_publisher_node,
             demo_record_include,

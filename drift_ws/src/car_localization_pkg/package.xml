@@ -19,6 +19,14 @@
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>shared_pkg</exec_depend>
   <exec_depend>python3-yaml</exec_depend>
+  <!-- NOTE: car_localization.launch.py includes libsurvive_pkg/steamvr_pkg launch
+       files, but we deliberately do NOT exec_depend on them: those packages
+       already depend on this one (their launches start world_anchor_node), so
+       declaring it back forms a colcon dependency cycle. The include uses
+       FindPackageShare, which resolves lazily only when that source is actually
+       started, so the missing metadata is harmless (start_tracking_source:=false
+       never resolves it). -->
+
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

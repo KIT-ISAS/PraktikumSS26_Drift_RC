@@ -4,7 +4,7 @@ Top-level launch for agent-driven (real car) driving with visualization.
 Same stack as manual_driving_with_viz, but the RL agent replaces the joystick as
 the control source:
 
-    libsurvive tracking (+ foxglove bridge) -> car_localization -> track_publisher
+    tracking (+ foxglove bridge) -> car_localization -> track_publisher
     -> agent_node -> VehicleActionRequest -> vehicle_communication -> ESP32
 
 The joystick stays up as an emergency override (agent_override_mode): it is
@@ -26,8 +26,6 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-from shared_pkg import Topics
-
 
 def generate_launch_description():
     this_dir = os.path.dirname(__file__)
@@ -37,9 +35,6 @@ def generate_launch_description():
     vehicle_launch = os.path.join(
         src_dir, "vehicle_communication_pkg", "launch", "vehicle_communication.launch.py"
     )
-    libsurvive_launch = os.path.join(
-        src_dir, "libsurvive_pkg", "launch", "libsurvive_tracking.launch.py"
-    )
     localization_launch = os.path.join(
         src_dir, "car_localization_pkg", "launch", "car_localization.launch.py"
     )
@@ -48,6 +43,13 @@ def generate_launch_description():
     run_dir_arg = DeclareLaunchArgument(
         "run_dir",
         description="Training run directory (with best_model.zip / agent.zip) or a SAC .zip",
+    )
+    tracking_source_arg = DeclareLaunchArgument(
+        "tracking_source",
+        default_value="libsurvive",
+        choices=["libsurvive", "steamvr"],
+        description="Which tracking system publishes world -> tracker_link "
+        "(steamvr needs steamvr_bridge.py running on the host)",
     )
 
     # Each include is wrapped in a scoped GroupAction: launch arguments declared
@@ -69,15 +71,8 @@ def generate_launch_description():
     vehicle_include = GroupAction(
         [IncludeLaunchDescription(PythonLaunchDescriptionSource(vehicle_launch))]
     )
-    libsurvive_include = GroupAction(
-        [
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(libsurvive_launch),
-                launch_arguments={"foxbridge": "true"}.items(),
-            )
-        ]
-    )
-    # Derives the canonical CoG/ISO-8855 state from libsurvive's raw tracker TF.
+    # car_localization owns the tracking source: it starts the one selected by
+    # tracking_source and derives the raw IMU topic + mount convention from it.
     # namespace="" is passed explicitly (belt and suspenders with the scoping
     # above): the real car must stay un-namespaced or its /car/* outputs would be
     # remapped to /libsurvive/car/*.
@@ -87,7 +82,8 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(localization_launch),
                 launch_arguments={
                     "namespace": "",
-                    "raw_imu_topic": Topics.LIBSURVIVE_IMU,
+                    "tracking_source": LaunchConfiguration("tracking_source"),
+                    "foxbridge": "true",
                 }.items(),
             )
         ]
@@ -111,9 +107,9 @@ def generate_launch_description():
     return LaunchDescription(
         [
             run_dir_arg,
+            tracking_source_arg,
             joystick_include,
             vehicle_include,
-            libsurvive_include,
             localization_include,
             track_publisher_node,
             agent_include,
