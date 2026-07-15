@@ -2,3 +2,8 @@
 # If your tested setup uses a different openvr version, pin that instead
 # (check with: pip freeze | grep -i openvr).
 openvr==1.26.701
+
+# openvr imports pkg_resources at import time, which ships with setuptools.
+# Python >= 3.12 no longer installs setuptools into fresh venvs, so pin it
+# explicitly or `import openvr` fails with ModuleNotFoundError: pkg_resources.
+setuptools
