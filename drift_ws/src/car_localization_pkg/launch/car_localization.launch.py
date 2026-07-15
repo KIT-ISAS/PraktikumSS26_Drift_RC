@@ -16,16 +16,14 @@ real car in the shared ``world`` frame; such a car provides its own tracker TF,
 so it passes ``start_tracking_source:=false`` to skip the source adapter.
 """
 
-import os
-
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
+from launch_ros.substitutions import FindPackageShare
 
 from shared_pkg import Topics
 
@@ -40,22 +38,31 @@ def generate_launch_description():
     start_source = LaunchConfiguration("start_tracking_source")
     foxbridge = LaunchConfiguration("foxbridge")
 
-    libsurvive_launch = os.path.join(
-        get_package_share_directory("libsurvive_pkg"), "launch", "libsurvive_tracking.launch.py"
+    # Substitutions, not get_package_share_directory(): FindPackageShare resolves
+    # lazily, only when the include is actually visited. So start_tracking_source
+    # :=false never touches libsurvive_pkg/steamvr_pkg — the sim car works in a
+    # workspace where those packages aren't built.
+    libsurvive_launch = PathJoinSubstitution(
+        [FindPackageShare("libsurvive_pkg"), "launch", "libsurvive_tracking.launch.py"]
     )
-    steamvr_launch = os.path.join(
-        get_package_share_directory("steamvr_pkg"), "launch", "steamvr_tracking.launch.py"
+    steamvr_launch = PathJoinSubstitution(
+        [FindPackageShare("steamvr_pkg"), "launch", "steamvr_tracking.launch.py"]
     )
 
     # Everything below is derived from tracking_source, so callers pick the
     # source in one place. is_libsurvive gates both the source adapter and the
     # per-source knobs (a steamvr tracker reports a different body frame + IMU).
     is_libsurvive = PythonExpression(["'", tracking_source, "' == 'libsurvive'"])
+    # Absolute source IMU topic only when we start the source; otherwise the
+    # relative "imu" (e.g. /sim/imu for a namespaced car), so a sim car's
+    # car_state_node does not subscribe to the real tracker's /steamvr/imu.
     raw_imu_topic = PythonExpression(
         [
-            f"'{Topics.LIBSURVIVE_IMU}' if '",
-            tracking_source,
-            f"' == 'libsurvive' else '{Topics.STEAMVR_IMU}'",
+            f"('{Topics.LIBSURVIVE_IMU}' if ",
+            is_libsurvive,
+            f" else '{Topics.STEAMVR_IMU}') if '",
+            start_source,
+            "'.lower() == 'true' else 'imu'",
         ]
     )
     # steamvr's tracker_link is y-forward (LED toward the car front) and
@@ -70,7 +77,7 @@ def generate_launch_description():
     # launch's "namespace" arg (the car's, "" for the real car) would otherwise
     # be inherited by the include and clobber the source's default, dropping its
     # topics from /steamvr/* and /libsurvive/* down to bare /imu, /pose.
-    should_start = PythonExpression(["'", start_source, "' == 'true'"])
+    should_start = PythonExpression(["'", start_source, "'.lower() == 'true'"])
     tracking_source_group = GroupAction(
         [
             IncludeLaunchDescription(
