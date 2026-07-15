@@ -49,7 +49,9 @@ from .lib.protocol import (
     decode_sample,
 )
 
-GRAVITY = 9.81
+# Standard gravity; must match holodeck's SI_GRAVITY (component.cpp) so both
+# sources' rest readings agree at the shared car_state_node consumer.
+GRAVITY = 9.80665
 
 
 class SteamVrNode(Node):

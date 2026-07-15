@@ -41,6 +41,7 @@ import yaml
 
 from car_localization_pkg.lighthouse_calibration import (
     load_lighthouse_reference,
+    normalize_serial,
     solve_world_calibration,
     solve_world_from_lighthouses,
 )
@@ -58,10 +59,17 @@ def _collect_tf(node: Node, buffer: Buffer, tracking_frame: str, tracker_frame: 
     frames = yaml.safe_load(buffer.all_frames_as_yaml()) or {}
     lighthouses = {}
     for frame, info in frames.items():
-        if info.get("parent") == tracking_frame and frame.startswith("LHB-"):
+        # normalize_serial: libsurvive may name the frames by decimal/hex ID
+        # instead of LHB-...; key by the canonical serial like the anchor node.
+        serial = normalize_serial(frame)
+        if serial is None or info.get("parent") != tracking_frame:
+            continue
+        try:
             tf = buffer.lookup_transform(tracking_frame, frame, rclpy.time.Time())
-            t = tf.transform.translation
-            lighthouses[frame] = np.array([t.x, t.y, t.z])
+        except TransformException:
+            continue  # listed but raced the buffer — skip, don't crash
+        t = tf.transform.translation
+        lighthouses[serial] = np.array([t.x, t.y, t.z])
     tracker_position = tracker_quat = None
     try:
         tf = buffer.lookup_transform(tracking_frame, tracker_frame, rclpy.time.Time())

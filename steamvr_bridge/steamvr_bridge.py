@@ -96,6 +96,12 @@ def run(host: str, port: int, rate: float, universe: int) -> None:
                 delay = next_tick - time.monotonic()
                 if delay > 0:
                     time.sleep(delay)
+                elif -delay > period:
+                    # Stalled (host suspend, SteamVR hiccup): resync instead of
+                    # bursting datagrams to catch up — the tiny dt between burst
+                    # samples amplifies the finite-differenced acceleration
+                    # noise on the container side.
+                    next_tick = time.monotonic()
 
                 vr_system.getDeviceToAbsoluteTrackingPose(universe, 0.0, pose_array)
                 t_mono = time.monotonic()

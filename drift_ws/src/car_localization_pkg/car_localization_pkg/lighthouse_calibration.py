@@ -23,6 +23,7 @@ ROS-free (numpy + pyyaml only) so it is unit-testable in isolation.
 
 from dataclasses import dataclass
 import math
+import re
 
 import numpy as np
 import yaml
@@ -30,9 +31,23 @@ import yaml
 __all__ = [
     "CalibrationResult",
     "load_lighthouse_reference",
+    "normalize_serial",
     "solve_world_calibration",
     "solve_world_from_lighthouses",
 ]
+
+_HEX_SERIAL = re.compile(r"^[0-9A-Fa-f]{8}$")
+
+
+def normalize_serial(frame_name: str) -> str | None:
+    """Map a lighthouse TF frame name to the canonical ``LHB-XXXXXXXX`` serial."""
+    if frame_name.startswith("LHB-"):
+        return frame_name
+    if frame_name.isdigit():  # libsurvive numeric ID (decimal)
+        return f"LHB-{int(frame_name):08X}"
+    if _HEX_SERIAL.match(frame_name):
+        return f"LHB-{frame_name.upper()}"
+    return None
 
 
 @dataclass

@@ -75,7 +75,6 @@ static void ros_from_pose(
   tx->rotation.z = pose.Rot[3];
 }
 
-// Converts a raw libsurvive pose into a ROS pose (still in the tracking frame).
 namespace libsurvive_ros2
 {
 

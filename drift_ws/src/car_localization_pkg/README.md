@@ -39,8 +39,11 @@ world ──(source)──▶ tracker_link ──(mount_tf_node, static)──�
   tested), latches it on `/tf_static`, publishes `/map/lighthouses` in the
   world frame, and warns when a lighthouse no longer matches the reference
   (moved relative to the others → re-record the file, see steamvr_pkg's
-  `steamvr_calibrate --record-reference`). Started by each tracking source's
-  launch with the matching `tracking_frame`.
+  `steamvr_calibrate --record-reference`). It waits up to `settle_timeout_s`
+  for the full reference constellation before the first fit, and if a changed
+  lighthouse set later forces a re-fit, it warns with the resulting frame
+  delta (downstream poses jump by that amount). Started by each tracking
+  source's launch with the matching `tracking_frame`.
 - **`mount_tf_node`** — publishes the static `tracker_link → base_link` (and
   `tracker_link → imu_link`) transforms, derived from the measured car
   parameters (`vehicle_simulation` `cars/*.yaml`). The mount orientation

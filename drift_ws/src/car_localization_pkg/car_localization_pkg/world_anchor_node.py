@@ -26,7 +26,7 @@ parameters instead (frozen frame for strictly comparable recordings).
 
 import math
 import os
-import re
+import time
 
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import Pose, PoseArray, TransformStamped
@@ -40,20 +40,11 @@ import yaml
 from shared_pkg import Frames, Topics
 from vehicle_simulation.transforms import quaternion_from_yaw
 
-from .lighthouse_calibration import load_lighthouse_reference, solve_world_from_lighthouses
-
-_HEX_SERIAL = re.compile(r"^[0-9A-Fa-f]{8}$")
-
-
-def normalize_serial(frame_name: str) -> str | None:
-    """Map a lighthouse TF frame name to the canonical ``LHB-XXXXXXXX`` serial."""
-    if frame_name.startswith("LHB-"):
-        return frame_name
-    if frame_name.isdigit():  # libsurvive numeric ID (decimal)
-        return f"LHB-{int(frame_name):08X}"
-    if _HEX_SERIAL.match(frame_name):
-        return f"LHB-{frame_name.upper()}"
-    return None
+from .lighthouse_calibration import (
+    load_lighthouse_reference,
+    normalize_serial,
+    solve_world_from_lighthouses,
+)
 
 
 class WorldAnchorNode(Node):
@@ -69,6 +60,10 @@ class WorldAnchorNode(Node):
         self.declare_parameter("min_lighthouses", 3)
         self.declare_parameter("warn_threshold_m", 0.15)
         self.declare_parameter("poll_rate", 2.0)
+        # Grace period to see the FULL reference constellation before the first
+        # fit: lighthouses warm up at different times, and fitting early with a
+        # subset means a re-fit (= world-frame jump) when the rest appear.
+        self.declare_parameter("settle_timeout_s", 10.0)
         # Manual mode only: fixed transform instead of the fit.
         self.declare_parameter("world_x", 0.0)
         self.declare_parameter("world_y", 0.0)
@@ -95,6 +90,7 @@ class WorldAnchorNode(Node):
         self._calibrated = False
         self._fitted_serials: set[str] = set()
         self._warned_serials: set[str] = set()
+        self._started = time.monotonic()
 
         if str(self.get_parameter("world_calibration").value) == "manual":
             self._cal_yaw = math.radians(float(self.get_parameter("world_yaw_deg").value))
@@ -147,22 +143,51 @@ class WorldAnchorNode(Node):
 
         auto = str(self.get_parameter("world_calibration").value) == "auto"
         if auto and set(known) != self._fitted_serials:
-            if len(known) >= int(self.get_parameter("min_lighthouses").value):
-                self._fit(known)
-            else:
+            # < 2 correspondences would make the solver raise inside this timer.
+            min_needed = max(2, int(self.get_parameter("min_lighthouses").value))
+            if len(known) < min_needed:
                 self.get_logger().warning(
                     f"Waiting for lighthouses to anchor the world frame: "
-                    f"{len(known)}/{self.get_parameter('min_lighthouses').value} "
+                    f"{len(known)}/{min_needed} "
                     f"reference serials visible under '{self._tracking}'.",
                     throttle_duration_sec=10.0,
                 )
+            elif not self._settling(known):
+                self._fit(known)
         if self._calibrated:
             self._publish_lighthouses(measured)
 
+    def _settling(self, known: dict[str, np.ndarray]) -> bool:
+        """Before the first fit, briefly wait for the full reference constellation."""
+        if self._calibrated or set(known) == set(self._reference):
+            return False
+        timeout = float(self.get_parameter("settle_timeout_s").value)
+        if time.monotonic() - self._started >= timeout:
+            return False
+        self.get_logger().info(
+            f"{len(known)}/{len(self._reference)} reference lighthouses visible; "
+            f"waiting up to {timeout:.0f} s for the full constellation before "
+            "the first fit.",
+            throttle_duration_sec=5.0,
+        )
+        return True
+
     def _fit(self, known: dict[str, np.ndarray]) -> None:
         result = solve_world_from_lighthouses(known, self._reference)
-        self._cal_yaw = math.radians(result.world_yaw_deg)
-        self._cal_t = np.array([result.world_x, result.world_y, result.world_z])
+        new_yaw = math.radians(result.world_yaw_deg)
+        new_t = np.array([result.world_x, result.world_y, result.world_z])
+        if self._calibrated:
+            # A mid-session re-fit (lighthouse set changed) moves the latched
+            # frame — every downstream pose jumps. Make that diagnosable.
+            delta_yaw = math.degrees(abs(math.remainder(new_yaw - self._cal_yaw, 2.0 * math.pi)))
+            delta_t = float(np.linalg.norm(new_t - self._cal_t))
+            self.get_logger().warning(
+                f"Re-anchoring world -> {self._tracking}: lighthouse set changed to "
+                f"{sorted(known)}; frame moves by {delta_t * 100:.1f} cm / "
+                f"{delta_yaw:.2f} deg — downstream poses jump accordingly."
+            )
+        self._cal_yaw = new_yaw
+        self._cal_t = new_t
         self._latch_world_transform()
         self._calibrated = True
         self._fitted_serials = set(known)

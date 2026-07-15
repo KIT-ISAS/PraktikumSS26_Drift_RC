@@ -7,6 +7,7 @@ import pytest
 
 from car_localization_pkg.lighthouse_calibration import (
     load_lighthouse_reference,
+    normalize_serial,
     solve_world_calibration,
     solve_world_from_lighthouses,
 )
@@ -99,3 +100,18 @@ def test_load_lighthouse_reference(tmp_path):
     path.write_text("lighthouses:\n  LHB-00000001: [1.0, 2.0, 3.0]\n")
     ref = load_lighthouse_reference(str(path))
     assert ref["LHB-00000001"] == pytest.approx((1.0, 2.0, 3.0))
+
+
+@pytest.mark.parametrize(
+    ("frame_name", "expected"),
+    [
+        ("LHB-132B7D13", "LHB-132B7D13"),  # SteamVR serial: passthrough
+        ("321617171", "LHB-132B7D13"),  # libsurvive numeric ID (decimal)
+        ("132b7d13", "LHB-132B7D13"),  # bare hex, lowercase
+        ("tracker_link", None),
+        ("world", None),
+        ("LHR-FA4A8BDB", None),  # a tracker serial is not a lighthouse
+    ],
+)
+def test_normalize_serial(frame_name, expected):
+    assert normalize_serial(frame_name) == expected
