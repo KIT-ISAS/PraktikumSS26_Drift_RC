@@ -23,7 +23,12 @@ from ..models.base import VehicleAction, VehicleModel, VehicleState
 
 
 def rollout_from_recording(
-    model: VehicleModel, df: pd.DataFrame, *, start_idx: int = 0, horizon: int = 100
+    model: VehicleModel,
+    df: pd.DataFrame,
+    *,
+    start_idx: int = 0,
+    horizon: int = 100,
+    sanitize: bool = True,
 ):
     """
     Open-loop roll ``model`` from a recording's state over its recorded actions.
@@ -32,11 +37,51 @@ def rollout_from_recording(
     exactly what ``read_driving_data`` returns from the recorded /car/odom.
     Returns ``(times, recorded_poses, predicted_poses, actions)`` with poses as
     ``(H+1, 3)`` arrays of ``[x, y, heading]``.
+
+    With ``sanitize`` (the default) the segment is screened for localization jumps
+    the same way the training pipeline is: the rollout is truncated at the first
+    flagged transition so it never integrates across a tracker glitch, and seeding
+    from a corrupted sample raises rather than silently rolling from a physically
+    impossible state (an 8 m/s, 100 rad/s twist that makes the model "predict"
+    nonsense and look broken when the *data* was the problem). Pass
+    ``sanitize=False`` to roll over the raw samples regardless.
     """
+    from ..data.sanity import detect_discontinuities
+
+    # Match detect_discontinuities' own defaults so the seed check and the transition
+    # check agree on what counts as a jump (rather than hardcoding one car's limits here).
+    _SEED_MAX_SPEED, _SEED_MAX_YAW_RATE = 8.0, 25.0
+
     end = min(start_idx + horizon + 1, len(df))
     seg = df.iloc[start_idx:end].reset_index(drop=True)
     if len(seg) < 2:
         raise ValueError("Need at least 2 samples to roll out")
+
+    if sanitize:
+        # detect_discontinuities only validates the *transitions* and rows[1:], so the
+        # seed row (row 0) — the state we actually start integrating from — is exempt.
+        # Screen it directly against the same bounds: seeding a rollout from a corrupt
+        # twist is the exact failure that made a good model look broken.
+        seed_speed = float(np.hypot(seg["vx"][0], seg["vy"][0]))
+        seed_yaw = abs(float(seg["yaw_rate"][0]))
+        mask, _ = detect_discontinuities(seg)
+        seeds_from_jump = seed_speed > _SEED_MAX_SPEED or seed_yaw > _SEED_MAX_YAW_RATE
+        if (mask.any() and mask[0]) or seeds_from_jump:
+            raise ValueError(
+                f"start_idx={start_idx} seeds from a localization jump (recorded state "
+                f"there is physically implausible: {seed_speed:.1f} m/s, {seed_yaw:.1f} "
+                "rad/s). Pick a clean start, or pass sanitize=False to roll from it anyway."
+            )
+        if mask.any():
+            # Row `first+1` carries the twist finite-differenced across the jump, so the
+            # clean run ends at `first`.
+            first = int(mask.argmax())
+            seg = seg.iloc[: first + 1].reset_index(drop=True)
+            if len(seg) < 2:
+                raise ValueError(
+                    f"start_idx={start_idx} has a localization jump at the very next "
+                    "sample; no clean window to roll out. Pick a different start."
+                )
 
     t = seg["t"].to_numpy()
     times = t - t[0]

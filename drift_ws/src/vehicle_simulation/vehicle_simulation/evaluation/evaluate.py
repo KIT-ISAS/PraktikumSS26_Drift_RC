@@ -29,6 +29,11 @@ def _parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--mcap-bag", help="bag to render a recorded-vs-predicted MCAP")
     p.add_argument("--mcap-start", type=int, default=0)
     p.add_argument("--mcap-horizon", type=int, default=200)
+    p.add_argument(
+        "--mcap-no-sanitize",
+        action="store_true",
+        help="roll the MCAP over raw samples, without screening for localization jumps",
+    )
     return p.parse_args(argv)
 
 
@@ -72,7 +77,11 @@ def main(argv=None) -> None:
 
         df = read_driving_data(args.mcap_bag)
         times, rec, pred, actions = rollout_from_recording(
-            model, df, start_idx=args.mcap_start, horizon=args.mcap_horizon
+            model,
+            df,
+            start_idx=args.mcap_start,
+            horizon=args.mcap_horizon,
+            sanitize=not args.mcap_no_sanitize,
         )
         out = write_eval_mcap(
             str(eval_dir / "recorded_vs_predicted.mcap"), times, rec, pred, actions=actions
