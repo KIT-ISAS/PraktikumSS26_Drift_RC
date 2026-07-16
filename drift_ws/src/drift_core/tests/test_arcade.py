@@ -2,9 +2,9 @@
 
 import math
 
-from vehicle_simulation.models import build_model
-from vehicle_simulation.models.arcade import ArcadeDriftModel
-from vehicle_simulation.models.base import VehicleAction, VehicleState
+from drift_core.models import build_model
+from drift_core.models.arcade import ArcadeDriftModel
+from drift_core.models.base import VehicleAction, VehicleState
 
 DT = 0.02
 

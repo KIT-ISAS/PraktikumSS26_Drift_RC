@@ -2,6 +2,7 @@
 
 from math import cos, sin
 
+from drift_core.track import TrackProjector, load_track
 from geometry_msgs.msg import Point, Pose, PoseStamped
 import rclpy
 from rclpy.node import Node
@@ -10,7 +11,6 @@ from visualization_msgs.msg import Marker, MarkerArray
 
 from shared_interfaces.msg import Track, TrackProgress
 from shared_pkg import Topics
-from vehicle_simulation.track import TrackProjector, load_track
 
 
 class TrackPublisherNode(Node):

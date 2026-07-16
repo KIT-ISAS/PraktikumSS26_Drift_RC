@@ -2,13 +2,12 @@
 
 import math
 
-import pytest
-
-from vehicle_simulation.car_parameters import (
+from drift_core.car_parameters import (
     CarParameters,
     list_cars,
     load_car_parameters,
 )
+import pytest
 
 
 def test_drift_rc_is_packaged():

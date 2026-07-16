@@ -1,12 +1,11 @@
 """Tests for the variable-dt window dataset and the DatasetSpec."""
 
+from drift_core.data.dataset import build_windows, split_windows, stack_windows
+from drift_core.data.preprocessing import build_dataset, segment_episodes, split_contiguous
+from drift_core.data.spec import DatasetSpec
 import numpy as np
 import pandas as pd
 import pytest
-
-from vehicle_simulation.data.dataset import build_windows, split_windows, stack_windows
-from vehicle_simulation.data.preprocessing import build_dataset, segment_episodes, split_contiguous
-from vehicle_simulation.data.spec import DatasetSpec
 
 
 def _episode(n: int = 200, dt: float = 0.01) -> pd.DataFrame:

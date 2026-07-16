@@ -5,13 +5,12 @@ import os
 import subprocess
 import sys
 
+from drift_core.models import build_model
+from drift_core.models.base import VehicleState
+from drift_core.models.integrate import integrate_pose, simulate
+from drift_core.models.kinematic import KinematicBicycleModel
 import numpy as np
 import pytest
-
-from vehicle_simulation.models import build_model
-from vehicle_simulation.models.base import VehicleState
-from vehicle_simulation.models.integrate import integrate_pose, simulate
-from vehicle_simulation.models.kinematic import KinematicBicycleModel
 
 
 def test_vehicle_state_body_vector():
@@ -75,7 +74,7 @@ def test_build_model_dynamic_baseline():
     # The physics bicycle has physically-motivated initial params, so it builds
     # (untrained) as a baseline with no checkpoint.
     pytest.importorskip("torch")
-    from vehicle_simulation.models.dynamic import DynamicBicycleModel
+    from drift_core.models.dynamic import DynamicBicycleModel
 
     assert isinstance(build_model("dynamic"), DynamicBicycleModel)
 

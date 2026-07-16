@@ -6,9 +6,9 @@ import pytest
 
 pytest.importorskip("torch")
 
-from vehicle_simulation.data.spec import DatasetSpec  # noqa: E402
-from vehicle_simulation.training.config import TrainConfig  # noqa: E402
-from vehicle_simulation.training.trainer import Trainer  # noqa: E402
+from drift_core.data.spec import DatasetSpec  # noqa: E402
+from drift_core.training.config import TrainConfig  # noqa: E402
+from drift_core.training.trainer import Trainer  # noqa: E402
 
 
 def _cfg(**kw) -> TrainConfig:

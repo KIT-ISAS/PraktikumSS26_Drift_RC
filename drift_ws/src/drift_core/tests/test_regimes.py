@@ -1,8 +1,7 @@
 """Tests for driving-regime labeling."""
 
+from drift_core.data.regimes import label_regimes, regime_counts
 import pandas as pd
-
-from vehicle_simulation.data.regimes import label_regimes, regime_counts
 
 
 def test_labels_each_regime():

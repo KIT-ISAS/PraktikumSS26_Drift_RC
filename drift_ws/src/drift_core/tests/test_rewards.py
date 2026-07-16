@@ -1,14 +1,13 @@
 """Tests for the stage-parameterized reward function (pure numpy, no RL extras)."""
 
-import numpy as np
-
-from vehicle_simulation.environments.rewards import (
+from drift_core.environments.rewards import (
     MAX_DS_PER_STEP_M,
     RewardConfig,
     TerminationConfig,
     compute_reward,
     progress_delta,
 )
+import numpy as np
 
 DT = 0.02
 ZERO_ACTION = np.zeros(2)

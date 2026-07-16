@@ -4,8 +4,8 @@ import pytest
 
 pytest.importorskip("torch")
 
-from vehicle_simulation.evaluation.metrics import EvalReport, evaluate_model  # noqa: E402
-from vehicle_simulation.models import build_model  # noqa: E402
+from drift_core.evaluation.metrics import EvalReport, evaluate_model  # noqa: E402
+from drift_core.models import build_model  # noqa: E402
 
 
 def test_eval_report_structure(linear_windows):

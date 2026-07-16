@@ -2,6 +2,12 @@
 
 import math
 
+from drift_core.transforms import (
+    quaternion_from_yaw,
+    rotate_vector_by_quaternion,
+    wrap_angle,
+    yaw_from_quaternion,
+)
 import numpy as np
 import pytest
 
@@ -10,12 +16,6 @@ from steamvr_pkg.lib.conversion import (
     quaternion_from_rotation_matrix,
     vector_from_openvr,
     vector_to_body,
-)
-from vehicle_simulation.transforms import (
-    quaternion_from_yaw,
-    rotate_vector_by_quaternion,
-    wrap_angle,
-    yaw_from_quaternion,
 )
 
 

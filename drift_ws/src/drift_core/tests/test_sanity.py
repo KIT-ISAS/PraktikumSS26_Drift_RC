@@ -1,13 +1,12 @@
 """Tests for localization-jump (Vive solver error) detection and cutting."""
 
-import numpy as np
-import pandas as pd
-
-from vehicle_simulation.data.sanity import (
+from drift_core.data.sanity import (
     detect_discontinuities,
     sanitize_episodes,
     split_on_discontinuities,
 )
+import numpy as np
+import pandas as pd
 
 
 def _line_df(n: int = 60, dt: float = 0.02, speed: float = 1.0) -> pd.DataFrame:

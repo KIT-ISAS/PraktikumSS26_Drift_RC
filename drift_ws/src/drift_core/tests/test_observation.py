@@ -2,9 +2,7 @@
 
 import math
 
-import numpy as np
-
-from vehicle_simulation.environments.observation import (
+from drift_core.environments.observation import (
     ACTION_DIM,
     CURVATURE_SCALE,
     LATERAL_SCALE,
@@ -20,8 +18,9 @@ from vehicle_simulation.environments.observation import (
     curvature_lookahead,
     observation_from_state,
 )
-from vehicle_simulation.models.base import VehicleAction, VehicleState
-from vehicle_simulation.track import TrackProjector, load_track
+from drift_core.models.base import VehicleAction, VehicleState
+from drift_core.track import TrackProjector, load_track
+import numpy as np
 
 
 def test_dimensions_and_bounds():

@@ -27,6 +27,8 @@ from datetime import datetime
 import math
 from pathlib import Path
 
+from drift_core.environments.config import StageConfig
+from drift_core.environments.rewards import TerminationConfig
 from nav_msgs.msg import Odometry
 import numpy as np
 import rclpy
@@ -37,8 +39,6 @@ from agent_pkg.lib.transition_recorder import TransitionRecorder
 from agent_pkg.observation_bridge import observation_from_messages, score_step
 from shared_interfaces.msg import Track, TrackProgress, VehicleActionRequest
 from shared_pkg import Topics
-from vehicle_simulation.environments.config import StageConfig
-from vehicle_simulation.environments.rewards import TerminationConfig
 
 # Resume recording only once |lateral_error| is back below this fraction of the
 # termination limit, so the episode boundary doesn't chatter right at the limit.

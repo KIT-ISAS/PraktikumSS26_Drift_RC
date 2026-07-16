@@ -5,12 +5,12 @@ import pytest
 
 pytest.importorskip("torch")
 
-from vehicle_simulation.data.spec import DatasetSpec  # noqa: E402
-from vehicle_simulation.models import build_model  # noqa: E402
-from vehicle_simulation.models.base import VehicleAction, VehicleState  # noqa: E402
-from vehicle_simulation.models.loader import load_model_from_run  # noqa: E402
-from vehicle_simulation.training.config import TrainConfig  # noqa: E402
-from vehicle_simulation.training.trainer import Trainer  # noqa: E402
+from drift_core.data.spec import DatasetSpec  # noqa: E402
+from drift_core.models import build_model  # noqa: E402
+from drift_core.models.base import VehicleAction, VehicleState  # noqa: E402
+from drift_core.models.loader import load_model_from_run  # noqa: E402
+from drift_core.training.config import TrainConfig  # noqa: E402
+from drift_core.training.trainer import Trainer  # noqa: E402
 
 
 def _train(tmp_path, linear_windows):

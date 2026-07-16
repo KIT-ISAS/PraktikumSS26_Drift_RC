@@ -2,9 +2,8 @@
 
 import math
 
+from drift_core.track import TrackProjector
 import pytest
-
-from vehicle_simulation.track import TrackProjector
 
 SIDE = 4.0
 SPACING = 1.0

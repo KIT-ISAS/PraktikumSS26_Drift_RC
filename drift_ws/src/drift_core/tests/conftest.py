@@ -61,7 +61,7 @@ def linear_episode(n: int = 300, dt: float = 0.01, seed: int = 0) -> pd.DataFram
 @pytest.fixture
 def linear_windows():
     """(train, val) window lists from several synthetic linear episodes."""
-    from vehicle_simulation.data.dataset import build_windows, split_windows
+    from drift_core.data.dataset import build_windows, split_windows
 
     episodes = [linear_episode(seed=i) for i in range(5)]
     windows = build_windows(episodes, horizon=5, dt_range=(0.02, 0.04), stride=5, seed=0)

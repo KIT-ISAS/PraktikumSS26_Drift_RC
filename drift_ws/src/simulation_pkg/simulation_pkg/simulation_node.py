@@ -9,6 +9,8 @@ not finite-difference: it knows the exact body-frame velocities, so the odom
 twist is filled straight from the model's ``VehicleState``.
 """
 
+from drift_core.models import VehicleAction, VehicleState, build_model
+from drift_core.transforms import quaternion_from_yaw
 from geometry_msgs.msg import PoseStamped, Quaternion, TransformStamped
 from nav_msgs.msg import Odometry
 import rclpy
@@ -17,8 +19,6 @@ from tf2_ros import TransformBroadcaster
 
 from shared_interfaces.msg import VehicleActionRequest
 from shared_pkg import Frames, Topics
-from vehicle_simulation.models import VehicleAction, VehicleState, build_model
-from vehicle_simulation.transforms import quaternion_from_yaw
 
 
 def _yaw_to_quaternion(yaw: float) -> Quaternion:

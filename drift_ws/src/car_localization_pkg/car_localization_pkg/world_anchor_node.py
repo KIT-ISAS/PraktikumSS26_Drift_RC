@@ -29,6 +29,7 @@ import os
 import time
 
 from ament_index_python.packages import get_package_share_directory
+from drift_core.transforms import quaternion_from_yaw
 from geometry_msgs.msg import Pose, PoseArray, TransformStamped
 import numpy as np
 import rclpy
@@ -38,7 +39,6 @@ from tf2_ros import Buffer, StaticTransformBroadcaster, TransformException, Tran
 import yaml
 
 from shared_pkg import Frames, Topics
-from vehicle_simulation.transforms import quaternion_from_yaw
 
 from .lighthouse_calibration import (
     load_lighthouse_reference,

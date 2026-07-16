@@ -5,10 +5,9 @@ import pytest
 
 gymnasium = pytest.importorskip("gymnasium")
 
+from drift_core.environments import StageConfig  # noqa: E402
+from drift_core.environments.drift_env import DriftEnv  # noqa: E402
 from gymnasium.utils.env_checker import check_env  # noqa: E402
-
-from vehicle_simulation.environments import StageConfig  # noqa: E402
-from vehicle_simulation.environments.drift_env import DriftEnv  # noqa: E402
 
 INFO_KEYS = {
     "s",

@@ -33,6 +33,7 @@ import sys
 import time
 
 from ament_index_python.packages import get_package_share_directory
+from drift_core.transforms import rotate_vector_by_quaternion
 import numpy as np
 import rclpy
 from rclpy.node import Node
@@ -46,7 +47,6 @@ from car_localization_pkg.lighthouse_calibration import (
     solve_world_from_lighthouses,
 )
 from shared_pkg import Frames
-from vehicle_simulation.transforms import rotate_vector_by_quaternion
 
 _WRITE_KEYS = ("world_x", "world_y", "world_z", "world_yaw_deg")
 

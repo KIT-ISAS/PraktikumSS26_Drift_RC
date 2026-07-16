@@ -5,9 +5,9 @@ import pytest
 
 pytest.importorskip("torch")
 
-from vehicle_simulation.models import build_model  # noqa: E402
-from vehicle_simulation.models.base import VehicleAction, VehicleState  # noqa: E402
-from vehicle_simulation.models.registry import get_model_class  # noqa: E402
+from drift_core.models import build_model  # noqa: E402
+from drift_core.models.base import VehicleAction, VehicleState  # noqa: E402
+from drift_core.models.registry import get_model_class  # noqa: E402
 
 _NORM = {
     "input_mean": np.zeros(6),
@@ -19,13 +19,13 @@ _NORM = {
 
 
 def _new():
-    from vehicle_simulation.models.hybrid import PhysicsInformedModel
+    from drift_core.models.hybrid import PhysicsInformedModel
 
     return PhysicsInformedModel.new(_NORM)
 
 
 def test_registered_and_needs_a_checkpoint():
-    from vehicle_simulation.models.hybrid import PhysicsInformedModel
+    from drift_core.models.hybrid import PhysicsInformedModel
 
     assert get_model_class("hybrid") is PhysicsInformedModel
     with pytest.raises(ValueError, match="needs a trained checkpoint"):
@@ -36,9 +36,8 @@ def test_steering_lock_stays_near_the_measured_one():
     # The steering lock is anchored to the car's measured value and may only be
     # scaled inside a physical band: fitting it freely gave 30 deg against a
     # measured ~75, and the front tire curve absorbed the difference.
+    from drift_core.car_parameters import load_car_parameters
     import torch
-
-    from vehicle_simulation.car_parameters import load_car_parameters
 
     model = _new()
     car = load_car_parameters("drift_rc")
@@ -198,9 +197,8 @@ def test_flick_to_opposite_lock_and_release_settles():
 
 
 def test_checkpoint_roundtrip_preserves_the_derivative():
+    from drift_core.models.hybrid import PhysicsInformedModel
     import torch
-
-    from vehicle_simulation.models.hybrid import PhysicsInformedModel
 
     model = _new()
     ckpt = model.to_checkpoint()

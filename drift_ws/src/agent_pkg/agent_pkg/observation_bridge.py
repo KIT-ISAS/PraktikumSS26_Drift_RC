@@ -19,19 +19,19 @@ The heavy lifting lives in ``vehicle_simulation`` (``build_observation``,
 
 import math
 
-from nav_msgs.msg import Odometry
-import numpy as np
-
-from shared_interfaces.msg import Track, TrackProgress
-from vehicle_simulation.environments.observation import build_observation, curvature_lookahead
-from vehicle_simulation.environments.rewards import (
+from drift_core.environments.observation import build_observation, curvature_lookahead
+from drift_core.environments.rewards import (
     RewardConfig,
     StepOutcome,
     TerminationConfig,
     compute_reward,
     progress_delta,
 )
-from vehicle_simulation.transforms import wrap_angle, yaw_from_quaternion
+from drift_core.transforms import wrap_angle, yaw_from_quaternion
+from nav_msgs.msg import Odometry
+import numpy as np
+
+from shared_interfaces.msg import Track, TrackProgress
 
 
 def observation_from_messages(

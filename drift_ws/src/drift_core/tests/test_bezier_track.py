@@ -2,11 +2,10 @@
 
 import math
 
+from drift_core.track import BezierTrack
+from drift_core.track.bezier_track import _deriv, _eval, _second_deriv
 import pytest
 import yaml
-
-from vehicle_simulation.track import BezierTrack
-from vehicle_simulation.track.bezier_track import _deriv, _eval, _second_deriv
 
 # A non-degenerate segment with hand-computable values.
 SEGMENT = [[0.0, 0.0], [1.0, 2.0], [3.0, 3.0], [4.0, 0.0]]
@@ -123,7 +122,7 @@ class TestLoadTrack:
     """Loading packaged tracks by name and explicit YAML paths."""
 
     def test_packaged_track_by_name(self):
-        from vehicle_simulation.track import list_tracks, load_track
+        from drift_core.track import list_tracks, load_track
 
         assert "figure_8" in list_tracks()
         track = load_track("figure_8")
@@ -131,7 +130,7 @@ class TestLoadTrack:
         assert len(track.segments) > 0
 
     def test_explicit_path(self, tmp_path):
-        from vehicle_simulation.track import load_track
+        from drift_core.track import load_track
 
         config = {"name": "minimal", "segments": [SEGMENT]}
         path = tmp_path / "track.yaml"

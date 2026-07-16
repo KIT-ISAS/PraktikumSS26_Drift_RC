@@ -1,13 +1,12 @@
 """Tests for the curriculum stage config schema and the packaged stage YAMLs."""
 
-import pytest
-
-from vehicle_simulation.environments.config import (
+from drift_core.environments.config import (
     EnvConfig,
     StageConfig,
     TrainConfig,
     list_stages,
 )
+import pytest
 
 
 def test_yaml_roundtrip(tmp_path):

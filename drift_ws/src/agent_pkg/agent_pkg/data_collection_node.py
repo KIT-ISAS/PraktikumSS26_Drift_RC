@@ -26,13 +26,13 @@ is ``(obs_t, action_t, reward_t, obs_{t+1}, terminated, truncated)``.
 from datetime import datetime
 from pathlib import Path
 
+from drift_core.environments.config import StageConfig
 import numpy as np
 import rclpy
 
 from agent_pkg.lib.agent_control_node import AgentControlNode
 from agent_pkg.lib.transition_recorder import TransitionRecorder
 from agent_pkg.observation_bridge import observation_from_messages, score_step
-from vehicle_simulation.environments.config import StageConfig
 
 
 class DataCollectionNode(AgentControlNode):
