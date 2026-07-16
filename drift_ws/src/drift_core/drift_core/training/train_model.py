@@ -4,11 +4,11 @@ CLI to train a vehicle dynamics model into a self-contained run directory.
 Usage::
 
     # From a dataset-spec YAML + a train-config YAML:
-    python -m vehicle_simulation.training.train_model \
+    python -m drift_core.training.train_model \
         --dataset-spec spec.yaml --config train.yaml --tag v1
 
     # Quick start straight from bags (default spec + config):
-    python -m vehicle_simulation.training.train_model \
+    python -m drift_core.training.train_model \
         --bags drift_ws/rosbag2_2026_06_03-11_43_14 --tag quickstart \
         --notes "first neural model, drift+corner only"
 

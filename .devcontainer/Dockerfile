@@ -62,7 +62,7 @@ ENV PYTHONPATH="$PYTHONPATH:/opt/venv/lib/python3.12/site-packages"
 # under. The venv site-packages above is only *appended* to PYTHONPATH, so pip's
 # editable (.pth-based) install is not picked up there; putting the package source
 # on PYTHONPATH gives editable imports for both system and venv python.
-ENV PYTHONPATH="$PYTHONPATH:/root/repo/drift_ws/src/vehicle_simulation"
+ENV PYTHONPATH="$PYTHONPATH:/root/repo/drift_ws/src/drift_core"
 
 RUN source /opt/ros/jazzy/setup.bash
 

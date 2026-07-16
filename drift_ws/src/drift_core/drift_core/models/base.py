@@ -196,7 +196,7 @@ class TrainableModel(VehicleModel):
         Explicit Euler by default — which is what every model here wants, *unless* it
         carries a state whose dynamics are stiff relative to the step size. Models with
         such a state override this to integrate that dimension stably (see
-        :class:`~vehicle_simulation.models.hybrid.PhysicsInformedModel`, whose wheel speed
+        :class:`~drift_core.models.hybrid.PhysicsInformedModel`, whose wheel speed
         has a ~2 ms time constant while the data steps at 20-50 ms).
         """
         return dynamic + deriv * dt

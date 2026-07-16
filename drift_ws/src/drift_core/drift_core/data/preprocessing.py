@@ -61,7 +61,7 @@ def build_dataset(
     Resample an episode to uniform dt and produce (state, action, delta) arrays.
 
     .. deprecated::
-        Superseded by :mod:`vehicle_simulation.data.dataset` (``build_windows`` +
+        Superseded by :mod:`drift_core.data.dataset` (``build_windows`` +
         ``DatasetSpec``), which supports variable timesteps and multi-step rollout
         windows. Kept for backward compatibility.
 
@@ -72,7 +72,7 @@ def build_dataset(
     import warnings
 
     warnings.warn(
-        "build_dataset is deprecated; use vehicle_simulation.data.dataset.build_windows"
+        "build_dataset is deprecated; use drift_core.data.dataset.build_windows"
         " + DatasetSpec (variable-dt, multi-step).",
         DeprecationWarning,
         stacklevel=2,

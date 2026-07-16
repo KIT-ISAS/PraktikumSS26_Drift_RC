@@ -46,7 +46,7 @@ world ──(source)──▶ tracker_link ──(mount_tf_node, static)──�
   source's launch with the matching `tracking_frame`.
 - **`mount_tf_node`** — publishes the static `tracker_link → base_link` (and
   `tracker_link → imu_link`) transforms, derived from the measured car
-  parameters (`vehicle_simulation` `cars/*.yaml`). The mount orientation
+  parameters (`drift_core` `cars/*.yaml`). The mount orientation
   (tracker y-forward + inverted) is exposed as parameters
   (`tracker_yaw_offset_deg`, `tracker_upside_down`) to confirm against a known
   pose at bring-up.
@@ -93,6 +93,6 @@ ros2 launch car_localization_pkg car_localization.launch.py \
 ## Conventions
 
 Frame names come from `shared_pkg.Frames`; topic names from `shared_pkg.Topics`.
-Coordinate maths lives in `vehicle_simulation.transforms` (ROS-free). Do not
+Coordinate maths lives in `drift_core.transforms` (ROS-free). Do not
 hardcode frame or topic strings, and do not re-implement transforms in consumers
 — subscribe to the canonical `/car/*` topics instead.

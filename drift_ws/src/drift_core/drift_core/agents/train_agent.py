@@ -3,7 +3,7 @@ Train the SAC drift agent in simulation, one curriculum stage per run.
 
 Usage (needs the ``[rl]`` extra)::
 
-    python -m vehicle_simulation.agents.train_agent --config stage1_path_follow --tag s1
+    python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1
     python -m ...train_agent --config stage2_fast --init-from runs/<stage1_run> --tag s2
     python -m ...train_agent --config stage3_drift --init-from runs/<stage2_run> --tag s3
 

@@ -28,11 +28,11 @@ Verify the GPU is visible inside the container with `nvidia-smi`.
 
 ## 3. Install the training extras
 
-Base `vehicle_simulation` is lightweight; training needs the `[all]` extra
+Base `drift_core` is lightweight; training needs the `[all]` extra
 (torch + gymnasium + stable-baselines3 + matplotlib). Install into the venv:
 
 ```bash
-pip install -e "/root/repo/drift_ws/src/vehicle_simulation[all]"
+pip install -e "/root/repo/drift_ws/src/drift_core[all]"
 ```
 
 ## 4. Train the curriculum
@@ -41,11 +41,11 @@ Three stages, each warm-started from the previous run. Training auto-selects CUD
 when available; confirm via the `device` field in the run's `meta.json`.
 
 ```bash
-cd /root/repo/drift_ws/src/vehicle_simulation
+cd /root/repo/drift_ws/src/drift_core
 
-/opt/venv/bin/python -m vehicle_simulation.agents.train_agent --config stage1_path_follow --tag s1 > runs/s1_train.log 2>&1
-/opt/venv/bin/python -m vehicle_simulation.agents.train_agent --config stage2_fast  --init-from runs/<stage1_run> --tag s2 > runs/s2_train.log 2>&1
-/opt/venv/bin/python -m vehicle_simulation.agents.train_agent --config stage3_drift --init-from runs/<stage2_run> --tag s3 > runs/s3_train.log 2>&1
+/opt/venv/bin/python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1 > runs/s1_train.log 2>&1
+/opt/venv/bin/python -m drift_core.agents.train_agent --config stage2_fast  --init-from runs/<stage1_run> --tag s2 > runs/s2_train.log 2>&1
+/opt/venv/bin/python -m drift_core.agents.train_agent --config stage3_drift --init-from runs/<stage2_run> --tag s3 > runs/s3_train.log 2>&1
 ```
 
 Useful flags: `--total-steps N` (override), `--seed N`, `--runs-dir <path>`.
@@ -53,7 +53,7 @@ Each run writes `config.yaml`, `meta.json`, `progress.csv`, `agent.zip`, and
 `best_model.zip` (plus `eval/`). Optionally evaluate on the server:
 
 ```bash
-python -m vehicle_simulation.agents.evaluate_agent --run-dir runs/<stage3_run> --episodes 10
+python -m drift_core.agents.evaluate_agent --run-dir runs/<stage3_run> --episodes 10
 ```
 
 ## 5. Sync runs back with rsync
@@ -64,8 +64,8 @@ repo at `/root/repo`, so runs live under the host clone path):
 
 ```bash
 rsync -avz --progress \
-  user@gpu-server:<repo>/drift_ws/src/vehicle_simulation/runs/ \
-  ./drift_ws/src/vehicle_simulation/runs/
+  user@gpu-server:<repo>/drift_ws/src/drift_core/runs/ \
+  ./drift_ws/src/drift_core/runs/
 ```
 
 Trailing slashes matter: `runs/` on both sides copies contents into local `runs/`
@@ -91,7 +91,7 @@ Transitions land in the node's `output_dir` (default `recordings/`) as
 **3. Fine-tune off-board.**
 
 ```bash
-/opt/venv/bin/python -m vehicle_simulation.agents.finetune_agent \
+/opt/venv/bin/python -m drift_core.agents.finetune_agent \
     --init-from runs/<sim_run> --data recordings/*.npz --tag real-s3 --gradient-steps 20000
 ```
 
@@ -129,7 +129,7 @@ until they are restored.
 **2. Fine-tune off-board** exactly as above, pointing `--data` at the demo files:
 
 ```bash
-/opt/venv/bin/python -m vehicle_simulation.agents.finetune_agent \
+/opt/venv/bin/python -m drift_core.agents.finetune_agent \
     --init-from runs/<sim_run> --data recordings/*__human_demo.npz --tag human-s3
 ```
 
@@ -143,7 +143,7 @@ on the local dev container, just slower. Install the CPU-only torch stack (`[rl-
 pins the `+cpu` wheels, avoiding the multi-GB CUDA download):
 
 ```bash
-pip install -e "/root/repo/drift_ws/src/vehicle_simulation[rl-cpu]" \
+pip install -e "/root/repo/drift_ws/src/drift_core[rl-cpu]" \
     --extra-index-url https://download.pytorch.org/whl/cpu
 ```
 
@@ -151,6 +151,6 @@ Then train as in step 4; the run's `meta.json` `device` field will read `cpu`. K
 runs short with `--total-steps` since CPU rollout is slow:
 
 ```bash
-cd /root/repo/drift_ws/src/vehicle_simulation
-/opt/venv/bin/python -m vehicle_simulation.agents.train_agent --config stage1_path_follow --tag s1-cpu
+cd /root/repo/drift_ws/src/drift_core
+/opt/venv/bin/python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1-cpu
 ```

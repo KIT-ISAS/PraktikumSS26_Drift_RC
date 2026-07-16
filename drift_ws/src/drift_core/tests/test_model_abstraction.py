@@ -5,12 +5,13 @@ import os
 import subprocess
 import sys
 
+import numpy as np
+import pytest
+
 from drift_core.models import build_model
 from drift_core.models.base import VehicleState
 from drift_core.models.integrate import integrate_pose, simulate
 from drift_core.models.kinematic import KinematicBicycleModel
-import numpy as np
-import pytest
 
 
 def test_vehicle_state_body_vector():
@@ -91,8 +92,8 @@ def test_kinematic_path_imports_without_torch():
     """Building/stepping the kinematic model must not import torch (light path)."""
     code = (
         "import sys\n"
-        "from vehicle_simulation.models import build_model\n"
-        "from vehicle_simulation.models.base import VehicleState, VehicleAction\n"
+        "from drift_core.models import build_model\n"
+        "from drift_core.models.base import VehicleState, VehicleAction\n"
         "m = build_model('kinematic')\n"
         "m.step(VehicleState(), VehicleAction(0.2, 0.5), 0.02)\n"
         "assert 'torch' not in sys.modules, 'torch was imported on the kinematic path'\n"

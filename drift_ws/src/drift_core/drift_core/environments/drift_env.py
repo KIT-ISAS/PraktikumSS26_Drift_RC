@@ -1,7 +1,7 @@
 """
 DriftEnv — gymnasium environment stepping a vehicle model against a track.
 
-Rolls any :class:`~vehicle_simulation.models.base.VehicleModel` (built via
+Rolls any :class:`~drift_core.models.base.VehicleModel` (built via
 ``build_model``: arcade baseline now, a trained dynamics run dir later) on a
 Bézier track at a fixed control rate, with the stage-parameterized reward from
 :mod:`.rewards` and observations from the shared builder in :mod:`.observation`
@@ -9,7 +9,7 @@ Bézier track at a fixed control rate, with the stage-parameterized reward from
 :class:`~.config.EnvConfig` or a packaged stage name.
 
 This is the only module in ``environments/`` that imports ``gymnasium`` — import
-it lazily (``vehicle_simulation.environments.DriftEnv``) so the light path works
+it lazily (``drift_core.environments.DriftEnv``) so the light path works
 without the ``[rl]`` extra.
 """
 

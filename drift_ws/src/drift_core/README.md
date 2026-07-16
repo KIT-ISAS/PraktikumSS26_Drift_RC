@@ -1,4 +1,4 @@
-# vehicle_simulation
+# drift_core
 
 ROS-free Python library that is the single source of truth for everything in the
 drift-car simulation + reinforcement-learning pipeline that must **not** depend on
@@ -23,23 +23,23 @@ GPU server), and the heavy ML deps should not leak into the ROS nodes. So this l
 ## Install
 
 ```bash
-pip install -e drift_ws/src/vehicle_simulation            # base: track geometry + data
-pip install -e drift_ws/src/vehicle_simulation[neural]    # + torch models & training
-pip install -e drift_ws/src/vehicle_simulation[rl]        # + gymnasium/SB3 (RL, scaffold)
-pip install -e drift_ws/src/vehicle_simulation[eval]      # + matplotlib (eval plots)
-pip install -e drift_ws/src/vehicle_simulation[all]
+pip install -e drift_ws/src/drift_core            # base: track geometry + data
+pip install -e drift_ws/src/drift_core[neural]    # + torch models & training
+pip install -e drift_ws/src/drift_core[rl]        # + gymnasium/SB3 (RL, scaffold)
+pip install -e drift_ws/src/drift_core[eval]      # + matplotlib (eval plots)
+pip install -e drift_ws/src/drift_core[all]
 
 # CPU-only inference on a device with no GPU (deploy/robot): run a trained agent
 # without the multi-GB CUDA torch. Pinned to the training checkpoints; the +cpu
 # torch wheel needs the PyTorch CPU index:
-pip install -e "drift_ws/src/vehicle_simulation[rl-cpu]" \
+pip install -e "drift_ws/src/drift_core[rl-cpu]" \
     --extra-index-url https://download.pytorch.org/whl/cpu
 ```
 
 ## Package layout
 
 ```
-vehicle_simulation/
+drift_core/
   track/         Bézier track geometry + projection; load_track(), list_tracks()
   tracks/        packaged track data (figure_8.yaml)
   models/        dynamics models + build_model() factory:
@@ -61,23 +61,23 @@ vehicle_simulation/
 ## Usage
 
 ```python
-from vehicle_simulation.track import load_track
+from drift_core.track import load_track
 track = load_track("figure_8")                      # packaged name or a YAML path
 
-from vehicle_simulation.models import build_model
+from drift_core.models import build_model
 model = build_model("arcade")                        # kinematic | dynamic | a run dir
 next_state = model.step(state, action, dt)
 
-from vehicle_simulation.car_parameters import load_car_parameters
+from drift_core.car_parameters import load_car_parameters
 car = load_car_parameters("drift_rc")                # measured params + derived props
 ```
 
 Train and evaluate a dynamics model (needs the `[neural]` / `[eval]` extras):
 
 ```bash
-python -m vehicle_simulation.training.train_model \
+python -m drift_core.training.train_model \
     --bags drift_ws/rosbag2_<...> --tag v1            # -> runs/<id>/ (self-contained)
-python -m vehicle_simulation.evaluation.evaluate \
+python -m drift_core.evaluation.evaluate \
     --run-dir runs/<id> --bags drift_ws/rosbag2_<...> --mcap-bag drift_ws/rosbag2_<...>
 ```
 
@@ -101,19 +101,19 @@ a three-stage curriculum — each stage is a packaged YAML config
 (`environments/configs/`), and later stages warm-start from the previous run:
 
 ```bash
-python -m vehicle_simulation.agents.train_agent --config stage1_path_follow --tag s1
-python -m vehicle_simulation.agents.train_agent --config stage2_fast  --init-from runs/<s1> --tag s2
-python -m vehicle_simulation.agents.train_agent --config stage3_drift --init-from runs/<s2> --tag s3
+python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1
+python -m drift_core.agents.train_agent --config stage2_fast  --init-from runs/<s1> --tag s2
+python -m drift_core.agents.train_agent --config stage3_drift --init-from runs/<s2> --tag s3
 
-python -m vehicle_simulation.agents.evaluate_agent --run-dir runs/<id> --episodes 10
+python -m drift_core.agents.evaluate_agent --run-dir runs/<id> --episodes 10
 ```
 
 Each run writes a self-contained `runs/<timestamp>__sac__<tag>/` (config, meta,
 `progress.csv`, `agent.zip` + `best_model.zip`, `eval/`). Inference — in the ROS
-node or anywhere else — goes through `vehicle_simulation.agents.DriftAgent`:
+node or anywhere else — goes through `drift_core.agents.DriftAgent`:
 
 ```python
-from vehicle_simulation.agents import DriftAgent
+from drift_core.agents import DriftAgent
 agent = DriftAgent("runs/<id>")             # loads best_model.zip / agent.zip
 action = agent.act(obs)                      # -> VehicleAction, deterministic
 ```
@@ -127,7 +127,7 @@ build observations with exactly these helpers — every input maps 1:1 to
 
 ## Used by the ROS packages
 
-- `track_pkg` imports `vehicle_simulation.track` (geometry lives here, not in the node).
+- `track_pkg` imports `drift_core.track` (geometry lives here, not in the node).
 - `simulation_pkg` builds a model with `build_model(...)` and steps it to publish
   `/car/pose` — so any model (basic, trained, physics, hybrid) can be driven in sim.
 - `agent_pkg` runs a trained agent via `DriftAgent` and builds its observations with
@@ -138,8 +138,8 @@ Keep this logic in the library; do not duplicate it in the ROS packages.
 ## Testing
 
 ```bash
-PYTHONPATH="$(pwd)/drift_ws/src/vehicle_simulation:$PYTHONPATH" \
-    python3 -m pytest drift_ws/src/vehicle_simulation/tests -q
+PYTHONPATH="$(pwd)/drift_ws/src/drift_core:$PYTHONPATH" \
+    python3 -m pytest drift_ws/src/drift_core/tests -q
 ```
 
 torch-dependent tests skip automatically when torch is not installed.

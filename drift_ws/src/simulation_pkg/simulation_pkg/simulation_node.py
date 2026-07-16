@@ -1,5 +1,5 @@
 """
-Run a vehicle_simulation model and publish the canonical car state.
+Run a drift_core model and publish the canonical car state.
 
 The simulation is its own tracking source *and* state owner, so it publishes the
 same canonical surface as the real ``car_state_node`` — ``/car/pose`` (world
@@ -9,14 +9,14 @@ not finite-difference: it knows the exact body-frame velocities, so the odom
 twist is filled straight from the model's ``VehicleState``.
 """
 
-from drift_core.models import VehicleAction, VehicleState, build_model
-from drift_core.transforms import quaternion_from_yaw
 from geometry_msgs.msg import PoseStamped, Quaternion, TransformStamped
 from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
 from tf2_ros import TransformBroadcaster
 
+from drift_core.models import VehicleAction, VehicleState, build_model
+from drift_core.transforms import quaternion_from_yaw
 from shared_interfaces.msg import VehicleActionRequest
 from shared_pkg import Frames, Topics
 

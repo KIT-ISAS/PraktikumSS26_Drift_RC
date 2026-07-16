@@ -5,7 +5,7 @@ Works against either the real car stack (holodeck + car_localization + track
 publisher + vehicle communication + joystick) or the simulation (simulation_pkg +
 track publisher + joystick) — the node only listens to the canonical topics.
 Transitions are written to ``.npz`` files under the node's ``output_dir`` for
-off-board fine-tuning with ``vehicle_simulation.agents.finetune_agent``.
+off-board fine-tuning with ``drift_core.agents.finetune_agent``.
 
 Usage:
     ros2 launch agent_pkg demo_record.launch.py stage_config:=stage3_drift

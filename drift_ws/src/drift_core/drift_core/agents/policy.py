@@ -2,7 +2,7 @@
 DriftAgent — ROS-free inference wrapper around a trained SAC run directory.
 
 This is what the future deployment ROS node calls at the control rate: build the
-observation with :mod:`vehicle_simulation.environments.observation` (the shared
+observation with :mod:`drift_core.environments.observation` (the shared
 sim-to-real builder) and map it to a :class:`VehicleAction` here. Loading needs
 ``stable-baselines3`` (the ``[rl]`` extra), imported lazily.
 """

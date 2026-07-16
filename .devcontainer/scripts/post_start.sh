@@ -9,11 +9,11 @@ source update_package_list.sh
 source init_flake8.sh
 
 # Install the ROS-free simulation/RL core library into the venv (editable).
-# vehicle_simulation has no package.xml, so colcon never builds it; ROS nodes
+# drift_core has no package.xml, so colcon never builds it; ROS nodes
 # (track_pkg, simulation_pkg) import it from the venv via PYTHONPATH.
 # Only the lightweight base is installed here. The heavy training extras
 # (`[neural]` = torch, `[rl]` = gymnasium + stable-baselines3) are meant for the
-# training / GPU machine: `pip install -e drift_ws/src/vehicle_simulation[neural,rl]`.
+# training / GPU machine: `pip install -e drift_ws/src/drift_core[neural,rl]`.
 # A CPU-only deploy machine that just runs a trained agent uses the pinned
-# `[rl-cpu]` extra instead — see the vehicle_simulation README for the one-liner.
-/opt/venv/bin/pip install -e /root/repo/drift_ws/src/vehicle_simulation
+# `[rl-cpu]` extra instead — see the drift_core README for the one-liner.
+/opt/venv/bin/pip install -e /root/repo/drift_ws/src/drift_core

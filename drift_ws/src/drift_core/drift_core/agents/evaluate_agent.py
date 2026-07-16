@@ -3,7 +3,7 @@ Evaluate a trained drift agent: roll deterministic episodes, report metrics.
 
 Usage::
 
-    python -m vehicle_simulation.agents.evaluate_agent --run-dir runs/<id> [--episodes 10]
+    python -m drift_core.agents.evaluate_agent --run-dir runs/<id> [--episodes 10]
 
 Writes ``<run_dir>/eval/metrics.json`` and ``<run_dir>/eval/trajectories.npz``
 (per-step arrays concatenated over episodes with an ``episode`` index column) and,

@@ -9,7 +9,7 @@ the experience — so this runs on any laptop/GPU box with the ``[rl]`` extra.
 
 Usage (needs the ``[rl]`` extra)::
 
-    python -m vehicle_simulation.agents.finetune_agent \
+    python -m drift_core.agents.finetune_agent \
         --init-from runs/<sim_run> --data recordings/*.npz --tag real-s3
 
 Each run writes a self-contained ``runs/<timestamp>__sac__<tag>/`` directory (see

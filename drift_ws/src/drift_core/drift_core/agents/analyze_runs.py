@@ -3,7 +3,7 @@ Evaluate and plot every training run under a runs directory.
 
 Usage::
 
-    python -m vehicle_simulation.agents.analyze_runs [--runs-root runs] [--episodes 5]
+    python -m drift_core.agents.analyze_runs [--runs-root runs] [--episodes 5]
 
 For each run directory (recognized by its ``config.yaml`` + ``progress.csv``) this rolls
 deterministic evaluation episodes via :mod:`.evaluate_agent` when ``eval/metrics.json``

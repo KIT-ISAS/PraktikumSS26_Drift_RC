@@ -24,7 +24,7 @@ yaw +CCW; positive steering = left):
   for free: steering rotates the body while the velocity lags, and grip bleeds
   the leftover lateral velocity away.
 * **Brake vs reverse is decided upstream, by the ESC input stage** (see
-  :mod:`vehicle_simulation.models.esc` for the measured lockout behaviour).
+  :mod:`drift_core.models.esc` for the measured lockout behaviour).
   This model only supplies the physics of the resolved command: ``drive`` is
   engine force (backwards in reverse, capped at ``max_reverse_speed``);
   ``brake`` decelerates toward standstill and never through it.
