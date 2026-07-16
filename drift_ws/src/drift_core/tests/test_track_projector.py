@@ -2,8 +2,9 @@
 
 import math
 
-from drift_core.track import TrackProjector
 import pytest
+
+from drift_core.track import TrackProjector
 
 SIDE = 4.0
 SPACING = 1.0

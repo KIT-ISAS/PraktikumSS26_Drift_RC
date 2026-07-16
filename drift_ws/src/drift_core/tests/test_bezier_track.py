@@ -2,10 +2,11 @@
 
 import math
 
-from drift_core.track import BezierTrack
-from drift_core.track.bezier_track import _deriv, _eval, _second_deriv
 import pytest
 import yaml
+
+from drift_core.track import BezierTrack
+from drift_core.track.bezier_track import _deriv, _eval, _second_deriv
 
 # A non-degenerate segment with hand-computable values.
 SEGMENT = [[0.0, 0.0], [1.0, 2.0], [3.0, 3.0], [4.0, 0.0]]

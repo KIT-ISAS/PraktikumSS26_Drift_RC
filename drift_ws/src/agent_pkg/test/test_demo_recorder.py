@@ -5,9 +5,8 @@ import pytest
 # Importing the node pulls in shared_interfaces (a colcon-built package); skip the
 # whole module rather than error when the workspace has not been built yet.
 try:
-    from drift_core.environments.rewards import TerminationConfig
-
     from agent_pkg.demo_recorder_node import RECOVERY_LATERAL_FRACTION, is_recovered
+    from drift_core.environments.rewards import TerminationConfig
 except ImportError:
     pytest.skip("shared_interfaces not built", allow_module_level=True)
 

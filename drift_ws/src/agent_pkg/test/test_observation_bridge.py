@@ -10,15 +10,15 @@ import pytest
 # whole module rather than error when the workspace has not been built yet. Kept in a
 # try/except so all imports stay at the top of the file (flake8 E402/import-order clean).
 try:
+    from nav_msgs.msg import Odometry
+
+    from agent_pkg.agent_node import observation_from_messages
     from drift_core.environments.observation import (
         OBS_DIM,
         build_observation,
         curvature_lookahead,
     )
     from drift_core.transforms import quaternion_from_yaw
-    from nav_msgs.msg import Odometry
-
-    from agent_pkg.agent_node import observation_from_messages
     from shared_interfaces.msg import Track, TrackProgress
 except ImportError:
     pytest.skip("shared_interfaces not built", allow_module_level=True)

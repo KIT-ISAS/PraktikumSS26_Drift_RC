@@ -1,7 +1,8 @@
 """Phase 4: recorded-vs-predicted MCAP writing (rosbags only, no torch)."""
 
-from drift_core.evaluation.mcap_writer import write_eval_mcap
 import numpy as np
+
+from drift_core.evaluation.mcap_writer import write_eval_mcap
 
 
 def test_write_and_reopen_mcap(tmp_path):
@@ -28,9 +29,10 @@ def test_write_and_reopen_mcap(tmp_path):
 
 
 def test_rollout_from_recording_shapes():
+    import pandas as pd
+
     from drift_core.evaluation.mcap_writer import rollout_from_recording
     from drift_core.models import build_model
-    import pandas as pd
 
     n = 50
     t = np.arange(n) * 0.02
@@ -93,9 +95,10 @@ def test_rollout_truncates_at_a_localization_jump():
 def test_rollout_refuses_to_seed_from_a_glitch():
     # Seeding the rollout from the corrupted sample itself is the failure that made a
     # good model look broken; it must raise, not silently roll from a 60 m/s state.
+    import pytest
+
     from drift_core.evaluation.mcap_writer import rollout_from_recording
     from drift_core.models import build_model
-    import pytest
 
     df = _glitchy_df(jump_at=10)
     model = build_model("kinematic")

@@ -36,8 +36,9 @@ def test_steering_lock_stays_near_the_measured_one():
     # The steering lock is anchored to the car's measured value and may only be
     # scaled inside a physical band: fitting it freely gave 30 deg against a
     # measured ~75, and the front tire curve absorbed the difference.
-    from drift_core.car_parameters import load_car_parameters
     import torch
+
+    from drift_core.car_parameters import load_car_parameters
 
     model = _new()
     car = load_car_parameters("drift_rc")
@@ -197,8 +198,9 @@ def test_flick_to_opposite_lock_and_release_settles():
 
 
 def test_checkpoint_roundtrip_preserves_the_derivative():
-    from drift_core.models.hybrid import PhysicsInformedModel
     import torch
+
+    from drift_core.models.hybrid import PhysicsInformedModel
 
     model = _new()
     ckpt = model.to_checkpoint()

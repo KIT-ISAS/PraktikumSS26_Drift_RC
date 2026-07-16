@@ -2,6 +2,9 @@
 
 import math
 
+import numpy as np
+import pytest
+
 from drift_core.transforms import (
     quaternion_conjugate,
     quaternion_from_yaw,
@@ -11,8 +14,6 @@ from drift_core.transforms import (
     wrap_angle,
     yaw_from_quaternion,
 )
-import numpy as np
-import pytest
 
 _YAWS = [0.0, 0.3, math.pi / 2.0, -math.pi / 2.0, 2.5, -3.0, math.pi - 1e-6]
 

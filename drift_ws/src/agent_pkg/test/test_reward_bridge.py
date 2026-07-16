@@ -8,6 +8,9 @@ import pytest
 # Importing the bridge pulls in shared_interfaces (a colcon-built package); skip the
 # whole module rather than error when the workspace has not been built yet.
 try:
+    from nav_msgs.msg import Odometry
+
+    from agent_pkg.observation_bridge import reward_from_messages, score_step
     from drift_core.environments.rewards import (
         RewardConfig,
         TerminationConfig,
@@ -15,9 +18,6 @@ try:
         progress_delta,
     )
     from drift_core.transforms import quaternion_from_yaw, wrap_angle
-    from nav_msgs.msg import Odometry
-
-    from agent_pkg.observation_bridge import reward_from_messages, score_step
     from shared_interfaces.msg import Track, TrackProgress
 except ImportError:
     pytest.skip("shared_interfaces not built", allow_module_level=True)

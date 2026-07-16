@@ -1,9 +1,10 @@
 """Tests for the ESC replay that labels recorded pedal commands (drive / brake)."""
 
-from drift_core.data.rosbag_reader import _label_motor_commands
 import numpy as np
 import pandas as pd
 import pytest
+
+from drift_core.data.rosbag_reader import _label_motor_commands
 
 
 def _stream(rows: list[tuple[float, float, float]]) -> pd.DataFrame:
