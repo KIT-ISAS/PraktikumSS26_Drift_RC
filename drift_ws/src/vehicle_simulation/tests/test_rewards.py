@@ -96,6 +96,23 @@ def test_drift_bonus_gated_on_curvature_speed_and_sideslip():
     assert peak > off_target
 
 
+def test_overspeed_penalty_only_above_max_speed():
+    cfg = RewardConfig(max_speed=3.0, overspeed_weight=2.0)
+    no_cap = RewardConfig(max_speed=3.0, overspeed_weight=0.0)
+    # At or below the cap the penalty is identical to having no cap at all.
+    at_cap = cfg.max_speed
+    assert _step(cfg=cfg, speed=at_cap).reward == _step(cfg=no_cap, speed=at_cap).reward
+    assert _step(cfg=cfg, speed=2.0).reward == _step(cfg=no_cap, speed=2.0).reward
+    # Above the cap it subtracts a cost that grows with the overshoot.
+    assert _step(cfg=cfg, speed=3.5).reward < _step(cfg=no_cap, speed=3.5).reward
+    assert _step(cfg=cfg, speed=4.0).reward < _step(cfg=cfg, speed=3.5).reward
+
+
+def test_overspeed_penalty_disabled_by_default():
+    fast = _step(cfg=RewardConfig(), speed=10.0)
+    assert fast.reward == _step(cfg=RewardConfig(overspeed_weight=0.0), speed=10.0).reward
+
+
 def test_straight_sideslip_penalty_only_outside_drift_zone():
     cfg = RewardConfig(straight_beta_weight=0.5)
     clean = _step(cfg=cfg, sideslip=0.0, kappa_here=0.0).reward
