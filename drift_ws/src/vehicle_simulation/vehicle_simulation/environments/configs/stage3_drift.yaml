@@ -24,9 +24,9 @@ env:
     stall_penalty: 20.0  # stalling must cost more than crashing (see stage 1)
   reward:
     progress_weight: 1.0
-    target_speed: 0.8
+    target_speed: 1.0
     speed_weight: 0.5
-    max_speed: 1.0  # one-sided cap: the small track punishes overshooting this
+    max_speed: 1.25  # one-sided cap: the small track punishes overshooting this
     overspeed_weight: 2.0
     lateral_weight: 1.0
     heading_weight: 0.1
