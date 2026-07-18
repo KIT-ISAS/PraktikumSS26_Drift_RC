@@ -28,7 +28,7 @@ env:
     overspeed_weight: 2.0
     lateral_weight: 4.0
     heading_weight: 1.0
-    action_rate_weight: 0.05
+    action_rate_weight: 0.4
     drift_weight: 0.0
     straight_beta_weight: 0.0
 train:
