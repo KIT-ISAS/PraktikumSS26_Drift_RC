@@ -11,14 +11,14 @@ try:
     from nav_msgs.msg import Odometry
 
     from agent_pkg.observation_bridge import reward_from_messages, score_step
-    from shared_interfaces.msg import Track, TrackProgress
-    from vehicle_simulation.environments.rewards import (
+    from drift_core.environments.rewards import (
         RewardConfig,
         TerminationConfig,
         compute_reward,
         progress_delta,
     )
-    from vehicle_simulation.transforms import quaternion_from_yaw, wrap_angle
+    from drift_core.transforms import quaternion_from_yaw, wrap_angle
+    from shared_interfaces.msg import Track, TrackProgress
 except ImportError:
     pytest.skip("shared_interfaces not built", allow_module_level=True)
 

@@ -5,8 +5,8 @@
 (
     cd /root/repo/drift_ws
     # ROS packages come from colcon; pure-Python libs without a package.xml
-    # (e.g. vehicle_simulation) are invisible to colcon, so append them here.
-    EXTRA_PACKAGES="vehicle_simulation"
+    # (e.g. drift_core) are invisible to colcon, so append them here.
+    EXTRA_PACKAGES="drift_core"
     NAMES=$( { colcon list --names-only; echo "$EXTRA_PACKAGES"; } | sort -u )
     PACKAGES=$(echo "$NAMES" | paste -sd ',' --)
     PACKAGES_WITH_QUOTES=$(echo "$NAMES" | sed 's/^/"/; s/$/"/' | paste -sd ',' --)

@@ -7,7 +7,7 @@ the human's ``VehicleActionRequest`` commands alongside the canonical state topi
 and reconstructs the same ``(obs, action, reward, next_obs, done)`` transitions the
 training environment would have produced (scored with the reward/termination config
 of a stage YAML, ``stage_config`` parameter). The resulting ``.npz`` files feed
-``vehicle_simulation.agents.finetune_agent`` exactly like policy recordings; SAC is
+``drift_core.agents.finetune_agent`` exactly like policy recordings; SAC is
 off-policy, so human transitions are valid replay data.
 
 Since no policy holds the car, there is no start/stop gating: recording runs
@@ -35,10 +35,10 @@ from rclpy.qos import DurabilityPolicy, QoSProfile
 
 from agent_pkg.lib.transition_recorder import TransitionRecorder
 from agent_pkg.observation_bridge import observation_from_messages, score_step
+from drift_core.environments.config import StageConfig
+from drift_core.environments.rewards import TerminationConfig
 from shared_interfaces.msg import Track, TrackProgress, VehicleActionRequest
 from shared_pkg import Topics
-from vehicle_simulation.environments.config import StageConfig
-from vehicle_simulation.environments.rewards import TerminationConfig
 
 # Resume recording only once |lateral_error| is back below this fraction of the
 # termination limit, so the episode boundary doesn't chatter right at the limit.

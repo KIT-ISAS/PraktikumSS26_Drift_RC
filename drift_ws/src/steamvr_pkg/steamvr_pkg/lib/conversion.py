@@ -22,7 +22,7 @@ ROS-free (works on plain floats/numpy) so it is unit-testable in isolation.
 
 import numpy as np
 
-from vehicle_simulation.transforms import quaternion_conjugate, rotate_vector_by_quaternion
+from drift_core.transforms import quaternion_conjugate, rotate_vector_by_quaternion
 
 __all__ = [
     "pose_from_openvr",

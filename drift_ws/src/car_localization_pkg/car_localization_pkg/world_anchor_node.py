@@ -37,8 +37,8 @@ from rclpy.qos import DurabilityPolicy, QoSProfile
 from tf2_ros import Buffer, StaticTransformBroadcaster, TransformException, TransformListener
 import yaml
 
+from drift_core.transforms import quaternion_from_yaw
 from shared_pkg import Frames, Topics
-from vehicle_simulation.transforms import quaternion_from_yaw
 
 from .lighthouse_calibration import (
     load_lighthouse_reference,

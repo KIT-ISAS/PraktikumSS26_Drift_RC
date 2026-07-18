@@ -16,8 +16,8 @@ exposed as ``yaw_offset_rad`` / ``upside_down`` rather than baked in.
 
 import math
 
-from vehicle_simulation.car_parameters import CarParameters
-from vehicle_simulation.transforms import (
+from drift_core.car_parameters import CarParameters
+from drift_core.transforms import (
     quaternion_conjugate,
     quaternion_from_yaw,
     quaternion_multiply,

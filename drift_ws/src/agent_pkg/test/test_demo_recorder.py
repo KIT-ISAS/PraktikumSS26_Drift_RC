@@ -6,7 +6,7 @@ import pytest
 # whole module rather than error when the workspace has not been built yet.
 try:
     from agent_pkg.demo_recorder_node import RECOVERY_LATERAL_FRACTION, is_recovered
-    from vehicle_simulation.environments.rewards import TerminationConfig
+    from drift_core.environments.rewards import TerminationConfig
 except ImportError:
     pytest.skip("shared_interfaces not built", allow_module_level=True)
 

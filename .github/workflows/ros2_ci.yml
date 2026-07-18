@@ -192,14 +192,14 @@ jobs:
         run: |
           docker compose -f .devcontainer/docker-compose.yaml up -d
 
-      # vehicle_simulation is a pure pip library (no package.xml), so colcon test
+      # drift_core is a pure pip library (no package.xml), so colcon test
       # does not discover it. Run its pytest suite directly. The package source and
       # venv site-packages are on PYTHONPATH via the image, and pytest comes from
       # the system Python (same one colcon uses), so no venv activation is needed.
       - name: Run Library Tests
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c "
-            python3 -m pytest src/vehicle_simulation/tests -v
+            python3 -m pytest src/drift_core/tests -v
           "
 
       - name: Stop Dev Container
