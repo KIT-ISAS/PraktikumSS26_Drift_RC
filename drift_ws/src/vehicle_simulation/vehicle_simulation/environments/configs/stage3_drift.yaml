@@ -30,7 +30,7 @@ env:
     overspeed_weight: 2.0
     lateral_weight: 1.0
     heading_weight: 0.1
-    action_rate_weight: 0.3
+    action_rate_weight: 1.0
     drift_weight: 2.0
     drift_beta_target: 0.5
     drift_beta_sigma: 0.25
