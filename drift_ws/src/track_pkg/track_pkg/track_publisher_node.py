@@ -40,7 +40,7 @@ class TrackPublisherNode(Node):
         self.declare_parameter("points_per_segment", 20)
         self.declare_parameter("car_pose_topic", Topics.CAR_POSE)
         self.declare_parameter("search_window_m", 0.6)
-        self.declare_parameter("lost_distance_m", 0.5)
+        self.declare_parameter("lost_distance_m", 1.2)
         self.declare_parameter("checkpoint_spacing_m", 1.0)
         self.declare_parameter("track_width_m", 0.8)
         self.declare_parameter("continuity_threshold_m", 3.0)
