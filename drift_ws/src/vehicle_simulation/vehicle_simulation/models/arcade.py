@@ -75,7 +75,7 @@ class ArcadeDriftModel(VehicleModel):
     # `slip_decay_rate` on lift-off. Spinning tires deliver only kinetic
     # friction: engine force is trimmed by `slip_accel_loss * slip`.
     slip_lowerbound: float = 0.4
-    slip_upperbound: float = 0.9
+    slip_upperbound: float = 0.7
     slip_max: float = 0.95
     slip_decay_rate: float = 3.0  # 1/s — how fast grip returns when you ease off
     slip_accel_loss: float = 0.7  # fraction of engine force lost at full slip
