@@ -1,0 +1,50 @@
+mpc_node:
+  ros__parameters:
+    # --- shared control-node base ---------------------------------------------
+    # Control rate; the MPC re-solves every tick (~0.5 ms per solve).
+    rate_hz: 50.0
+    # Stop publishing when odom / track progress are older than this (safety).
+    input_timeout_s: 0.3
+    # A dropout longer than this disarms the node (fresh start signal required).
+    disarm_timeout_s: 2.0
+    # Forwarded verbatim in every VehicleActionRequest. gyro_gain 0: the firmware
+    # yaw damper would fight the MPC's steering -> yaw-rate model.
+    gyro_mode: "soft"
+    gyro_gain: 0.0
+
+    # --- lateral MPC ----------------------------------------------------------
+    # Car parameter set (wheelbase, steering lock) from drift_core/cars.
+    car: "drift_rc"
+    # Horizon: 20 steps x 0.05 s = 1.0 s (~2 m of preview at loop speed).
+    horizon_steps: 20
+    mpc_dt: 0.05
+    # Tracking weights (lateral error m^-2, heading error rad^-2).
+    q_lateral: 20.0
+    q_heading: 3.0
+    # Multiplier on the last horizon step's tracking cost.
+    q_terminal: 5.0
+    # Penalty on deviation from the feedforward path curvature, and on its rate.
+    r_curvature: 0.05
+    r_curvature_rate: 0.3
+    # The real car understeers above ~50 % steer command; leave transient headroom.
+    steer_cmd_limit: 0.6
+    # Steering command slew limit (units/s): lock-to-lock in ~0.33 s.
+    steer_rate_limit: 6.0
+
+    # --- speed profile / throttle ---------------------------------------------
+    # Scheduling floor so the MPC keeps steering while the car spins up.
+    v_min: 0.3
+    # Conservative first runs; raise incrementally once tracking is clean.
+    v_max: 1.0
+    # Lateral grip budget: mu ~0.4 on the slick floor -> ~3.9 m/s^2, with margin.
+    a_lat_max: 3.5
+    a_brake: 2.0
+    a_accel: 2.0
+    throttle_kp: 0.4
+    throttle_ki: 0.6
+    throttle_kff: 0.15
+    # Wheelspin above ~40 % throttle on the real car.
+    throttle_min: -0.65
+    throttle_max: 0.35
+    # Sample the speed reference this far ahead (in seconds of travel).
+    speed_preview_s: 0.3
