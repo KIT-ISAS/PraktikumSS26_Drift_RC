@@ -28,7 +28,7 @@ env:
     progress_weight: 1.0
     target_speed: 1.0
     speed_weight: 0.5
-    max_speed: 1.25  # one-sided cap: the small track punishes overshooting this
+    max_speed: 1.25  # soft cap, not a bound: unbounded progress pays out to ~1.40 m/s
     overspeed_weight: 2.0
     lateral_weight: 1.0
     heading_weight: 0.1
