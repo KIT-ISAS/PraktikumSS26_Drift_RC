@@ -29,6 +29,17 @@ def generate_launch_description():
         default_value="arcade",
         description="Simulated vehicle model (should match what the agent was trained on)",
     )
+    model_weights_arg = DeclareLaunchArgument(
+        "model_weights",
+        default_value="",
+        description="Checkpoint .pt for trained models (required for 'neural'/'hybrid')",
+    )
+    stochastic_arg = DeclareLaunchArgument(
+        "stochastic",
+        default_value="false",
+        description="Sample the model's learned SDE each step (realistic wheelspin "
+        "instability); false = deterministic mean dynamics",
+    )
     track_file_arg = DeclareLaunchArgument(
         "track_file",
         default_value="figure_8",
@@ -44,7 +55,11 @@ def generate_launch_description():
             PathJoinSubstitution(
                 [FindPackageShare("simulation_pkg"), "config", "simulation_params.yaml"]
             ),
-            {"model_type": LaunchConfiguration("model_type")},
+            {
+                "model_type": LaunchConfiguration("model_type"),
+                "model_weights": LaunchConfiguration("model_weights"),
+                "stochastic": LaunchConfiguration("stochastic"),
+            },
         ],
     )
 
@@ -82,6 +97,8 @@ def generate_launch_description():
         [
             run_dir_arg,
             model_type_arg,
+            model_weights_arg,
+            stochastic_arg,
             track_file_arg,
             simulation_node,
             track_publisher_node,
