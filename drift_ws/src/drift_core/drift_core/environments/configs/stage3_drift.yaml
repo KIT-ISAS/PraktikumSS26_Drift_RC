@@ -11,7 +11,7 @@ env:
   dt: 0.02
   max_episode_steps: 1500
   spawn:
-    speed: 1.5
+    speed: 1.0
     speed_noise_std: 0.2
     standstill_prob: 0.15  # keep the standing start learned in stage 1
     lateral_noise_std: 0.05
