@@ -100,8 +100,7 @@ def _roll_path(model, seg: pd.DataFrame, actions: np.ndarray, *, stochastic: boo
     every path of a fan starts from the identical model state and only the sampled
     SDE noise separates them.
     """
-    model._sim_latent = None
-    model._esc = None
+    model.reset_session()
     t = seg["t"].to_numpy()
     state = VehicleState(
         x=float(seg["x"][0]),
@@ -129,12 +128,15 @@ def sampled_rollout_fan(
     horizon: int = 100,
     samples: int = 10,
     sanitize: bool = True,
+    seed: int | None = None,
 ):
     """
     The stochastic counterpart of :func:`rollout_from_recording`.
 
     One mean path plus ``samples`` Euler–Maruyama paths drawn from the model's
-    learned diffusion, all over the same recorded actions.
+    learned diffusion, all over the same recorded actions. Pass ``seed`` to make the
+    whole fan reproducible (it seeds the global torch RNG the sampler draws from), so
+    a calibration artifact can be re-generated or diffed across checkpoints.
 
     Returns ``(times, recorded, predicted_mean, actions, sampled)`` where ``sampled``
     is a list of ``(H+1, 3)`` pose arrays. The spread of the fan against the recorded
@@ -145,7 +147,13 @@ def sampled_rollout_fan(
     times, recorded, predicted, actions = rollout_from_recording(
         model, df, start_idx=start_idx, horizon=horizon, sanitize=sanitize
     )
+    if seed is not None:
+        import torch
+
+        torch.manual_seed(seed)
     # Re-slice exactly the (possibly sanitize-truncated) window the mean path used.
+    # This relies on sanitize only ever *truncating* the window (never dropping from
+    # the middle), so the first len(times) rows are the ones the mean path rolled.
     seg = df.iloc[start_idx : start_idx + len(times)].reset_index(drop=True)
     sampled = [_roll_path(model, seg, actions, stochastic=True) for _ in range(samples)]
     return times, recorded, predicted, actions, sampled
@@ -260,7 +268,12 @@ def write_eval_mcap(
                 msg = PathMsg(header=header, poses=poses)
                 w(conns[f"path_sample_{k:02d}"], times[0], msg, "nav_msgs/msg/Path")
             xy = np.stack([s[:, :2] for s in samples])  # (K, H+1, 2)
-            spread = np.sqrt(xy.var(axis=0).sum(axis=-1))  # planar std around the fan mean
+            # ddof=1: the spread is plotted directly against the actual error to judge
+            # over-/under-dispersion, so it must be the unbiased std of the ensemble,
+            # not the ddof=0 one (which understates it by ~1/(2K)). A single sample has
+            # no spread to estimate.
+            var = xy.var(axis=0, ddof=1) if len(samples) > 1 else np.zeros_like(xy[0])
+            spread = np.sqrt(var.sum(axis=-1))  # planar std around the fan mean
             for i, t in enumerate(times):
                 w(
                     conns["sample_spread"],
