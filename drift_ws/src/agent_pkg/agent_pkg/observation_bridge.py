@@ -13,7 +13,7 @@ unit-testable against ``DriftEnv``.
 - :func:`score_step` wraps the latter with the per-step bookkeeping the recording
   nodes share (wrap-aware progress delta, stall timer).
 
-The heavy lifting lives in ``vehicle_simulation`` (``build_observation``,
+The heavy lifting lives in ``drift_core`` (``build_observation``,
 ``compute_reward``); here we only extract the scalars each one needs.
 """
 
@@ -22,16 +22,16 @@ import math
 from nav_msgs.msg import Odometry
 import numpy as np
 
-from shared_interfaces.msg import Track, TrackProgress
-from vehicle_simulation.environments.observation import build_observation, curvature_lookahead
-from vehicle_simulation.environments.rewards import (
+from drift_core.environments.observation import build_observation, curvature_lookahead
+from drift_core.environments.rewards import (
     RewardConfig,
     StepOutcome,
     TerminationConfig,
     compute_reward,
     progress_delta,
 )
-from vehicle_simulation.transforms import wrap_angle, yaw_from_quaternion
+from drift_core.transforms import wrap_angle, yaw_from_quaternion
+from shared_interfaces.msg import Track, TrackProgress
 
 
 def observation_from_messages(

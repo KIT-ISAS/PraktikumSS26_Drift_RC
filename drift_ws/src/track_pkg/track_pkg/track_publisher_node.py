@@ -8,9 +8,9 @@ from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from visualization_msgs.msg import Marker, MarkerArray
 
+from drift_core.track import TrackProjector, load_track
 from shared_interfaces.msg import Track, TrackProgress
 from shared_pkg import Topics
-from vehicle_simulation.track import TrackProjector, load_track
 
 
 class TrackPublisherNode(Node):

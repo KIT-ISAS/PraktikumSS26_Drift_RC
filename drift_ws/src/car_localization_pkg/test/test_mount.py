@@ -9,8 +9,8 @@ from car_localization_pkg.mount import (
     tracker_to_base,
     tracker_to_imu,
 )
-from vehicle_simulation.car_parameters import load_car_parameters
-from vehicle_simulation.transforms import (
+from drift_core.car_parameters import load_car_parameters
+from drift_core.transforms import (
     quaternion_conjugate,
     quaternion_multiply,
     rotate_vector_by_quaternion,

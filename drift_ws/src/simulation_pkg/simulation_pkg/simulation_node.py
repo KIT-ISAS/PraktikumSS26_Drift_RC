@@ -1,5 +1,5 @@
 """
-Run a vehicle_simulation model and publish the canonical car state.
+Run a drift_core model and publish the canonical car state.
 
 The simulation is its own tracking source *and* state owner, so it publishes the
 same canonical surface as the real ``car_state_node`` — ``/car/pose`` (world
@@ -15,10 +15,10 @@ import rclpy
 from rclpy.node import Node
 from tf2_ros import TransformBroadcaster
 
+from drift_core.models import VehicleAction, VehicleState, build_model
+from drift_core.transforms import quaternion_from_yaw
 from shared_interfaces.msg import VehicleActionRequest
 from shared_pkg import Frames, Topics
-from vehicle_simulation.models import VehicleAction, VehicleState, build_model
-from vehicle_simulation.transforms import quaternion_from_yaw
 
 
 def _yaw_to_quaternion(yaw: float) -> Quaternion:

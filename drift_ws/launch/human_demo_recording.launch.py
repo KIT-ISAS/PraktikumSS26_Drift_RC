@@ -4,7 +4,7 @@ Top-level launch for recording human driving demonstrations.
 Same tracking stack as manual_driving_with_viz, plus two passive recorders: the
 demo-recorder node reconstructs training-format ``(obs, action, reward, next_obs,
 done)`` transitions from the human's joystick commands (``.npz`` files for
-``vehicle_simulation.agents.finetune_agent``), and ``ros2 bag record`` keeps the
+``drift_core.agents.finetune_agent``), and ``ros2 bag record`` keeps the
 raw topics so observations can be recomputed offline if the format ever changes:
 
     tracking (+ foxglove bridge) -> car_localization -> track_publisher
