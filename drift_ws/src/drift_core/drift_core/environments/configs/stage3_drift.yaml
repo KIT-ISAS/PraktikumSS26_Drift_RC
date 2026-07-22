@@ -23,7 +23,7 @@ env:
     stall_speed: 0.1
     stall_timeout_s: 2.0
     off_track_penalty: 20.0
-    stall_penalty: 20.0  # stalling must cost more than crashing (see stage 1)
+    stall_penalty: 30.0  # stalling must cost more than crashing (see stage 1)
   reward:
     progress_weight: 1.0
     target_speed: 1.0
