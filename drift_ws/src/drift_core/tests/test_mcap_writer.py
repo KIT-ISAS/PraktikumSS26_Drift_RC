@@ -28,6 +28,25 @@ def test_write_and_reopen_mcap(tmp_path):
     assert topics["/eval/path_recorded"] == 1
 
 
+def test_write_mcap_with_sampled_fan(tmp_path):
+    n = 20
+    t = np.arange(n) * 0.05
+    recorded = np.stack([t, np.zeros(n), np.zeros(n)], axis=-1)
+    predicted = recorded + 0.1
+    rng = np.random.default_rng(0)
+    samples = [predicted + rng.normal(0, 0.05, size=predicted.shape) for _ in range(4)]
+
+    out = write_eval_mcap(str(tmp_path / "fan.mcap"), t, recorded, predicted, samples=samples)
+
+    from rosbags.rosbag2 import Reader
+
+    with Reader(out) as reader:
+        topics = {c.topic: c.msgcount for c in reader.connections}
+    for k in range(4):
+        assert topics[f"/eval/path_sample_{k:02d}"] == 1
+    assert topics["/eval/sample_spread"] == n
+
+
 def test_rollout_from_recording_shapes():
     import pandas as pd
 

@@ -211,6 +211,10 @@ class TrainableModel(VehicleModel):
     def trainable_parameters(self):
         """Return the torch parameters to optimize."""
 
+    def diffusion_parameters(self):
+        """Parameters of a separable diffusion head (for train_scope="diffusion")."""
+        raise NotImplementedError(f"{type(self).__name__} has no separable diffusion head")
+
     def set_train_mode(self, mode: bool = True) -> None:
         """Put the underlying net(s) in train/eval mode (override if needed)."""
 
@@ -260,9 +264,15 @@ class TrainableModel(VehicleModel):
             pred = self.derivative(dynamics, action_t)
             new_dynamics = self.advance(dynamics, action_t, pred.mean, dt)
             if sample and pred.cov is not None:
-                new_dynamics = new_dynamics + torch.sqrt(
-                    pred.cov.clamp_min(0.0) * dt
-                ) * torch.randn_like(new_dynamics)
+                # cov covers the chassis dims only; latent states get no noise.
+                noise = torch.sqrt(pred.cov.clamp_min(0.0) * dt) * torch.randn_like(pred.cov)
+                new_dynamics = torch.cat(
+                    [
+                        new_dynamics[..., : noise.shape[-1]] + noise,
+                        new_dynamics[..., noise.shape[-1] :],
+                    ],
+                    dim=-1,
+                )
             if self.latent_dim:
                 self._sim_latent = new_dynamics[:, 3:]
                 new_dynamics = new_dynamics[:, :3]

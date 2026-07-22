@@ -36,7 +36,10 @@ _BRAKE_FADE_SPEED = 0.1  # m/s scale over which the brake force fades out at sta
 
 def _inv_softplus(y: float) -> float:
     """Inverse of softplus, to initialize a positive parameter at value ``y``."""
-    return math.log(math.expm1(max(y, 1e-6)))
+    y = max(y, 1e-6)
+    if y > 20.0:  # softplus(x) ~ x here; expm1 would overflow long before it matters
+        return y
+    return math.log(math.expm1(y))
 
 
 class _BicycleParams(nn.Module):
