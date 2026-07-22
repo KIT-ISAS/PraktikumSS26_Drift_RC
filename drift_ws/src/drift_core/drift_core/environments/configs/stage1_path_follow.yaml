@@ -28,6 +28,8 @@ env:
     overspeed_weight: 2.0
     lateral_weight: 4.0
     heading_weight: 1.0
+    # Per decision, NOT dt-scaled: at 50 Hz this is an effective 50/s and the
+    # dominant term -- +-0.1 jitter on both channels already costs ~1.0 reward/s.
     action_rate_weight: 1.0
     drift_weight: 0.0
     straight_beta_weight: 0.0

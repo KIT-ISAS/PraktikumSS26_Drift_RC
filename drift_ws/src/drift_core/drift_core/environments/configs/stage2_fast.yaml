@@ -28,7 +28,7 @@ env:
     overspeed_weight: 2.0
     lateral_weight: 2.0
     heading_weight: 0.5
-    action_rate_weight: 1.0
+    action_rate_weight: 1.0  # per decision, not dt-scaled -- see stage 1
     drift_weight: 0.0
     straight_beta_weight: 0.2
 train:
