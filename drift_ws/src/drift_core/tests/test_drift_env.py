@@ -59,6 +59,59 @@ def test_seeded_rollout_is_deterministic(env):
         assert r_a == r_b and term_a == term_b and trunc_a == trunc_b
 
 
+def _stochastic_neural_env(stochastic: bool):
+    """A DriftEnv rolling a fresh untrained *stochastic* neural model each reset."""
+    torch = pytest.importorskip("torch")
+
+    from drift_core.environments.config import EnvConfig
+    from drift_core.models.neural import NeuralDynamicsModel
+
+    norm = {
+        "input_mean": np.zeros(6, dtype=np.float32),
+        "input_std": np.ones(6, dtype=np.float32),
+        "output_mean": np.zeros(3, dtype=np.float32),
+        "output_std": np.ones(3, dtype=np.float32),
+        "dyn_std": np.ones(3, dtype=np.float32),
+    }
+
+    def factory():
+        torch.manual_seed(0)  # identical *weights* every reset; only the SDE seed varies
+        return NeuralDynamicsModel.new(norm, stochastic=True)
+
+    cfg = EnvConfig(track="figure_8", stochastic=stochastic, max_episode_steps=200)
+    return DriftEnv(cfg, model_factory=factory)
+
+
+def _rollout(env, seed, n=30):
+    env.reset(seed=seed, options={"spawn_s": 0.0, "deterministic": True})
+    trace = []
+    for i in range(n):
+        obs, *_ = env.step(np.array([np.sin(0.1 * i), 0.6], dtype=np.float32))
+        trace.append(obs.copy())
+    return np.array(trace)
+
+
+def test_seeded_stochastic_rollout_is_reproducible():
+    # The SDE noise must be determined by the episode seed, not the global torch RNG:
+    # same seed -> identical trajectory, different seed -> a genuinely different one.
+    env = _stochastic_neural_env(stochastic=True)
+    a = _rollout(env, seed=3)
+    b = _rollout(env, seed=3)
+    c = _rollout(env, seed=4)
+    assert np.array_equal(a, b), "same seed must reproduce the sampled rollout exactly"
+    assert not np.array_equal(a, c), "a stochastic model must actually spread across seeds"
+
+
+def test_stochastic_model_rolls_deterministically_when_flag_off():
+    # Same stochastic model, but env.stochastic=False -> step() (the mean path). The
+    # rollout must then be seed-independent from a fixed spawn: this is the "stochastic
+    # model, deterministic rollout" mode eval needs.
+    env = _stochastic_neural_env(stochastic=False)
+    a = _rollout(env, seed=3)
+    c = _rollout(env, seed=4)
+    assert np.array_equal(a, c), "with sampling off the rollout must not depend on the seed"
+
+
 def test_fresh_model_per_reset(env):
     env.reset(seed=0)
     for _ in range(50):

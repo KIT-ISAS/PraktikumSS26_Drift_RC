@@ -124,6 +124,15 @@ class VehicleModel(ABC):
         motor = self.esc.resolve(action.throttle, state.vx)
         return self._step_motor_stochastic(state, action.steering, motor, dt)
 
+    def seed_sampling(self, seed: int) -> None:
+        """
+        Seed the RNG the stochastic step draws from, for a reproducible rollout.
+
+        No-op for deterministic models (they draw no noise). Stochastic models
+        override this so that, e.g., ``DriftEnv.reset(seed=...)`` fully determines
+        the sampled trajectory instead of leaking into the global torch RNG.
+        """
+
     @abstractmethod
     def _step_motor(
         self, state: VehicleState, steering: float, motor: MotorCommand, dt: float
@@ -173,6 +182,7 @@ class TrainableModel(VehicleModel):
         self._device = torch.device(device)
         self._can_sample = False
         self._sim_latent = None
+        self._rng = None  # optional torch.Generator for reproducible sampling
 
     @abstractmethod
     def derivative(self, dynamic, action) -> Prediction:
@@ -210,6 +220,14 @@ class TrainableModel(VehicleModel):
     @abstractmethod
     def trainable_parameters(self):
         """Return the torch parameters to optimize."""
+
+    def seed_sampling(self, seed: int) -> None:
+        """Seed a private torch.Generator so the Euler–Maruyama step is reproducible."""
+        import torch
+
+        gen = torch.Generator(device=self._device)
+        gen.manual_seed(int(seed))
+        self._rng = gen
 
     def set_train_mode(self, mode: bool = True) -> None:
         """Put the underlying net(s) in train/eval mode (override if needed)."""
@@ -260,9 +278,18 @@ class TrainableModel(VehicleModel):
             pred = self.derivative(dynamics, action_t)
             new_dynamics = self.advance(dynamics, action_t, pred.mean, dt)
             if sample and pred.cov is not None:
-                new_dynamics = new_dynamics + torch.sqrt(
-                    pred.cov.clamp_min(0.0) * dt
-                ) * torch.randn_like(new_dynamics)
+                # Draw from a seeded Generator when one is set (see seed_sampling), so an
+                # external seed determines the trajectory; otherwise the global torch RNG.
+                if self._rng is not None:
+                    eps = torch.randn(
+                        new_dynamics.shape,
+                        generator=self._rng,
+                        device=new_dynamics.device,
+                        dtype=new_dynamics.dtype,
+                    )
+                else:
+                    eps = torch.randn_like(new_dynamics)
+                new_dynamics = new_dynamics + torch.sqrt(pred.cov.clamp_min(0.0) * dt) * eps
             if self.latent_dim:
                 self._sim_latent = new_dynamics[:, 3:]
                 new_dynamics = new_dynamics[:, :3]
