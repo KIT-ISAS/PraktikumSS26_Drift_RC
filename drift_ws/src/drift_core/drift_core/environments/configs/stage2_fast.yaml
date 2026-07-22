@@ -1,6 +1,7 @@
 # Curriculum stage 2: fast clean laps (warm-start from stage 1).
-# Higher target speed (2 m/s on r=1 m loops = 4 m/s^2 lateral -- firm but grippy),
-# relaxed lateral shaping, mild sideslip penalty to discourage accidental sliding.
+# Higher target speed than stage 1 (0.75 m/s on r=1 m loops = 0.56 m/s^2 lateral --
+# well inside grip), relaxed lateral shaping, mild sideslip penalty to discourage
+# accidental sliding.
 name: stage2_fast
 env:
   track: figure_8
@@ -8,8 +9,8 @@ env:
   dt: 0.02
   max_episode_steps: 1500
   spawn:
-    speed: 1.5
-    speed_noise_std: 0.2
+    speed: 0.75
+    speed_noise_std: 0.15
     standstill_prob: 0.15  # keep the standing start learned in stage 1
     lateral_noise_std: 0.05
     heading_noise_std: 0.15
@@ -21,11 +22,13 @@ env:
     stall_penalty: 30.0  # stalling must cost more than crashing (see stage 1)
   reward:
     progress_weight: 1.0
-    target_speed: 2.0
+    target_speed: 0.75
     speed_weight: 0.5
+    max_speed: 1.0  # one-sided cap: the small track punishes overshooting this
+    overspeed_weight: 2.0
     lateral_weight: 2.0
     heading_weight: 0.5
-    action_rate_weight: 0.05
+    action_rate_weight: 1.0
     drift_weight: 0.0
     straight_beta_weight: 0.2
 train:
