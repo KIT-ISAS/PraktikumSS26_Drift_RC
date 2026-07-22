@@ -27,7 +27,7 @@ def test_loads_measured_values():
 def test_total_mass_is_sum_of_axle_loads():
     car = load_car_parameters("drift_rc")
     assert car.mass_total_kg == pytest.approx(car.mass_front_axle_kg + car.mass_rear_axle_kg)
-    assert car.mass_total_kg == pytest.approx(0.445 + 1.011)
+    assert car.mass_total_kg == pytest.approx(0.533 + 1.141)
 
 
 def test_derived_tire_radius_and_gear_ratio():
