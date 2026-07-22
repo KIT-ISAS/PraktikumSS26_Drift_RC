@@ -153,12 +153,7 @@ class DriftEnv(gymnasium.Env):
         """Advance one control period (``cfg.dt``)."""
         cfg = self._cfg
         a = np.clip(np.asarray(action, dtype=np.float32), -1.0, 1.0)
-        # step_stochastic falls back to the deterministic step for every model that
-        # cannot sample; a stochastic dynamics model (loaded with
-        # ``model_kwargs: {stochastic: true}``) samples its learned SDE here, so the
-        # policy trains against the model's own uncertainty (Djeumou et al.'s
-        # substitute for domain randomization).
-        self._state = self._model.step_stochastic(
+        self._state = self._model.step(
             self._state, VehicleAction(steering=float(a[0]), throttle=float(a[1])), cfg.dt
         )
         projection = self._projector.project(self._state.x, self._state.y)
