@@ -59,7 +59,12 @@ class SimulationNode(Node):
         self._last_action = VehicleAction(steering=msg.steering, throttle=msg.throttle)
 
     def _step(self) -> None:
-        self._state = self._model.step(self._state, self._last_action, self._dt)
+        # step_stochastic falls back to the deterministic step unless the model was
+        # loaded with stochastic:=true — then each step samples the learned SDE. This
+        # matters for realism under power: wheelspin makes straight-line driving an
+        # *unstable* equilibrium, but the deterministic mean never gets the small kick
+        # that tips the real car (floor texture, torque steer) into the spin.
+        self._state = self._model.step_stochastic(self._state, self._last_action, self._dt)
 
         stamp = self.get_clock().now().to_msg()
         orientation = _yaw_to_quaternion(self._state.heading)
@@ -98,6 +103,7 @@ class SimulationNode(Node):
         self.declare_parameter("model_type", "kinematic")
         self.declare_parameter("model_config", "")
         self.declare_parameter("model_weights", "")
+        self.declare_parameter("stochastic", False)
         self.declare_parameter("dt", 0.02)
         self.declare_parameter("initial_x", 0.0)
         self.declare_parameter("initial_y", 0.0)
@@ -112,6 +118,7 @@ class SimulationNode(Node):
         self._model_type = self.get_parameter("model_type").value
         self._model_config = self.get_parameter("model_config").value
         self._model_weights = self.get_parameter("model_weights").value
+        self._stochastic = bool(self.get_parameter("stochastic").value)
         self._dt = float(self.get_parameter("dt").value)
         self._initial_x = float(self.get_parameter("initial_x").value)
         self._initial_y = float(self.get_parameter("initial_y").value)
@@ -122,6 +129,7 @@ class SimulationNode(Node):
             self._model_type,
             config=self._model_config or None,
             weights=self._model_weights or None,
+            stochastic=self._stochastic,
         )
 
 
