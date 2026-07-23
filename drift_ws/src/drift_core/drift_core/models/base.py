@@ -112,6 +112,19 @@ class VehicleModel(ABC):
             self._esc = esc
         return esc
 
+    def reset_session(self) -> None:
+        """
+        Reset the per-instance state that carries across steps (the ESC input stage).
+
+        A model instance is stepped in sequence and remembers state between steps;
+        call this to start a fresh sequence from the same instance — e.g. to roll the
+        same model several times from an identical starting condition (see the eval
+        MCAP fan). ``DriftEnv`` still builds a fresh model per episode instead.
+        """
+        esc = getattr(self, "_esc", None)
+        if esc is not None:
+            esc.reset()
+
     def step(self, state: VehicleState, action: VehicleAction, dt: float) -> VehicleState:
         """Return deterministic next state after applying action for dt seconds."""
         motor = self.esc.resolve(action.throttle, state.vx)
@@ -221,6 +234,11 @@ class TrainableModel(VehicleModel):
     def trainable_parameters(self):
         """Return the torch parameters to optimize."""
 
+    def reset_session(self) -> None:
+        """Also clear the integrated latent actuator states (see :class:`VehicleModel`)."""
+        super().reset_session()
+        self._sim_latent = None
+
     def seed_sampling(self, seed: int) -> None:
         """Seed a private torch.Generator so the Euler–Maruyama step is reproducible."""
         import torch
@@ -278,18 +296,26 @@ class TrainableModel(VehicleModel):
             pred = self.derivative(dynamics, action_t)
             new_dynamics = self.advance(dynamics, action_t, pred.mean, dt)
             if sample and pred.cov is not None:
-                # Draw from a seeded Generator when one is set (see seed_sampling), so an
-                # external seed determines the trajectory; otherwise the global torch RNG.
+                # cov covers the chassis dims only; latent states get no noise. Draw from
+                # a seeded Generator when one is set (see seed_sampling), so an external
+                # seed determines the trajectory; otherwise the global torch RNG.
                 if self._rng is not None:
                     eps = torch.randn(
-                        new_dynamics.shape,
+                        pred.cov.shape,
                         generator=self._rng,
-                        device=new_dynamics.device,
-                        dtype=new_dynamics.dtype,
+                        device=pred.cov.device,
+                        dtype=pred.cov.dtype,
                     )
                 else:
-                    eps = torch.randn_like(new_dynamics)
-                new_dynamics = new_dynamics + torch.sqrt(pred.cov.clamp_min(0.0) * dt) * eps
+                    eps = torch.randn_like(pred.cov)
+                noise = torch.sqrt(pred.cov.clamp_min(0.0) * dt) * eps
+                new_dynamics = torch.cat(
+                    [
+                        new_dynamics[..., : noise.shape[-1]] + noise,
+                        new_dynamics[..., noise.shape[-1] :],
+                    ],
+                    dim=-1,
+                )
             if self.latent_dim:
                 self._sim_latent = new_dynamics[:, 3:]
                 new_dynamics = new_dynamics[:, :3]

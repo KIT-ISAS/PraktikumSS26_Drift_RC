@@ -5,6 +5,8 @@ The hybrid model's own behavioural tests live in test_hybrid.py; here it is exer
 end to end through the training pipeline.
 """
 
+import math
+
 import numpy as np
 import pytest
 
@@ -24,6 +26,18 @@ _NORM = {
     "output_std": np.ones(3),
     "dyn_std": np.ones(3),
 }
+
+
+def test_inv_softplus_saturates_without_overflowing():
+    from drift_core.models.dynamic import _inv_softplus
+
+    # math.expm1 overflows well below this; softplus(x) ~ x in the large-arg regime,
+    # so the identity branch must return the argument unchanged and stay finite.
+    assert _inv_softplus(1e6) == 1e6
+    # ... while staying exact where softplus actually curves: softplus(_inv_softplus(y)) == y.
+    y = 0.5
+    x = _inv_softplus(y)
+    assert abs(math.log1p(math.exp(x)) - y) < 1e-12
 
 
 def test_dynamic_builds_and_steps():

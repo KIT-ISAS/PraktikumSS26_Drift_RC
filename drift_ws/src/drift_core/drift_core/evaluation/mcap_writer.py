@@ -88,7 +88,20 @@ def rollout_from_recording(
     times = t - t[0]
     recorded = seg[["x", "y", "heading"]].to_numpy()
     actions = seg[["steering", "throttle"]].to_numpy()
+    predicted = _roll_path(model, seg, actions, stochastic=False)
+    return times, recorded, predicted, actions
 
+
+def _roll_path(model, seg: pd.DataFrame, actions: np.ndarray, *, stochastic: bool):
+    """
+    One open-loop path over the segment's recorded actions; ``(H+1, 3)`` poses.
+
+    Model-internal session state (latent actuators, ESC lockout) is reset first, so
+    every path of a fan starts from the identical model state and only the sampled
+    SDE noise separates them.
+    """
+    model.reset_session()
+    t = seg["t"].to_numpy()
     state = VehicleState(
         x=float(seg["x"][0]),
         y=float(seg["y"][0]),
@@ -97,14 +110,53 @@ def rollout_from_recording(
         vy=float(seg["vy"][0]),
         yaw_rate=float(seg["yaw_rate"][0]),
     )
-    predicted = [[state.x, state.y, state.heading]]
+    step = model.step_stochastic if stochastic else model.step
+    path = [[state.x, state.y, state.heading]]
     for i in range(len(seg) - 1):
         dt = float(t[i + 1] - t[i])
         action = VehicleAction(steering=float(actions[i, 0]), throttle=float(actions[i, 1]))
-        state = model.step(state, action, dt)
-        predicted.append([state.x, state.y, state.heading])
+        state = step(state, action, dt)
+        path.append([state.x, state.y, state.heading])
+    return np.array(path)
 
-    return times, recorded, np.array(predicted), actions
+
+def sampled_rollout_fan(
+    model: VehicleModel,
+    df: pd.DataFrame,
+    *,
+    start_idx: int = 0,
+    horizon: int = 100,
+    samples: int = 10,
+    sanitize: bool = True,
+    seed: int | None = None,
+):
+    """
+    The stochastic counterpart of :func:`rollout_from_recording`.
+
+    One mean path plus ``samples`` Euler–Maruyama paths drawn from the model's
+    learned diffusion, all over the same recorded actions. Pass ``seed`` to make the
+    whole fan reproducible (it seeds the global torch RNG the sampler draws from), so
+    a calibration artifact can be re-generated or diffed across checkpoints.
+
+    Returns ``(times, recorded, predicted_mean, actions, sampled)`` where ``sampled``
+    is a list of ``(H+1, 3)`` pose arrays. The spread of the fan against the recorded
+    path is the visual check of the SDE's calibration: the recorded trajectory should
+    look like *one plausible member* of the fan, not an outlier. The model must have
+    been loaded with ``stochastic=True`` or the fan collapses onto the mean.
+    """
+    times, recorded, predicted, actions = rollout_from_recording(
+        model, df, start_idx=start_idx, horizon=horizon, sanitize=sanitize
+    )
+    if seed is not None:
+        import torch
+
+        torch.manual_seed(seed)
+    # Re-slice exactly the (possibly sanitize-truncated) window the mean path used.
+    # This relies on sanitize only ever *truncating* the window (never dropping from
+    # the middle), so the first len(times) rows are the ones the mean path rolled.
+    seg = df.iloc[start_idx : start_idx + len(times)].reset_index(drop=True)
+    sampled = [_roll_path(model, seg, actions, stochastic=True) for _ in range(samples)]
+    return times, recorded, predicted, actions, sampled
 
 
 def _wrap(angle: float) -> float:
@@ -118,10 +170,18 @@ def write_eval_mcap(
     predicted_poses: np.ndarray,
     *,
     actions: np.ndarray | None = None,
+    samples: list | None = None,
     frame_id: str = "world",
     prefix: str = "/eval",
 ) -> str:
-    """Write recorded vs predicted trajectories to an MCAP; returns the path."""
+    """
+    Write recorded vs predicted trajectories to an MCAP; returns the path.
+
+    ``samples`` (optional) is a list of ``(H+1, 3)`` sampled SDE paths (see
+    :func:`sampled_rollout_fan`); each becomes ``{prefix}/path_sample_XX`` for a
+    fan overlay in Foxglove, and ``{prefix}/sample_spread`` carries the fan's
+    planar position std at each timestep for plotting against the actual error.
+    """
     ts = get_typestore(Stores.ROS2_JAZZY)
     Time = ts.types["builtin_interfaces/msg/Time"]
     Header = ts.types["std_msgs/msg/Header"]
@@ -162,6 +222,15 @@ def write_eval_mcap(
                 ("cmd_throttle", "std_msgs/msg/Float64"),
             )
         }
+        for k in range(len(samples or [])):
+            name = f"path_sample_{k:02d}"
+            conns[name] = writer.add_connection(
+                f"{prefix}/{name}", "nav_msgs/msg/Path", typestore=ts
+            )
+        if samples:
+            conns["sample_spread"] = writer.add_connection(
+                f"{prefix}/sample_spread", "std_msgs/msg/Float64", typestore=ts
+            )
 
         def w(conn, t, msg, msgtype):
             writer.write(conn, int(t * 1e9), ts.serialize_cdr(msg, msgtype))
@@ -192,6 +261,26 @@ def write_eval_mcap(
         pred_msg = PathMsg(header=header, poses=pred_path)
         w(conns["path_recorded"], times[0], rec_msg, "nav_msgs/msg/Path")
         w(conns["path_predicted"], times[0], pred_msg, "nav_msgs/msg/Path")
+
+        if samples:
+            for k, sample in enumerate(samples):
+                poses = [pose_stamped(t, *sample[i]) for i, t in enumerate(times)]
+                msg = PathMsg(header=header, poses=poses)
+                w(conns[f"path_sample_{k:02d}"], times[0], msg, "nav_msgs/msg/Path")
+            xy = np.stack([s[:, :2] for s in samples])  # (K, H+1, 2)
+            # ddof=1: the spread is plotted directly against the actual error to judge
+            # over-/under-dispersion, so it must be the unbiased std of the ensemble,
+            # not the ddof=0 one (which understates it by ~1/(2K)). A single sample has
+            # no spread to estimate.
+            var = xy.var(axis=0, ddof=1) if len(samples) > 1 else np.zeros_like(xy[0])
+            spread = np.sqrt(var.sum(axis=-1))  # planar std around the fan mean
+            for i, t in enumerate(times):
+                w(
+                    conns["sample_spread"],
+                    t,
+                    Float64(data=float(spread[i])),
+                    "std_msgs/msg/Float64",
+                )
     finally:
         writer.close()
     return str(out)
