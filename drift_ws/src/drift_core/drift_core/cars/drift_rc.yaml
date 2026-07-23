@@ -24,6 +24,7 @@
 #     "distance" values) keeps the signs unambiguous.
 #
 # Measured by: Julian Bihl, 2026-06-16.
+# Axle loads re-measured 2026-07-19 after adding the bumper.
 # =============================================================================
 
 name: drift_rc
@@ -71,8 +72,8 @@ tracker_position_m: [-0.134, 0.0, 0.067]  # 13.4 cm behind front axle, 6.7 cm up
 # Only the per-axle loads are stored; total mass is derived as their sum
 # (mass_total_kg property). The axle loads also give the longitudinal weight
 # distribution / centre of gravity.
-mass_front_axle_kg: 0.445   # 445 g carried by the front axle
-mass_rear_axle_kg: 1.011    # 1011 g carried by the rear axle
+mass_front_axle_kg: 0.533   # 533 g carried by the front axle
+mass_rear_axle_kg: 1.141    # 1141 g carried by the rear axle
 
 # --- Bounding dimensions ----------------------------------------------------
 # Overall width is effectively the front track width plus tire width; use the

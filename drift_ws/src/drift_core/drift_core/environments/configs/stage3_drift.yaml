@@ -1,9 +1,11 @@
 # Curriculum stage 3: drift the loops (warm-start from stage 2).
-# 2.5 m/s on r=1 m loops needs 6.25 m/s^2 lateral -- at/over the arcade grip limit,
-# so sliding becomes the profitable line. The drift bonus pays for sideslip near
-# beta_target inside curved zones (|kappa| >= 0.5, i.e. the loops); on the crossing
-# straights the sideslip penalty asks the car to recover. Heading shaping is nearly
-# off: a drift *is* a large heading error.
+# 1.0 m/s on r=1 m loops needs only 1.0 m/s^2 lateral -- far inside the arcade grip
+# limit (4.0), so cornering load alone will not break the car loose on this track.
+# Slip has to come from the throttle instead (slip_upperbound 0.7), and the drift
+# bonus is what makes it profitable: it pays for sideslip near beta_target inside
+# curved zones (|kappa| >= 0.5, i.e. the loops); on the crossing straights the
+# sideslip penalty asks the car to recover. Heading shaping is nearly off: a drift
+# *is* a large heading error.
 name: stage3_drift
 env:
   track: figure_8
@@ -11,29 +13,31 @@ env:
   dt: 0.02
   max_episode_steps: 1500
   spawn:
-    speed: 1.5
+    speed: 1.0
     speed_noise_std: 0.2
     standstill_prob: 0.15  # keep the standing start learned in stage 1
     lateral_noise_std: 0.05
     heading_noise_std: 0.15
   termination:
-    lateral_limit_m: 0.6
+    lateral_limit_m: 0.45
     stall_speed: 0.1
     stall_timeout_s: 2.0
     off_track_penalty: 20.0
     stall_penalty: 30.0  # stalling must cost more than crashing (see stage 1)
   reward:
     progress_weight: 1.0
-    target_speed: 2.5
+    target_speed: 1.0
     speed_weight: 0.5
+    max_speed: 1.25  # soft cap, not a bound: unbounded progress pays out to ~1.40 m/s
+    overspeed_weight: 2.0
     lateral_weight: 1.0
     heading_weight: 0.1
-    action_rate_weight: 0.05
+    action_rate_weight: 1.0  # per decision, not dt-scaled -- see stage 1
     drift_weight: 2.0
     drift_beta_target: 0.5
     drift_beta_sigma: 0.25
     drift_kappa_min: 0.5
-    drift_min_speed: 1.0
+    drift_min_speed: 0.75  # below the spawn band: at 1.0 the bonus window was a sliver
     straight_beta_weight: 0.5
 train:
   total_steps: 500000
