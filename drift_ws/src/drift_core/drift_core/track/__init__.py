@@ -6,9 +6,16 @@ from pathlib import Path
 import yaml
 
 from .bezier_track import BezierTrack
-from .track_projector import Projection, TrackProjector
+from .track_projector import FIGURE8_LOST_DISTANCE_M, Projection, TrackProjector
 
-__all__ = ["BezierTrack", "TrackProjector", "Projection", "load_track", "list_tracks"]
+__all__ = [
+    "BezierTrack",
+    "TrackProjector",
+    "Projection",
+    "FIGURE8_LOST_DISTANCE_M",
+    "load_track",
+    "list_tracks",
+]
 
 
 def _tracks_dir():

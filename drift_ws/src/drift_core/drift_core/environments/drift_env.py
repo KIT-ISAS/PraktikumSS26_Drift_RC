@@ -22,7 +22,7 @@ import numpy as np
 
 from ..models import build_model
 from ..models.base import VehicleAction, VehicleModel, VehicleState
-from ..track import TrackProjector, load_track
+from ..track import FIGURE8_LOST_DISTANCE_M, TrackProjector, load_track
 from ..transforms import wrap_angle
 from .config import EnvConfig, StageConfig
 from .observation import OBS_HIGH, OBS_LOW, observation_from_state
@@ -62,7 +62,7 @@ class DriftEnv(gymnasium.Env):
         self._waypoints = np.asarray(waypoints, dtype=np.float64)
         self._curvature = np.asarray(curvature, dtype=np.float64)
         self._cumul = np.asarray(cumul, dtype=np.float64)
-        self._projector = TrackProjector(waypoints, cumul)
+        self._projector = TrackProjector(waypoints, cumul, lost_distance_m=FIGURE8_LOST_DISTANCE_M)
         self._total_length = self._projector.total_length
 
         self.observation_space = spaces.Box(OBS_LOW, OBS_HIGH, dtype=np.float32)

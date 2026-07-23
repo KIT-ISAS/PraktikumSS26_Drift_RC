@@ -10,6 +10,12 @@ import bisect
 from dataclasses import dataclass
 from math import atan2, ceil, copysign, hypot
 
+# The ``lost_distance_m`` the drift stack runs with on the figure-8: its two branches
+# pass close at the crossing, so re-localizing at the generic default sends a car that
+# slides wide onto the wrong branch. Shared so the simulator and the real pipeline --
+# whose projections feed the same observation builder -- cannot drift apart.
+FIGURE8_LOST_DISTANCE_M = 1.2
+
 
 @dataclass
 class Projection:
