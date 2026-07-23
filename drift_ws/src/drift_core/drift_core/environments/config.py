@@ -45,6 +45,12 @@ class EnvConfig:
     model_type: str = "arcade"  # forwarded to build_model (also accepts a run dir)
     model_config: str | None = None  # optional model YAML (build_model's config)
     model_kwargs: dict = field(default_factory=dict)
+    # Sample the model's learned SDE each step (needs a stochastic model, i.e.
+    # model_kwargs={"stochastic": true}). The policy then trains against the model's
+    # own calibrated uncertainty (Djeumou et al.'s substitute for domain
+    # randomization). Off by default and independent of loading the diffusion head, so
+    # a stochastic checkpoint can still be rolled deterministically (its mean) for eval.
+    stochastic: bool = False
     dt: float = 0.02  # s — 50 Hz, matching the real control loop
     points_per_segment: int = 20  # centerline discretization (BezierTrack.discretize)
     max_episode_steps: int = 1500  # 30 s at 50 Hz

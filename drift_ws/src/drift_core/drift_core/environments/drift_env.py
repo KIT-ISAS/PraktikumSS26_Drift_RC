@@ -111,6 +111,11 @@ class DriftEnv(gymnasium.Env):
         spawn = self._cfg.spawn
 
         self._model = self._model_factory()
+        if self._cfg.stochastic:
+            # Derive the model's sampling seed from this episode's np_random (itself
+            # seeded by reset(seed=...)), so a seeded episode's SDE noise is reproducible
+            # rather than leaking into the global torch RNG.
+            self._model.seed_sampling(int(self.np_random.integers(0, 2**31 - 1)))
 
         s0 = float(options.get("spawn_s", self.np_random.uniform(0.0, self._total_length)))
         x, y, heading = self._centerline_pose(s0)
@@ -153,7 +158,11 @@ class DriftEnv(gymnasium.Env):
         """Advance one control period (``cfg.dt``)."""
         cfg = self._cfg
         a = np.clip(np.asarray(action, dtype=np.float32), -1.0, 1.0)
-        self._state = self._model.step(
+        # step_stochastic samples the model's learned SDE (a no-op fallback to the
+        # deterministic step for any model without a diffusion head); the sampler is
+        # seeded per-episode in reset(), so a seeded episode stays reproducible.
+        step = self._model.step_stochastic if cfg.stochastic else self._model.step
+        self._state = step(
             self._state, VehicleAction(steering=float(a[0]), throttle=float(a[1])), cfg.dt
         )
         projection = self._projector.project(self._state.x, self._state.y)
