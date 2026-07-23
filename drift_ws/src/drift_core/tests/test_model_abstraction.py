@@ -107,3 +107,62 @@ def test_kinematic_path_imports_without_torch():
     )
     assert result.returncode == 0, result.stderr
     assert "ok" in result.stdout
+
+
+def _latent_toy_model():
+    """A stochastic model with latents: 3 chassis dims + 2 latents, cov over the chassis."""
+    import torch
+
+    from drift_core.models.base import Prediction, TrainableModel
+
+    class LatentToy(TrainableModel):
+        latent_dim = 2
+
+        def __init__(self):
+            super().__init__()
+            self._can_sample = True
+
+        def init_latent(self, dynamic, action):
+            return torch.zeros(*dynamic.shape[:-1], 2)
+
+        def derivative(self, dynamic, action):
+            cov = torch.full(dynamic.shape[:-1] + (3,), 4.0)  # per-second variance
+            return Prediction(torch.zeros_like(dynamic), cov)
+
+        def trainable_parameters(self):
+            return []
+
+        def to_checkpoint(self):
+            return {}
+
+    return LatentToy()
+
+
+def test_sampled_step_noises_only_the_chassis_dims():
+    # cov covers [vx, vy, yaw_rate]; the latent actuator states are integrated
+    # deterministically and must receive no diffusion noise of their own.
+    torch = pytest.importorskip("torch")
+
+    from drift_core.models.base import VehicleAction
+
+    model = _latent_toy_model()
+    out = model.step_stochastic(VehicleState(vx=1.0), VehicleAction(0.0, 0.0), 0.02)
+    assert torch.count_nonzero(model._sim_latent) == 0, "latents must get no noise"
+    assert (out.vx, out.vy, out.yaw_rate) != (1.0, 0.0, 0.0), "chassis must actually be noised"
+
+
+def test_seeded_sampling_is_reproducible_with_latent_states():
+    # The seeded generator and the chassis-only noise slice have to work together:
+    # same seed reproduces the step exactly, a different seed changes it.
+    pytest.importorskip("torch")
+
+    from drift_core.models.base import VehicleAction
+
+    def step_with(seed):
+        model = _latent_toy_model()
+        model.seed_sampling(seed)
+        out = model.step_stochastic(VehicleState(vx=1.0), VehicleAction(0.0, 0.0), 0.02)
+        return (out.vx, out.vy, out.yaw_rate)
+
+    assert step_with(1) == step_with(1)
+    assert step_with(1) != step_with(2)
