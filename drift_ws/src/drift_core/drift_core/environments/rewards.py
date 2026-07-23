@@ -25,6 +25,8 @@ class RewardConfig:
     progress_weight: float = 1.0  # per meter of forward progress along the centerline
     target_speed: float = 1.0  # m/s
     speed_weight: float = 0.5  # * (speed - target)^2 * dt
+    max_speed: float = float("inf")  # m/s — overspeed penalty applies above this
+    overspeed_weight: float = 0.0  # * max(0, speed - max_speed)^2 * dt; 0 disables
     lateral_weight: float = 4.0  # * lateral_error^2 * dt
     heading_weight: float = 1.0  # * (1 - cos(heading_error)) * dt
     action_rate_weight: float = 0.05  # * ||action - prev_action||^2 per decision
@@ -97,6 +99,8 @@ def compute_reward(
 
     reward = cfg.progress_weight * ds
     reward -= cfg.speed_weight * (speed - cfg.target_speed) ** 2 * dt
+    if cfg.overspeed_weight > 0.0 and speed > cfg.max_speed:
+        reward -= cfg.overspeed_weight * (speed - cfg.max_speed) ** 2 * dt
     reward -= cfg.lateral_weight * lateral_error**2 * dt
     reward -= cfg.heading_weight * (1.0 - math.cos(heading_error)) * dt
     reward -= cfg.action_rate_weight * float(np.sum((action - prev_action) ** 2))
