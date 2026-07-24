@@ -234,6 +234,16 @@ class TrainableModel(VehicleModel):
     def trainable_parameters(self):
         """Return the torch parameters to optimize."""
 
+    def diffusion_parameters(self):
+        """
+        Parameters of a separable diffusion head, for ``train_scope="diffusion"``.
+
+        Only models whose diffusion is separable from the physics can be calibrated
+        on their own (the hybrid's Sigma head); everything else fails loudly here
+        rather than silently training the whole model under a Sigma-only config.
+        """
+        raise NotImplementedError(f"{type(self).__name__} has no separable diffusion head")
+
     def reset_session(self) -> None:
         """Also clear the integrated latent actuator states (see :class:`VehicleModel`)."""
         super().reset_session()

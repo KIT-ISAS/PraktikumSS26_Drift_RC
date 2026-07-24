@@ -18,10 +18,10 @@ _NORM = {
 }
 
 
-def _new():
+def _new(**kwargs):
     from drift_core.vehicle_model.models.hybrid import PhysicsInformedModel
 
-    return PhysicsInformedModel.new(_NORM)
+    return PhysicsInformedModel.new(_NORM, **kwargs)
 
 
 def test_registered_and_needs_a_checkpoint():
@@ -159,7 +159,7 @@ def test_coasting_never_gains_energy():
         vx, vy, r = rng.uniform(-2, 2), rng.uniform(-2, 2), rng.uniform(-6, 6)
         omega = rng.uniform(-80, 80)
         for steering in (-1.0, 0.0, 1.0):
-            state = torch.tensor([[vx, vy, r, steering * model._steer_max, 0.0, omega]])
+            state = torch.tensor([[vx, vy, r, steering * model._steer_max, 0.0, omega, 0.0]])
             action = torch.tensor([[steering, 0.0, 0.0]])  # coasting: no throttle, no brake
 
             def energy(s):
@@ -197,6 +197,267 @@ def test_flick_to_opposite_lock_and_release_settles():
     assert float(torch.hypot(state[0, 0], state[0, 1])) < 0.3, "still moving 8 s after release"
 
 
+def test_initial_direction_is_the_geometric_friction_circle():
+    # NN0's residual is zero-initialized, so an untrained model must split the rear
+    # force exactly along the slip vector (sqrt(f0)·sigma, -tan_alpha) — the proven
+    # geometric friction circle. Training only ever learns a correction on top.
+    import torch
+
+    model = _new()
+    vx, vy, r = torch.tensor([1.5]), torch.tensor([0.6]), torch.tensor([2.0])
+    omega = torch.tensor([80.0])
+    with torch.no_grad():
+        fxr, fyr, sigma = model._rear_slip(vx, vy, r, omega)
+        f0 = model._p.f0
+        tan_ar = (vy - model._b * r) / vx.abs().clamp(min=0.5)
+        dx, dy = f0.sqrt() * sigma, -tan_ar
+        norm = torch.hypot(dx, dy)
+    assert torch.allclose(fxr / torch.hypot(fxr, fyr), dx / norm, atol=1e-5)
+    assert torch.allclose(fyr / torch.hypot(fxr, fyr), dy / norm, atol=1e-5)
+
+
+def test_rear_total_force_is_never_negative():
+    # The rear ExpTanh runs on the squared combined slip (z >= 0) and its output is
+    # clamped: a negative total force magnitude would flip the force *toward* the slip.
+    import torch
+
+    model = _new()
+    with torch.no_grad():
+        for omega in (-50.0, 0.0, 50.0, 200.0):
+            fxr, fyr, _ = model._rear_slip(
+                torch.linspace(-2, 2, 41),
+                torch.linspace(-2, 2, 41),
+                torch.zeros(41),
+                torch.full((41,), omega),
+            )
+            f_tot = torch.hypot(fxr, fyr)
+            assert torch.isfinite(f_tot).all()
+            assert (f_tot >= 0).all()
+
+
+def test_actuator_lag_is_stable_past_the_euler_limit():
+    # delta and tq integrate exactly, so even dt >> tau must converge monotonically to
+    # the commanded target instead of oscillating divergently (explicit Euler diverges
+    # for dt > 2*tau, and tau_s may be as small as 0.02 s against 50 ms data steps).
+    import torch
+
+    model = _new()
+    tau_s = float(model._p.tau_s)
+    dt = 5.0 * tau_s  # far past the Euler stability limit
+    dyn = torch.tensor([[1.0, 0.0, 0.0]])
+    action = torch.tensor([[1.0, 0.0, 0.0]])
+    target = float(model._p.steer_scale * model._steer_max)
+
+    state = torch.cat([dyn, torch.zeros((1, model.latent_dim))], dim=-1)  # delta starts at 0
+    prev_err = target
+    with torch.no_grad():
+        for _ in range(20):
+            deriv = model.derivative(state, action).mean
+            state = model.advance(state, action, deriv, dt)
+            err = abs(float(state[0, 3]) - target)
+            assert err <= prev_err + 1e-9, "servo angle overshot/oscillated at large dt"
+            prev_err = err
+    assert prev_err < 1e-3 * target
+
+
+def _rolling_braked_model():
+    """
+    Fresh model with the ESC's reverse lockout armed, as after driving forward.
+
+    A cold ESC treats a negative pedal as *reverse*, not brake (the lockout is only
+    set by driving forward first — same convention as the real car). Tests that mean
+    to exercise the brake must arm it, exactly like DriftEnv.reset does; and each
+    rollout gets its own model so no latent/ESC state leaks between rollouts.
+    """
+    model = _new()
+    model.esc.reverse_locked = True
+    return model
+
+
+def test_brief_brake_tap_barely_slows_the_car():
+    # The ESC's brake actuation is not instantaneous: a recorded 0.19 s brake pump
+    # barely slowed the real car, while an instant-torque model braked at ~3 m/s^2.
+    # The brake torque is a lagged latent (fixed ~50 ms), so a short tap must cost
+    # far less speed than the same duration of held brake.
+    def speed_after(brake_pattern):
+        model = _rolling_braked_model()
+        s = VehicleState(vx=1.5)
+        for b in brake_pattern:
+            s = model.step(s, VehicleAction(steering=0.0, throttle=-b), 0.02)
+        return s.speed
+
+    tap = speed_after([1.0] * 3 + [0.0] * 22)  # 60 ms tap, then released
+    held = speed_after([1.0] * 25)  # brake held the whole 0.5 s
+    assert tap > held + 0.05, (
+        f"a 60 ms tap ({tap:.2f} m/s) should cost far less than held brake ({held:.2f})"
+    )
+
+
+def test_locked_wheel_braking_holds_to_low_speed():
+    # With the slip denominator floored at |vx| alone (0.4 m/s), a locked wheel's
+    # sigma faded as -vx/0.4 and the brake force died quadratically below 0.4 m/s —
+    # the model crept at the end of every stop. The two-sided denominator keeps
+    # sigma at -1 (full Coulomb sliding force) down to near-standstill, so a
+    # braking car must actually stop, and quickly once it is slow.
+    model = _rolling_braked_model()
+    s = VehicleState(vx=1.5)
+    t = 0.0
+    while s.speed > 0.05 and t < 3.0:
+        s = model.step(s, VehicleAction(steering=0.0, throttle=-1.0), 0.02)
+        t += 0.02
+    assert s.speed <= 0.05, f"still creeping at {s.speed:.2f} m/s after {t:.1f} s of full brake"
+    assert t < 2.5, f"took {t:.2f} s to stop from 1.5 m/s — brake force is fading at low speed"
+
+
+def test_flick_transition_cannot_outbrake_the_tires():
+    # Counter-steer flick out of a fast drift: as sideslip sweeps past ~90 deg the
+    # body-frame vx collapses while the car is still moving fast sideways. The
+    # standstill gate used to key on |vx| alone, so it switched the tires off
+    # mid-slide and let the 8/s scrub damper brake harder than any tire could —
+    # the slide died in half a second instead of carrying through the transition.
+    model = _new()
+    a_tires = (model._front.peak_force() + model._rear.peak_force()) / model._m
+    s = VehicleState(vx=1.5, vy=-1.3, yaw_rate=3.5)  # V = 2.0 m/s, beta = -41 deg
+    prev_v, dt = s.speed, 0.02
+    for _ in range(50):  # 1 s of full opposite lock, throttle released
+        s = model.step(s, VehicleAction(steering=-1.0, throttle=0.0), dt)
+        decel = (prev_v - s.speed) / dt
+        drag_now = float(model._p.drag) * abs(s.vx) / model._m
+        assert decel <= a_tires + drag_now + 0.5, (
+            f"decelerated at {decel:.2f} m/s^2, more than tires+drag "
+            f"({a_tires:.2f}+{drag_now:.2f}) can do — the standstill scrub is braking a moving car"
+        )
+        prev_v = s.speed
+
+
+def test_stochastic_hybrid_returns_a_chassis_covariance():
+    # With stochastic=True the model carries the paper's diffusion head Sigma(x, u):
+    # derivative() returns a per-second (B, 3) variance for [vx, vy, r] (the latents
+    # get no noise), which is what loss="nll" trains against. Deterministic default
+    # stays cov=None.
+    import torch
+
+    from drift_core.vehicle_model.models.hybrid import PhysicsInformedModel
+
+    det = PhysicsInformedModel.new(_NORM)
+    sto = PhysicsInformedModel.new(_NORM, stochastic=True)
+    dyn = torch.tensor([[1.5, 0.4, 1.0, 0.1, 0.05, 60.0, 0.02]])
+    action = torch.tensor([[0.3, 0.8, 0.0]])
+    with torch.no_grad():
+        assert det.derivative(dyn, action).cov is None
+        cov = sto.derivative(dyn, action).cov
+    assert cov.shape == (1, 3)
+    assert torch.isfinite(cov).all() and (cov > 0).all()
+
+
+def test_stochastic_hybrid_checkpoint_roundtrip_and_sampling():
+    import torch
+
+    from drift_core.vehicle_model.models.hybrid import PhysicsInformedModel
+
+    model = PhysicsInformedModel.new(_NORM, stochastic=True)
+    ckpt = model.to_checkpoint()
+    assert ckpt["stochastic"] is True
+
+    # Reloaded without stochastic=True: the head survives (cov still returned, NLL
+    # fine-tuning possible) but the sim does not sample from it.
+    quiet = PhysicsInformedModel.from_checkpoint(ckpt)
+    dyn = torch.tensor([[1.5, 0.4, 1.0, 0.1, 0.05, 60.0, 0.0]])
+    action = torch.tensor([[0.3, 0.8, 0.0]])
+    with torch.no_grad():
+        a = model.derivative(dyn, action).cov
+        b = quiet.derivative(dyn, action).cov
+    assert torch.allclose(a, b)
+    assert not quiet._can_sample
+
+    # Reloaded with stochastic=True: step_stochastic must actually sample (and the
+    # noise must broadcast correctly past the 4 latent states).
+    noisy = PhysicsInformedModel.from_checkpoint(ckpt, stochastic=True)
+    torch.manual_seed(0)
+    s = VehicleState(vx=1.0)
+    a1 = noisy.step_stochastic(s, VehicleAction(0.2, 0.5), 0.02)
+    a2 = noisy.step_stochastic(s, VehicleAction(0.2, 0.5), 0.02)
+    assert np.isfinite([a1.vx, a1.vy, a1.yaw_rate, a2.vx]).all()
+    assert (a1.vx, a1.vy, a1.yaw_rate) != (a2.vx, a2.vy, a2.yaw_rate), "sampling had no effect"
+
+
+def test_diffusion_is_gated_by_tire_slip():
+    # Process noise originates in the tires, so Sigma fades with the combined slip:
+    # parked and clean rolling are (near-)deterministic, wheelspin gets full noise —
+    # even at zero ground speed, which is exactly the launch-instability case. A
+    # speed gate failed here: microscopic kicks opened it, crawl-speed noise was
+    # ungated, and a "parked" sampled sim bootstrapped itself to 1.5 m/s.
+    import torch
+
+    from drift_core.vehicle_model.models.hybrid import PhysicsInformedModel
+
+    model = PhysicsInformedModel.new(_NORM, stochastic=True)
+    action = torch.zeros((1, 3))
+    parked = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
+    rolling = torch.tensor([[1.5, 0.0, 0.0, 0.0, 0.0, 1.5 / model._r_tire, 0.0]])
+    spinning = torch.tensor([[0.2, 0.0, 0.0, 0.0, 0.1, 100.0, 0.0]])  # launch wheelspin
+    with torch.no_grad():
+        cov_parked = model.derivative(parked, action).cov
+        cov_rolling = model.derivative(rolling, action).cov
+        cov_spinning = model.derivative(spinning, action).cov
+    assert (cov_parked < 1e-3 * cov_spinning).all(), "parked noise not gated off"
+    assert (cov_rolling < 0.05 * cov_spinning).all(), "clean rolling should be near-quiet"
+
+
+def test_tire_curves_exert_no_force_at_zero_slip():
+    # The raw ExpTanh's free f1/f5 offsets allow F(0) != 0; a fit exploited that to
+    # put a ~0.4 N phantom force on a slipless tire, which self-accelerated a parked
+    # car. F(0) is subtracted structurally, so any parameter values give F(0) = 0.
+    import torch
+
+    # Fixed-scalar tires, so the coefficients can be set directly; the state-conditioned
+    # curves reach the same F(0) through their output bias.
+    model = _new(tire_features=False)
+    with torch.no_grad():
+        for curve in (model._front, model._rear):
+            curve.f1.fill_(0.4)
+            curve.f5.fill_(-0.3)
+            assert abs(float(curve(torch.zeros(1)))) < 1e-6, "tire force at zero slip"
+
+
+def test_parked_wheel_settles_at_rest_even_with_a_trained_direction_net():
+    # An unpinned NN0 residual shifted the tire's zero-force point to a nonzero wheel
+    # slip, so init_latent settled a *parked* wheel at omega ~ -1.5 rad/s — phantom
+    # slip that opened the slip-gated diffusion. The residual is scaled by the slip
+    # magnitude now; perturb the net the way training would and the parked
+    # equilibrium must stay at omega = 0.
+    import torch
+
+    model = _new()
+    with torch.no_grad():  # emulate a trained residual: nonzero at any input
+        model._nn0.net[2].bias.fill_(0.3)
+        model._nn0.net[2].weight.normal_(0.0, 0.3)
+    dyn = torch.tensor([[0.0, 0.0, 0.0]])
+    latent = model.init_latent(dyn, torch.tensor([[0.0, 0.0, 0.0]]))
+    assert abs(float(latent[0, 2])) < 1e-3, (
+        f"parked wheel settled at omega={float(latent[0, 2]):.3f} instead of 0"
+    )
+
+
+def test_parked_car_does_not_wander_stochastically():
+    # The user-reported failure, end to end: a stochastic sim with zero input must
+    # leave the car parked. With slip-gated noise there is no bootstrap — no slip,
+    # no kicks, so the speed never climbs into the noisy regime.
+    import torch
+
+    from drift_core.vehicle_model.models.hybrid import PhysicsInformedModel
+
+    torch.manual_seed(0)
+    model = PhysicsInformedModel.new(_NORM, stochastic=True)
+    s = VehicleState()
+    maxv = 0.0
+    for _ in range(500):  # 10 s parked, sampling the SDE every step
+        s = model.step_stochastic(s, VehicleAction(0.0, 0.0), 0.02)
+        maxv = max(maxv, s.speed)
+    assert maxv < 0.05, f"parked car reached {maxv:.3f} m/s from noise alone"
+    assert np.hypot(s.x, s.y) < 0.05, f"parked car wandered {np.hypot(s.x, s.y):.3f} m"
+
+
 def test_checkpoint_roundtrip_preserves_the_derivative():
     import torch
 
@@ -207,7 +468,7 @@ def test_checkpoint_roundtrip_preserves_the_derivative():
     assert ckpt["model_type"] == "hybrid"
 
     reloaded = PhysicsInformedModel.from_checkpoint(ckpt)
-    dyn = torch.tensor([[1.5, 0.4, 1.0, 0.1, 0.05, 60.0]])
+    dyn = torch.tensor([[1.5, 0.4, 1.0, 0.1, 0.05, 60.0, 0.02]])
     action = torch.tensor([[0.3, 0.8, 0.0]])
     with torch.no_grad():
         a = model.derivative(dyn, action).mean
@@ -220,13 +481,11 @@ def test_long_rollout_respects_the_tires_own_acceleration_limit():
     # ~3 m/s^2, so 3 s of full throttle cannot reach 18 m/s. It did — the wheel-slip mode
     # (~2 ms) was being integrated with explicit Euler at 20-50 ms steps, so long rollouts
     # blew up numerically and "predicted" a recorded donut reaching 18 m/s.
-    import torch
-
     model = _new()
-    with torch.no_grad():
-        mu = float(model._rear.mu)
-    g = 9.81
-    limit = mu * g * 3.0 + 2.0  # 3 s at the friction limit, plus slack
+    # The rear's fitted peak force over the total mass is the hardest the car can
+    # accelerate; anything far past it means the integrator, not the tire, is driving.
+    a_max = model._rear.peak_force() / model._m
+    limit = a_max * 3.0 + 3.0  # 3 s at the friction limit, plus slack
 
     for dt in (0.02, 0.05):
         s = VehicleState(vx=1.3, vy=0.5, yaw_rate=3.0)

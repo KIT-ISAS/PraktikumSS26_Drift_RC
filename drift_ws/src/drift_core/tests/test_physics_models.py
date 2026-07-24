@@ -100,8 +100,73 @@ def test_dynamic_trains_and_reloads(tmp_path, linear_windows):
 
 
 def test_hybrid_trains_and_reloads(tmp_path, linear_windows):
-    run_dir = _train(tmp_path, linear_windows, "hybrid", {"n_terms": 3})
+    run_dir = _train(tmp_path, linear_windows, "hybrid")
     assert (run_dir / "model.pt").exists()
     model = build_model(str(run_dir))
     out = model.step(VehicleState(vx=1.0), VehicleAction(0.2, 0.5), 0.02)
+    assert np.isfinite([out.vx, out.vy, out.yaw_rate]).all()
+
+
+def test_sampled_rollout_propagates_noise_through_the_dynamics():
+    # The particle estimator's core: with sample=True the rollout is Euler–Maruyama,
+    # so two runs differ and the deterministic rollout stays exactly repeatable.
+    import torch
+
+    from drift_core.vehicle_model.models.hybrid import PhysicsInformedModel
+    from drift_core.vehicle_model.training.trainer import rollout
+
+    model = PhysicsInformedModel.new(_NORM, stochastic=True)
+    dyn0 = torch.tensor([[1.0, 0.2, 0.5]])
+    actions = torch.zeros((1, 10, 3))
+    actions[..., 1] = 0.6
+    dts = torch.full((1, 10), 0.02)
+
+    with torch.no_grad():
+        det1, _ = rollout(model, dyn0, actions, dts)
+        det2, _ = rollout(model, dyn0, actions, dts)
+        s1, _ = rollout(model, dyn0, actions, dts, sample=True)
+        s2, _ = rollout(model, dyn0, actions, dts, sample=True)
+    assert torch.equal(det1, det2), "deterministic rollout must be repeatable"
+    assert not torch.allclose(s1, s2), "sampled rollouts must differ"
+    assert torch.isfinite(s1).all() and torch.isfinite(s2).all()
+
+
+def test_sigma_only_calibration_freezes_the_physics(tmp_path, linear_windows):
+    # train_scope="diffusion" + init_from: the particle NLL may only move the
+    # diffusion head; every physics parameter must come out bit-identical.
+    import torch
+
+    run1 = _train(tmp_path, linear_windows, "hybrid", {"stochastic": True}, loss="nll")
+    train, val = linear_windows
+    cfg = TrainConfig(
+        model_type="hybrid",
+        loss="nll",
+        nll_particles=2,
+        init_from=str(run1),
+        train_scope="diffusion",
+        epochs=2,
+        batch_size=64,
+        lr=1e-2,
+        val_every=1,
+        device="cpu",
+        tag="sigma-cal",
+    )
+    run2 = Trainer(cfg, train, val, DatasetSpec(bags=[]), run_base=str(tmp_path)).fit()
+
+    before = load_model_from_run(str(run1))
+    after = load_model_from_run(str(run2))
+    for name in ("_p", "_front", "_rear", "_nn0"):
+        for (k1, v1), (k2, v2) in zip(
+            getattr(before, name).state_dict().items(), getattr(after, name).state_dict().items()
+        ):
+            assert k1 == k2
+            assert torch.equal(v1, v2), f"physics parameter {name}.{k1} moved during Sigma-cal"
+
+
+def test_stochastic_hybrid_trains_with_nll_and_reloads(tmp_path, linear_windows):
+    # The paper's SDE path end to end: diffusion head + NLL loss through the Trainer.
+    run_dir = _train(tmp_path, linear_windows, "hybrid", {"stochastic": True}, loss="nll")
+    assert (run_dir / "model.pt").exists()
+    model = load_model_from_run(str(run_dir), stochastic=True)
+    out = model.step_stochastic(VehicleState(vx=1.0), VehicleAction(0.2, 0.5), 0.02)
     assert np.isfinite([out.vx, out.vy, out.yaw_rate]).all()

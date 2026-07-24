@@ -20,6 +20,30 @@ class TrainConfig:
     model_type: str = "neural"  # registry name: neural | dynamic | hybrid
     model: dict = field(default_factory=dict)  # constructor kwargs (hidden_dim, stochastic, ...)
     loss: str = "mse"  # "mse" (deterministic) | "nll" (stochastic)
+    # Sampled SDE rollouts per window for loss="nll" (the paper's particle estimator; it
+    # uses 5). 0 = evaluate the NLL around the deterministic mean trajectory instead —
+    # on this project's small dataset the sampled-path estimator let the free tire peak
+    # degenerate (mu ~ 0.9 vs the measured ~0.3 envelope), so 0 is the safe choice until
+    # the data grows or the peak is re-bounded. With train_scope="diffusion" the physics
+    # is frozen and particles are safe (and correct: the mean-path NLL over-inflates the
+    # diffusion by absorbing accumulated rollout error as per-step noise).
+    nll_particles: int = 0
+    # For loss="nll" + nll_particles>0, how the sampled particles become a scalar loss:
+    #   "moment"   — match the ensemble's mean + empirical variance (this repo's default;
+    #                a proper Gaussian likelihood of the data given the fan).
+    #   "particle" — the paper's literal per-particle NLL (Djeumou et al. Eq. 3): score the
+    #                data against *each* sampled path under that path's own Sigma, average.
+    #                Self-referential (the fan scales its own residual), so pair it with
+    #                train_scope="diffusion" on this small dataset or it can inflate freely.
+    nll_estimator: str = "moment"  # "moment" | "particle"
+    init_from: str | None = None  # run dir to warm-start the model from (instead of .new())
+    train_scope: str = "all"  # "all" | "diffusion" (freeze physics, calibrate only Sigma)
+    # Per-dim measurement-noise std [vx, vy, yaw_rate] added (as variance) to the particle
+    # ensemble's variance in the moment-matched NLL. The recorded residuals contain
+    # tracker noise that is NOT process noise; without this floor the fit inflates the
+    # diffusion to cover it — worst at standstill, where true process noise is zero (the
+    # model gates Sigma there) but tracker jitter is not.
+    nll_meas_std: tuple = (0.03, 0.03, 0.1)
     epochs: int = 50
     batch_size: int = 256
     lr: float = 1e-3
