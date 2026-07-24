@@ -127,7 +127,7 @@ def test_releasing_the_controls_stops_the_car():
     # the one torque that could reach the wheel, would stop it.
     import torch
 
-    model = _new()
+    model = _new(nn0_residual=True)  # untrained-physics check: needs the geometric NN0 init
     dyn = torch.tensor([[1.0, 0.0, 0.0]])
     drive = torch.tensor([[0.5, 0.6, 0.0]])
     state = torch.cat([dyn, model.init_latent(dyn, drive)], dim=-1)
@@ -152,7 +152,7 @@ def test_coasting_never_gains_energy():
     # everything, and the car span about its rear axle forever.
     import torch
 
-    model = _new()
+    model = _new(nn0_residual=True)  # untrained-physics check: needs the geometric NN0 init
     m, izz = model._m, float(model._p.izz)
     rng = np.random.default_rng(0)
     for _ in range(25):
@@ -182,7 +182,7 @@ def test_flick_to_opposite_lock_and_release_settles():
     # axle forever.
     import torch
 
-    model = _new()
+    model = _new(nn0_residual=True)  # untrained-physics check: needs the geometric NN0 init
     dyn = torch.tensor([[1.0, 0.0, 0.0]])
     drive = torch.tensor([[0.5, 0.6, 0.0]])
     state = torch.cat([dyn, model.init_latent(dyn, drive)], dim=-1)
@@ -200,10 +200,11 @@ def test_flick_to_opposite_lock_and_release_settles():
 def test_initial_direction_is_the_geometric_friction_circle():
     # NN0's residual is zero-initialized, so an untrained model must split the rear
     # force exactly along the slip vector (sqrt(f0)·sigma, -tan_alpha) — the proven
-    # geometric friction circle. Training only ever learns a correction on top.
+    # geometric friction circle. Training only ever learns a correction on top. This is
+    # the residual form (no longer the default), constructed explicitly.
     import torch
 
-    model = _new()
+    model = _new(nn0_residual=True)
     vx, vy, r = torch.tensor([1.5]), torch.tensor([0.6]), torch.tensor([2.0])
     omega = torch.tensor([80.0])
     with torch.no_grad():
@@ -268,8 +269,12 @@ def _rolling_braked_model():
     set by driving forward first — same convention as the real car). Tests that mean
     to exercise the brake must arm it, exactly like DriftEnv.reset does; and each
     rollout gets its own model so no latent/ESC state leaks between rollouts.
+
+    Uses the residual (zero-init) direction net: these are structural-physics checks on
+    an *untrained* model, which is only physically valid when the rear-force direction
+    starts on the geometric friction circle. The default paper-literal NN0 starts random.
     """
-    model = _new()
+    model = _new(nn0_residual=True)
     model.esc.reverse_locked = True
     return model
 
@@ -404,22 +409,6 @@ def test_diffusion_is_gated_by_tire_slip():
     assert (cov_rolling < 0.05 * cov_spinning).all(), "clean rolling should be near-quiet"
 
 
-def test_tire_curves_exert_no_force_at_zero_slip():
-    # The raw ExpTanh's free f1/f5 offsets allow F(0) != 0; a fit exploited that to
-    # put a ~0.4 N phantom force on a slipless tire, which self-accelerated a parked
-    # car. F(0) is subtracted structurally, so any parameter values give F(0) = 0.
-    import torch
-
-    # Fixed-scalar tires, so the coefficients can be set directly; the state-conditioned
-    # curves reach the same F(0) through their output bias.
-    model = _new(tire_features=False)
-    with torch.no_grad():
-        for curve in (model._front, model._rear):
-            curve.f1.fill_(0.4)
-            curve.f5.fill_(-0.3)
-            assert abs(float(curve(torch.zeros(1)))) < 1e-6, "tire force at zero slip"
-
-
 def test_parked_wheel_settles_at_rest_even_with_a_trained_direction_net():
     # An unpinned NN0 residual shifted the tire's zero-force point to a nonzero wheel
     # slip, so init_latent settled a *parked* wheel at omega ~ -1.5 rad/s — phantom
@@ -481,7 +470,7 @@ def test_long_rollout_respects_the_tires_own_acceleration_limit():
     # ~3 m/s^2, so 3 s of full throttle cannot reach 18 m/s. It did — the wheel-slip mode
     # (~2 ms) was being integrated with explicit Euler at 20-50 ms steps, so long rollouts
     # blew up numerically and "predicted" a recorded donut reaching 18 m/s.
-    model = _new()
+    model = _new(nn0_residual=True)  # untrained-physics check: needs the geometric NN0 init
     # The rear's fitted peak force over the total mass is the hardest the car can
     # accelerate; anything far past it means the integrator, not the tire, is driving.
     a_max = model._rear.peak_force() / model._m

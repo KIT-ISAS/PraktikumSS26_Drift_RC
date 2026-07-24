@@ -54,9 +54,9 @@ _TIRE_HIDDEN, _TIRE_LAYERS = 8, 2
 _FEAT_SCALE_RV_BETA = (10.0, 3.0, math.pi / 2)
 
 
-def _feat_scale_of(curve: "_ExpTanhCurve") -> list[float] | None:
-    """A tire curve's feature scales as a plain list (``None`` if it is unconditioned)."""
-    return None if curve.net is None else curve.feat_scale.tolist()
+def _feat_scale_of(curve: "_ExpTanhCurve") -> list[float]:
+    """A tire curve's feature scales as a plain list (for the checkpoint)."""
+    return curve.feat_scale.tolist()
 
 
 class _ExpTanhCurve(nn.Module):
@@ -71,67 +71,50 @@ class _ExpTanhCurve(nn.Module):
     The five coefficients are *state-conditioned* like the paper's: ``(f1..f5) =
     NN(feat)``, with ``feat = [r, V, beta]`` for the front curve and ``[r, V, beta,
     omega_r]`` for the rear, so the curve reshapes with the operating point (load
-    transfer, speed-dependent friction) instead of being one fixed curve per axle.
-    ``feat_scale=None`` builds the earlier fixed-scalar curve instead — the shape every
-    checkpoint before 2026-07-22 was trained in, and the fallback if conditioning turns
-    out to overfit this dataset (it tops out near 3 m/s with little speed spread, so a
-    speed dependence is only weakly identifiable, and a state-conditioned curve is free
-    to absorb dynamics the fixed force balance is meant to explain).
+    transfer, speed-dependent friction) instead of being one fixed curve per axle. The
+    conditioning is always on — the earlier fixed-scalar form (one curve per axle) was
+    removed, because a single car and tire cannot identify the direct coefficients any
+    better than the network's bias does, and the conditioning is the only way the curve
+    can respond to load. See ``build_curves`` for how the per-car feature scales are set.
 
     Transforms keep f3, f4 positive, which is the paper's only stated constraint, and f5
     positive where the curve's argument is a squared quantity (``positive_f5``, see
-    _REAR_F5_INIT); f1 and f2 are free. The conditioned curve's output layer is
-    zero-initialized with the bias holding the same coefficients the fixed curve starts
-    at, so an untrained conditioned model is *identical* to the fixed one and training
-    only learns the state dependence.
+    _REAR_F5_INIT); f1 and f2 are free. The output layer is zero-initialized with its
+    bias holding the physically-motivated starting coefficients, so an untrained model is
+    a single fixed curve and training only adds the state dependence on top.
     """
 
     def __init__(
         self,
         peak: float,
         f4: float,
+        feat_scale: "tuple[float, ...]",
         f3: float = _F3_INIT,
         f5: float = 0.0,
         positive_f5: bool = False,
-        feat_scale: "tuple[float, ...] | None" = None,
         hidden: int = _TIRE_HIDDEN,
         layers: int = _TIRE_LAYERS,
     ) -> None:
         super().__init__()
-        # `self.f5` holds the raw pre-softplus value when positive_f5 is set; the
-        # state_dict key stays "f5" either way, so the flag has to be checkpointed.
+        # `bias[4]` holds the raw pre-softplus f5 when positive_f5 is set; the state_dict
+        # is unaffected either way, but the flag changes what the coefficient means, so it
+        # has to be checkpointed.
         self.positive_f5 = bool(positive_f5)
         raw_f5 = _inv_softplus(f5) if self.positive_f5 else f5
         init = (0.0, float(peak), _inv_softplus(f3), _inv_softplus(f4), raw_f5)
-        if feat_scale is None:
-            self.net = None
-            self.f1 = nn.Parameter(torch.tensor(init[0]))
-            self.f2 = nn.Parameter(torch.tensor(init[1]))
-            self.raw_f3 = nn.Parameter(torch.tensor(init[2]))
-            self.raw_f4 = nn.Parameter(torch.tensor(init[3]))
-            self.f5 = nn.Parameter(torch.tensor(init[4]))
-        else:
-            self.net = _mlp(len(feat_scale), hidden, layers, 5)
-            nn.init.zeros_(self.net[-1].weight)
-            with torch.no_grad():
-                self.net[-1].bias.copy_(torch.tensor(init))
-            # Fixed physical scales, so every feature reaches the first tanh at O(1).
-            # Raw units would saturate it immediately: omega_r runs to ~400 rad/s on
-            # this car against a slip angle of ~1. Normalization, not a model change.
-            self.register_buffer("feat_scale", torch.tensor(feat_scale, dtype=torch.float32))
+        self.net = _mlp(len(feat_scale), hidden, layers, 5)
+        nn.init.zeros_(self.net[-1].weight)
+        with torch.no_grad():
+            self.net[-1].bias.copy_(torch.tensor(init))
+        # Fixed physical scales, so every feature reaches the first tanh at O(1).
+        # Raw units would saturate it immediately: omega_r runs to ~400 rad/s on
+        # this car against a slip angle of ~1. Normalization, not a model change.
+        self.register_buffer("feat_scale", torch.tensor(feat_scale, dtype=torch.float32))
 
-    def coefficients(self, feat: torch.Tensor | None = None):
-        """``(f1, f2, f3, f4, f5)`` — constants, or the network's output for ``feat``."""
+    def coefficients(self, feat: torch.Tensor):
+        """``(f1, f2, f3, f4, f5)`` — the network's output for the feature vector ``feat``."""
         softplus = torch.nn.functional.softplus
         shift = softplus if self.positive_f5 else (lambda x: x)
-        if self.net is None:
-            return (
-                self.f1,
-                self.f2,
-                softplus(self.raw_f3),
-                softplus(self.raw_f4),
-                shift(self.f5),
-            )
         if feat is None:
             raise ValueError(
                 "this tire curve is state-conditioned — pass its feature vector "
@@ -164,10 +147,9 @@ class _ExpTanhCurve(nn.Module):
         bias describes.
         """
         z = torch.linspace(-z_max, z_max, 4001)
-        if self.net is not None:
-            if feat is None:
-                feat = torch.zeros(len(self.feat_scale))
-            feat = feat.reshape(-1, feat.shape[-1]).expand(z.shape[0], -1)
+        if feat is None:
+            feat = torch.zeros(len(self.feat_scale))
+        feat = feat.reshape(-1, feat.shape[-1]).expand(z.shape[0], -1)
         return float(self.forward(z, feat).abs().max())
 
 
@@ -177,19 +159,19 @@ class _DirectionNet(nn.Module):
 
     The rear force points along ``d/||d||`` with ``d = NN0(alpha_r, sigma_r)``.
 
-    ``residual=True`` (the default) instead adds the network to the geometric slip
-    direction and zero-initializes its output layer, so an untrained model starts at
-    exactly the friction circle the slip vector defines and training only learns the
-    correction. ``residual=False`` is the paper's literal form — the direction *is* the
-    network output — which needs a normal (non-zero) init, since a zero-initialized
-    ``d`` has no direction to normalize.
+    ``residual=False`` (the default) is this literal form — the direction *is* the
+    network output — which needs a normal (non-zero) init, since a zero-initialized ``d``
+    has no direction to normalize. ``residual=True`` instead adds the network to the
+    geometric slip direction and zero-initializes its output layer, so an untrained model
+    starts at exactly the friction circle the slip vector defines and training only learns
+    the correction — the physically-grounded warm-start, kept for A/B runs.
     """
 
     def __init__(
         self,
         hidden: int = _NN0_HIDDEN,
         layers: int = _NN0_LAYERS,
-        residual: bool = True,
+        residual: bool = False,
     ) -> None:
         super().__init__()
         self.residual = bool(residual)
@@ -203,30 +185,28 @@ class _DirectionNet(nn.Module):
 
 
 def build_curves(
-    fzf: float, fzr: float, tire_features: bool, wheel_noload_speed: float
+    fzf: float, fzr: float, wheel_noload_speed: float
 ) -> tuple[_ExpTanhCurve, _ExpTanhCurve]:
     """
-    Physically-initialized ``(front, rear)`` ExpTanh curves.
+    Physically-initialized ``(front, rear)`` state-conditioned ExpTanh curves.
 
     Front input is tan(alpha_f), linear in the slip; the rear input is the paper's
     *squared* combined slip z = tan²(alpha_r) + f0·sigma². The two ramp rates are
     therefore set independently — see ``_REAR_SLIP_SAT`` for why the rear's cannot be
-    the front's squared. With ``tire_features`` the coefficients are conditioned on the
-    state ([r, V, beta] front, plus the rear wheel speed at the rear); both zero-init to
-    the fixed curve so an untrained conditioned model is identical to the fixed one.
+    the front's squared. The coefficients are conditioned on the state ([r, V, beta] at
+    the front, plus the rear wheel speed at the rear); both zero-init to a single fixed
+    curve so an untrained conditioned model starts at the physical curve.
     """
     f4_front = 1.0 / (_TAN_SLIP_SAT * _MU_INIT)
     f4_rear = _TANH_99 / _REAR_SLIP_SAT**2
-    front_feat, rear_feat = None, None
-    if tire_features:
-        front_feat = _FEAT_SCALE_RV_BETA
-        rear_feat = (*_FEAT_SCALE_RV_BETA, float(wheel_noload_speed))
+    front_feat = _FEAT_SCALE_RV_BETA
+    rear_feat = (*_FEAT_SCALE_RV_BETA, float(wheel_noload_speed))
     front = _ExpTanhCurve(peak=_MU_INIT * fzf, f4=f4_front, feat_scale=front_feat)
     rear = _ExpTanhCurve(
         peak=_MU_INIT * fzr,
         f4=f4_rear,
+        feat_scale=rear_feat,
         f5=_REAR_F5_INIT,
         positive_f5=True,
-        feat_scale=rear_feat,
     )
     return front, rear

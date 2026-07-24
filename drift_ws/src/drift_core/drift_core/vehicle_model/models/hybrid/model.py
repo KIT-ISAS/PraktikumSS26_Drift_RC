@@ -133,22 +133,23 @@ class PhysicsInformedModel(TrainableModel):
         *,
         car="drift_rc",
         stochastic: bool = False,
-        tire_features: bool = True,
         bounded_params: bool = True,
-        nn0_residual: bool = True,
+        nn0_residual: bool = False,
         device: str = "cpu",
         **kwargs,
     ) -> "PhysicsInformedModel":
         """
         Physically-motivated init (normalization unused: inputs are slip quantities).
 
-        ``tire_features=False`` falls back to fixed per-axle tire curves instead of the
-        paper's state-conditioned coefficients — the pre-2026-07-22 shape, for A/B runs.
+        The tire curves are always the paper's state-conditioned coefficients (see
+        :class:`.tire._ExpTanhCurve`); the fixed per-axle form was removed.
         ``bounded_params=False`` drops the identifiability bands on the wheel/actuator
         scalars (they stay softplus-positive), letting an unconstrained fit run to see
         where it actually goes — see :class:`.esc._WheelParams` for what each band prevents.
-        ``nn0_residual=False`` takes the rear force direction straight from NN0, the
-        paper's literal form, instead of as a correction to the geometric slip direction.
+        ``nn0_residual`` (default ``False``, the paper's literal form) takes the rear
+        force direction straight from NN0; ``True`` instead learns it as a correction to
+        the geometric slip direction, zero-initialized so an untrained model starts on the
+        plain friction circle (the physically-grounded warm-start, useful for A/B runs).
         """
         cp = load_car_parameters(car) if isinstance(car, str) else car
         g = 9.81
@@ -174,7 +175,7 @@ class PhysicsInformedModel(TrainableModel):
             tau_s=0.08,
             tau_w=0.12,
         )
-        front, rear = build_curves(fzf, fzr, tire_features, cp.wheel_noload_speed_rad_s)
+        front, rear = build_curves(fzf, fzr, cp.wheel_noload_speed_rad_s)
         diffusion = _DiffusionNet() if stochastic else None
         nn0 = _DirectionNet(residual=nn0_residual)
         return cls(cp, params, front, rear, nn0, diffusion, device=device)
@@ -195,14 +196,18 @@ class PhysicsInformedModel(TrainableModel):
         cp = load_car_parameters(ckpt.get("car", "drift_rc"))
         params = _WheelParams.placeholder(bounded=ckpt.get("params_bounded", True))
         params.load_state_dict(ckpt["params_state"])
-        # No tire_* shape keys means a checkpoint from before the state-conditioned
-        # coefficients: fixed scalar curves (feat_scale=None).
         tire_shape = {
             "hidden": ckpt.get("tire_hidden", _TIRE_HIDDEN),
             "layers": ckpt.get("tire_layers", _TIRE_LAYERS),
         }
         front_feat = ckpt.get("front_feat_scale")
         rear_feat = ckpt.get("rear_feat_scale")
+        if front_feat is None or rear_feat is None:
+            raise ValueError(
+                "This hybrid checkpoint has fixed-scalar tire curves (no feature "
+                "scales) — that form was removed; the curves are now always "
+                "state-conditioned. Retrain with the current hybrid model."
+            )
         front = _ExpTanhCurve(
             peak=1.0,
             f4=1.0,
@@ -259,8 +264,7 @@ class PhysicsInformedModel(TrainableModel):
             "params_bounded": bool(self._p._bounds),
             "stochastic": self._diff is not None,
         }
-        if self._front.net is not None:
-            ckpt["tire_hidden"], ckpt["tire_layers"] = _mlp_shape(self._front.net)
+        ckpt["tire_hidden"], ckpt["tire_layers"] = _mlp_shape(self._front.net)
         if self._diff is not None:
             diff_hidden, diff_layers = _mlp_shape(self._diff.net)
             ckpt["diff_hidden"] = diff_hidden
@@ -330,15 +334,11 @@ class PhysicsInformedModel(TrainableModel):
         """
         The paper's tire-curve features: ``[r, V, beta]``, plus ``omega_r`` at the rear.
 
-        ``None`` for an unconditioned curve, so the fixed-scalar tires cost nothing.
         Note ``beta = atan2(vy, vx)`` is the paper's literal feature and it *wraps*: a
         car sliding backwards jumps between +pi and -pi, and the curve reshapes
         discontinuously across it. The full-size car never goes there; this one spins.
         Watch this if a conditioned fit misbehaves in spins but not in drifts.
         """
-        curve = self._front if omega is None else self._rear
-        if curve.net is None:
-            return None
         feat = [r, torch.sqrt(vx**2 + vy**2 + _EPS), torch.atan2(vy, vx)]
         if omega is not None:
             feat.append(omega)
