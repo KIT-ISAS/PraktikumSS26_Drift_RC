@@ -1,6 +1,9 @@
 [tool.ruff]
 line-length = 99  # ROS2 ament_flake uses 99
 
+[tool.ruff.format]
+exclude = ["*.md"]  # only format Python; newer ruff otherwise reformats .md code blocks
+
 [tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
