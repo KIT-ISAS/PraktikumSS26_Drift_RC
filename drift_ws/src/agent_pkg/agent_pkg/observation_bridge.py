@@ -10,8 +10,10 @@ unit-testable against ``DriftEnv``.
 
 - :func:`observation_from_messages` mirrors ``DriftEnv``'s observation.
 - :func:`reward_from_messages` mirrors ``DriftEnv``'s per-step reward/termination.
+- :func:`score_step` wraps the latter with the per-step bookkeeping the recording
+  nodes share (wrap-aware progress delta, stall timer).
 
-The heavy lifting lives in ``vehicle_simulation`` (``build_observation``,
+The heavy lifting lives in ``drift_core`` (``build_observation``,
 ``compute_reward``); here we only extract the scalars each one needs.
 """
 
@@ -20,15 +22,16 @@ import math
 from nav_msgs.msg import Odometry
 import numpy as np
 
-from shared_interfaces.msg import Track, TrackProgress
-from vehicle_simulation.environments.observation import build_observation, curvature_lookahead
-from vehicle_simulation.environments.rewards import (
+from drift_core.environments.observation import build_observation, curvature_lookahead
+from drift_core.environments.rewards import (
     RewardConfig,
     StepOutcome,
     TerminationConfig,
     compute_reward,
+    progress_delta,
 )
-from vehicle_simulation.transforms import wrap_angle, yaw_from_quaternion
+from drift_core.transforms import wrap_angle, yaw_from_quaternion
+from shared_interfaces.msg import Track, TrackProgress
 
 
 def observation_from_messages(
@@ -123,3 +126,43 @@ def reward_from_messages(
         dt=dt,
         stalled=stalled,
     )
+
+
+def score_step(
+    reward_cfg: RewardConfig,
+    term_cfg: TerminationConfig,
+    odom: Odometry,
+    progress: TrackProgress,
+    track: Track,
+    *,
+    action: np.ndarray,
+    prev_action: np.ndarray,
+    prev_distance: float,
+    dt: float,
+    stall_time: float,
+) -> tuple[StepOutcome, float]:
+    """
+    Score one recorded step, owning the per-step bookkeeping (pure, unit-testable).
+
+    Shared by the recording nodes: derives the wrap-aware progress ``ds`` from
+    ``prev_distance``, advances the stall timer from the current speed, and defers
+    to :func:`reward_from_messages`. Returns the outcome and the updated stall time
+    (the caller keeps it across ticks and resets it per episode).
+    """
+    ds = progress_delta(progress.distance, prev_distance, progress.total_length)
+    speed = math.hypot(odom.twist.twist.linear.x, odom.twist.twist.linear.y)
+    stall_time = stall_time + dt if speed < term_cfg.stall_speed else 0.0
+    stalled = stall_time >= term_cfg.stall_timeout_s
+    outcome = reward_from_messages(
+        reward_cfg,
+        term_cfg,
+        odom,
+        progress,
+        track,
+        action=action,
+        prev_action=prev_action,
+        ds=ds,
+        dt=dt,
+        stalled=stalled,
+    )
+    return outcome, stall_time

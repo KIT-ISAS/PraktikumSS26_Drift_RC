@@ -10,14 +10,15 @@ import pytest
 try:
     from nav_msgs.msg import Odometry
 
-    from agent_pkg.observation_bridge import reward_from_messages
-    from shared_interfaces.msg import Track, TrackProgress
-    from vehicle_simulation.environments.rewards import (
+    from agent_pkg.observation_bridge import reward_from_messages, score_step
+    from drift_core.environments.rewards import (
         RewardConfig,
         TerminationConfig,
         compute_reward,
+        progress_delta,
     )
-    from vehicle_simulation.transforms import quaternion_from_yaw, wrap_angle
+    from drift_core.transforms import quaternion_from_yaw, wrap_angle
+    from shared_interfaces.msg import Track, TrackProgress
 except ImportError:
     pytest.skip("shared_interfaces not built", allow_module_level=True)
 
@@ -137,3 +138,125 @@ def test_reward_bridge_flags_off_track():
     )
     assert outcome.terminated
     assert outcome.reason == "off_track"
+
+
+def test_score_step_matches_reward_from_messages():
+    reward_cfg = RewardConfig(drift_weight=2.0)
+    term_cfg = TerminationConfig()
+    action = np.array([0.3, 0.6], dtype=np.float32)
+    prev_action = np.array([0.1, 0.5], dtype=np.float32)
+    dt = 0.02
+
+    odom, progress, track = _messages(
+        vx=1.4,
+        vy=-0.35,
+        yaw_rate=1.1,
+        car_yaw=0.9,
+        tangent_yaw=0.6,
+        lateral_error=0.12,
+        curvature_value=0.8,
+    )
+    prev_distance = 2.46  # progress.distance is 2.5, so ds = 0.04
+    outcome, stall_time = score_step(
+        reward_cfg,
+        term_cfg,
+        odom,
+        progress,
+        track,
+        action=action,
+        prev_action=prev_action,
+        prev_distance=prev_distance,
+        dt=dt,
+        stall_time=0.5,
+    )
+    ds = progress_delta(progress.distance, prev_distance, progress.total_length)
+    expected = reward_from_messages(
+        reward_cfg, term_cfg, odom, progress, track, action, prev_action, ds, dt, stalled=False
+    )
+    assert outcome.reward == pytest.approx(expected.reward, abs=1e-6)
+    assert not outcome.terminated
+    # Speed is well above stall_speed: the stall timer resets.
+    assert stall_time == 0.0
+
+
+def test_score_step_stall_timer_accumulates_and_terminates():
+    reward_cfg = RewardConfig()
+    term_cfg = TerminationConfig(stall_speed=0.1, stall_timeout_s=2.0)
+    action = np.zeros(2, dtype=np.float32)
+    dt = 0.02
+
+    odom, progress, track = _messages(
+        vx=0.0,
+        vy=0.0,
+        yaw_rate=0.0,
+        car_yaw=0.0,
+        tangent_yaw=0.0,
+        lateral_error=0.0,
+        curvature_value=0.0,
+    )
+    stall_time = 0.0
+    outcome, stall_time = score_step(
+        reward_cfg,
+        term_cfg,
+        odom,
+        progress,
+        track,
+        action=action,
+        prev_action=action,
+        prev_distance=progress.distance,
+        dt=dt,
+        stall_time=stall_time,
+    )
+    assert stall_time == pytest.approx(dt)
+    assert not outcome.terminated
+
+    outcome, stall_time = score_step(
+        reward_cfg,
+        term_cfg,
+        odom,
+        progress,
+        track,
+        action=action,
+        prev_action=action,
+        prev_distance=progress.distance,
+        dt=dt,
+        stall_time=term_cfg.stall_timeout_s - dt,
+    )
+    assert stall_time == pytest.approx(term_cfg.stall_timeout_s)
+    assert outcome.terminated
+    assert outcome.reason == "stall"
+
+
+def test_score_step_ds_is_wrap_aware():
+    reward_cfg = RewardConfig(
+        speed_weight=0.0, lateral_weight=0.0, heading_weight=0.0, action_rate_weight=0.0
+    )
+    term_cfg = TerminationConfig()
+    action = np.zeros(2, dtype=np.float32)
+
+    odom, progress, track = _messages(
+        vx=2.0,
+        vy=0.0,
+        yaw_rate=0.0,
+        car_yaw=0.0,
+        tangent_yaw=0.0,
+        lateral_error=0.0,
+        curvature_value=0.0,
+    )
+    # Crossing the start line: distance jumps from near total_length back to 2.5.
+    prev_distance = progress.total_length - 0.02
+    outcome, _ = score_step(
+        reward_cfg,
+        term_cfg,
+        odom,
+        progress,
+        track,
+        action=action,
+        prev_action=action,
+        prev_distance=prev_distance,
+        dt=0.02,
+        stall_time=0.0,
+    )
+    # With only the progress term active, the reward is exactly the wrapped ds
+    # (clipped to MAX_DS_PER_STEP_M), never the huge negative raw difference.
+    assert 0.0 < outcome.reward <= 0.5

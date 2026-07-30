@@ -191,12 +191,12 @@ jobs:
       - name: Start Dev Container
         run: |
           docker compose -f .devcontainer/docker-compose.yaml up -d
-      
+
       # The DriftEnv and SAC end-to-end smoke tests skip themselves via
       # pytest.importorskip when the RL dependencies are missing, so today the
       # pipeline never runs them. Install the pinned CPU-only extra (the +cpu
       # torch wheel is only served by the PyTorch CPU index — see the note in
-      # vehicle_simulation/pyproject.toml). Installed into /opt/venv per the
+      # drift_core/pyproject.toml). Installed into /opt/venv per the
       # image's PEP 668 convention; the system python3 that runs pytest sees it
       # through the PYTHONPATH append baked into the image.
       - name: Install RL test dependencies
@@ -204,16 +204,19 @@ jobs:
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c '
             /opt/venv/bin/python -m pip install --upgrade pip &&
             /opt/venv/bin/pip install pytest &&
-            /opt/venv/bin/pip install -e "/root/repo/drift_ws/src/vehicle_simulation[rl-cpu]" \
+            /opt/venv/bin/pip install -e "/root/repo/drift_ws/src/drift_core[rl-cpu]" \
               --extra-index-url https://download.pytorch.org/whl/cpu &&
             /opt/venv/bin/python -c "import pytest, gymnasium, stable_baselines3, torch; print(\"RL deps available\", torch.__version__)"
           '
 
+      # drift_core is a pure pip library (no package.xml), so colcon test does not
+      # discover it. Run its pytest suite directly with the venv interpreter that
+      # has the RL extra installed; -rs surfaces any remaining skips in the log.
       - name: Run Library Tests
         run: |
           docker compose -f .devcontainer/docker-compose.yaml exec -T ros2 bash -c '
             cd /root/repo/drift_ws &&
-            PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /opt/venv/bin/python -m pytest src/vehicle_simulation/tests -v -rs
+            PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /opt/venv/bin/python -m pytest src/drift_core/tests -v -rs
           '
 
       - name: Stop Dev Container

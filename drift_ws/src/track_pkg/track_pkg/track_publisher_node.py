@@ -8,9 +8,9 @@ from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from visualization_msgs.msg import Marker, MarkerArray
 
+from drift_core.track import FIGURE8_LOST_DISTANCE_M, TrackProjector, load_track
 from shared_interfaces.msg import Track, TrackProgress
 from shared_pkg import Topics
-from vehicle_simulation.track import TrackProjector, load_track
 
 
 class TrackPublisherNode(Node):
@@ -40,7 +40,10 @@ class TrackPublisherNode(Node):
         self.declare_parameter("points_per_segment", 20)
         self.declare_parameter("car_pose_topic", Topics.CAR_POSE)
         self.declare_parameter("search_window_m", 0.6)
-        self.declare_parameter("lost_distance_m", 0.5)
+        self.declare_parameter("lost_distance_m", FIGURE8_LOST_DISTANCE_M)
+        self.declare_parameter("checkpoint_spacing_m", 1.0)
+        self.declare_parameter("track_width_m", 0.8)
+        self.declare_parameter("continuity_threshold_m", 3.0)
         # Boundary corners [x0, y0, x1, y1, ...] in the track frame. Empty (default)
         # derives an axis-aligned box around the centerline with boundary_margin_m.
         self.declare_parameter("arena_corners", [])
@@ -72,6 +75,9 @@ class TrackPublisherNode(Node):
             cumul,
             search_window_m=self.get_parameter("search_window_m").value,
             lost_distance_m=self.get_parameter("lost_distance_m").value,
+            checkpoint_spacing_m=self.get_parameter("checkpoint_spacing_m").value,
+            track_width_m=self.get_parameter("track_width_m").value,
+            continuity_threshold_m=self.get_parameter("continuity_threshold_m").value,
         )
 
         track_msg = Track()
@@ -168,6 +174,7 @@ class TrackPublisherNode(Node):
         progress_msg.distance = float(proj.distance)
         progress_msg.total_length = float(self._projector.total_length)
         progress_msg.lateral_error = float(proj.lateral_error)
+        progress_msg.off_track = bool(proj.off_track)
 
         pose = Pose()
         pose.position.x = proj.x

@@ -3,7 +3,7 @@
 <package format="3">
   <name>simulation_pkg</name>
   <version>0.0.0</version>
-  <description>ROS2 wrapper that runs a vehicle_simulation model and publishes the simulated canonical car state (/car/pose, /car/odom, world-&gt;base_link TF)</description>
+  <description>ROS2 wrapper that runs a drift_core model and publishes the simulated canonical car state (/car/pose, /car/odom, world-&gt;base_link TF)</description>
   <maintainer email="julian-bihl@t-online.de">Julian Bihl</maintainer>
   <license>Apache License 2.0</license>
 

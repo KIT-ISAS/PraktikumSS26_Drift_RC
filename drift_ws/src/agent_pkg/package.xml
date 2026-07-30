@@ -3,7 +3,7 @@
 <package format="3">
   <name>agent_pkg</name>
   <version>0.0.0</version>
-  <description>ROS2 wrapper around the trained RL drift agent: builds observations from /car/odom + /track/progress + /track/centerline via the shared vehicle_simulation observation builder and publishes VehicleActionRequest at the control rate</description>
+  <description>ROS2 wrapper around the trained RL drift agent: builds observations from /car/odom + /track/progress + /track/centerline via the shared drift_core observation builder and publishes VehicleActionRequest at the control rate</description>
   <maintainer email="louis.wagner0610@gmail.com">Louis Wagner</maintainer>
   <license>Apache License 2.0</license>
 

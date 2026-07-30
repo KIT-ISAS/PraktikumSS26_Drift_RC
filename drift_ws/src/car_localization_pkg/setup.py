@@ -18,6 +18,10 @@ setup(
             os.path.join("share", package_name, "launch"),
             glob(os.path.join("launch", "*launch.[pxy][yma]*")),
         ),
+        (
+            os.path.join("share", package_name, "config"),
+            glob(os.path.join("config", "*.yaml")),
+        ),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
@@ -35,6 +39,7 @@ setup(
             "mount_tf_node = car_localization_pkg.mount_tf_node:main",
             "car_state_node = car_localization_pkg.car_state_node:main",
             "car_viz_node = car_localization_pkg.car_viz_node:main",
+            "world_anchor_node = car_localization_pkg.world_anchor_node:main",
         ],
     },
 )

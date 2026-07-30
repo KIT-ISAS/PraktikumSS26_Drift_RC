@@ -6,3 +6,4 @@ float32 distance                # arc length s along centerline (m)
 float32 total_length            # full track length (m)
 geometry_msgs/Pose projected_pose   # closest centerline point (+ track heading)
 float32 lateral_error           # signed car->centerline distance (m), + = car left of path
+bool off_track                  # |lateral_error| > track_width_m / 2

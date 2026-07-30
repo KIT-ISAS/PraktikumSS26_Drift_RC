@@ -25,7 +25,7 @@ setup(
     zip_safe=True,
     maintainer="Julian Bihl",
     maintainer_email="julian-bihl@t-online.de",
-    description="ROS2 wrapper for vehicle_simulation models",
+    description="ROS2 wrapper for drift_core models",
     license="Apache License 2.0",
     extras_require={"test": ["pytest"]},
     entry_points={

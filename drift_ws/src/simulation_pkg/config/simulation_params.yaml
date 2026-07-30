@@ -13,6 +13,11 @@ simulation_node:
     # Path to a .pt checkpoint or run dir (for trained models: neural/hybrid)
     model_weights: ""
 
+    # Sample the model's learned SDE each step instead of the deterministic mean.
+    # Only trained stochastic models carry a diffusion head; every other model
+    # ignores this and steps deterministically.
+    stochastic: false
+
     # Simulation timestep in seconds (also controls /car/pose publish rate)
     dt: 0.02
 

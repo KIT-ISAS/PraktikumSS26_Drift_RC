@@ -23,24 +23,68 @@ Connect Foxglove to ws://localhost:8765.
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+# simulation_node parameters that a launch argument may override. Each argument
+# defaults to "" ("leave it to simulation_params.yaml"); only a non-empty value is
+# forwarded as a per-node override. A parameter dict passed after the YAML file wins
+# unconditionally, so a non-empty default here (as before) would clobber the YAML even
+# when the argument was left untouched — which silently disabled the file's settings.
+_NODE_PARAM_ARGS = ("model_type", "model_weights", "stochastic")
+
+
+def _simulation_node(context, *_args, **_kwargs):
+    overrides = {}
+    for key in _NODE_PARAM_ARGS:
+        value = LaunchConfiguration(key).perform(context)
+        if value != "":
+            overrides[key] = value
+    # `stochastic` is declared as a bool parameter; the launch arg arrives as a string.
+    if "stochastic" in overrides:
+        overrides["stochastic"] = overrides["stochastic"].lower() in ("1", "true", "yes")
+    return [
+        Node(
+            package="simulation_pkg",
+            executable="simulation_node",
+            name="simulation_node",
+            output="screen",
+            parameters=[
+                PathJoinSubstitution(
+                    [FindPackageShare("simulation_pkg"), "config", "simulation_params.yaml"]
+                ),
+                overrides,
+            ],
+        )
+    ]
+
 
 def generate_launch_description():
     model_type_arg = DeclareLaunchArgument(
         "model_type",
-        default_value="arcade",
-        description="Vehicle model: 'arcade' (game-like drift), 'kinematic', or 'neural'",
+        default_value="",
+        description="Vehicle model ('arcade' / 'kinematic' / 'neural' / 'hybrid' / run dir); "
+        "empty = use simulation_params.yaml",
+    )
+    model_weights_arg = DeclareLaunchArgument(
+        "model_weights",
+        default_value="",
+        description="Checkpoint .pt or run dir for trained models ('neural'/'hybrid')",
+    )
+    stochastic_arg = DeclareLaunchArgument(
+        "stochastic",
+        default_value="",
+        description="'true' samples the model's learned SDE each step (realistic wheelspin "
+        "instability); empty = use simulation_params.yaml",
     )
     track_file_arg = DeclareLaunchArgument(
         "track_file",
         default_value="figure_8",
-        description="Track name (in vehicle_simulation/tracks) or path to a track YAML",
+        description="Track name (in drift_core/tracks) or path to a track YAML",
     )
     joystick_arg = DeclareLaunchArgument(
         "joystick",
@@ -48,18 +92,7 @@ def generate_launch_description():
         description="Set true to bring up the gamepad stack as the input source",
     )
 
-    simulation_node = Node(
-        package="simulation_pkg",
-        executable="simulation_node",
-        name="simulation_node",
-        output="screen",
-        parameters=[
-            PathJoinSubstitution(
-                [FindPackageShare("simulation_pkg"), "config", "simulation_params.yaml"]
-            ),
-            {"model_type": LaunchConfiguration("model_type")},
-        ],
-    )
+    simulation_node = OpaqueFunction(function=_simulation_node)
 
     track_publisher_node = Node(
         package="track_pkg",
@@ -98,6 +131,8 @@ def generate_launch_description():
     return LaunchDescription(
         [
             model_type_arg,
+            model_weights_arg,
+            stochastic_arg,
             track_file_arg,
             joystick_arg,
             simulation_node,

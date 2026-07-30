@@ -29,7 +29,7 @@ colcon build [--packages-select <pkg>]
 # Run a node / launch
 ros2 run <pkg> <executable>
 ros2 launch drift_ws/launch/manual_driving.launch.py              # joystick + vehicle comms
-ros2 launch drift_ws/launch/manual_driving_with_viz.launch.py     # + holodeck + track viz
+ros2 launch drift_ws/launch/manual_driving_with_viz.launch.py     # + libsurvive + track viz
 
 # Tests (includes auto-generated linter tests)
 colcon test --event-handlers console_direct+
@@ -57,13 +57,20 @@ ROS 2 packages live in `drift_ws/src/`:
 | `shared_pkg` | ament_python | Cross-package constants — notably the `Topics` class (topic name registry) |
 | `joystick_pkg` | ament_python | Reads controller via ROS `joy` node, maps inputs (`xbox_one_mapper`) to `VehicleActionRequest` |
 | `vehicle_communication_pkg` | ament_python | Bridges ROS ↔ car: forwards `VehicleActionRequest` to the ESP32, republishes `VehicleStatus` |
-| `holodeck_pkg` | ament_cmake (C++) | Thin wrapper around the `libsurvive_ros2` driver; publishes vehicle and lighthouse poses in the world frame via TF and on `/car/pose` |
+| `libsurvive_pkg` | ament_cmake (C++) | Thin wrapper around the `libsurvive_ros2` driver; publishes vehicle and lighthouse poses in the world frame via TF and on `/car/pose` |
+| `steamvr_pkg` | ament_python | Alternative tracking source: receives tracker poses from the host-side SteamVR bridge (`steamvr_bridge/`, UDP) and publishes the same TF contract + a pseudo-IMU |
 | `track_pkg` | ament_python | Bezier track representation, lap progress tracking, and centerline publisher |
-| `agent_pkg` | ament_python | Runs a trained RL agent (`vehicle_simulation.agents.DriftAgent`) as the control source: `/car/odom` + `/track/progress` + `/track/centerline` → shared observation builder → `VehicleActionRequest` at 50 Hz |
+| `agent_pkg` | ament_python | Runs a trained RL agent (`drift_core.agents.DriftAgent`) as the control source: `/car/odom` + `/track/progress` + `/track/centerline` → shared observation builder → `VehicleActionRequest` at 50 Hz |
 
 **Control data flow:** `joystick_pkg` → `VehicleActionRequest` topic → `vehicle_communication_pkg` → UDP/JSON → ESP32 firmware → PWM (servo/ESC). Status flows back: ESP32 → UDP → `vehicle_communication_pkg` → `VehicleStatus` topic.
 
-**Tracking data flow:** Vive lighthouses → `holodeck_pkg`/libsurvive → vehicle & lighthouse poses published in the **world frame** via TF and on `/car/pose` → `track_pkg` projects the car onto the centerline and publishes `TrackProgress` (lap count, lateral error, arc-length distance).
+**Tracking data flow:** Vive lighthouses → tracking source → TF `world -> tracker_link` + raw IMU topic → `car_localization_pkg` derives the canonical `/car/pose`, `/car/odom`, `/car/imu` (CoG, ISO 8855) → `track_pkg` projects the car onto the centerline and publishes `TrackProgress` (lap count, lateral error, arc-length distance).
+
+Two interchangeable tracking sources exist (`tracking_source:=libsurvive|steamvr` on the top-level launch; they cannot run simultaneously — both claim the tracker dongle):
+- **libsurvive**: `libsurvive_pkg` wraps the driver in-container.
+- **SteamVR**: `steamvr_bridge/steamvr_bridge.py` must run **on the host** (OpenVR needs local IPC to SteamVR) and streams raw poses over UDP to `steamvr_pkg`'s node; the wire format lives in `steamvr_pkg/steamvr_pkg/lib/protocol.py` (stdlib-only, imported by both ends).
+
+The world frame is **defined by the lighthouse constellation**, identically for both sources: each source latches raw `<source>_world -> <lighthouse serial>` TFs, and `car_localization_pkg`'s `world_anchor_node` (started by both tracking launches) fits `world -> <source>_world` against `car_localization_pkg/config/lighthouses_world.yaml` at startup. Move the lighthouses and the world (and track) moves with them; a lighthouse moved relative to the others triggers a residual warning — see `steamvr_pkg/README.md`.
 
 ### Conventions
 
@@ -75,7 +82,7 @@ ROS 2 packages live in `drift_ws/src/`:
 Track geometry is defined as closed cubic Bézier splines in YAML files under `track_pkg/config/` (e.g. `figure_8.yaml`). The pipeline is:
 
 1. **`BezierTrack`** (`bezier_track.py`) — loads a YAML file and `discretize()`s it into `(x, y, heading)` waypoints plus curvature and cumulative arc-length arrays.
-2. **`TrackProjector`** (`track_projector.py`) — projects a 2D car position onto the closed centerline, returns a `Projection` (arc-length distance, lateral error, lap count, lap progress). ROS-free; unit-testable in isolation. Uses a sliding search window to disambiguate crossings (e.g. the figure-8 origin).
+2. **`TrackProjector`** (`track_projector.py`) — projects a 2D car position onto the closed centerline, returns a `Projection` (arc-length distance, lateral error, off-track flag, lap count, lap progress). ROS-free; unit-testable in isolation. Uses a sliding search window to disambiguate crossings (e.g. the figure-8 origin), and validates lap count/progress via in-order arc-length checkpoints so shortcuts across a crossing earn no progress; the lap count is non-decreasing.
 3. **`track_publisher_node`** — subscribes to `/car/pose`, runs the projector, and publishes:
    - `Track` on `/track/centerline` (latched, on startup)
    - `TrackProgress` on `/track/progress` (each car pose update)

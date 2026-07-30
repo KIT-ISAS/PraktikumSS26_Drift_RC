@@ -1,7 +1,7 @@
 """
 Republish a car pose as a 3D mesh marker for Foxglove.
 
-Extracted from the holodeck node so visualization is source-agnostic and can be
+Extracted from the libsurvive node so visualization is source-agnostic and can be
 instantiated once per car: point it at ``/car/pose`` for the real car and at
 ``/sim/car/pose`` for a simulated one, each with its own colour, and both render
 in the shared ``world`` frame.
@@ -15,8 +15,8 @@ from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 from visualization_msgs.msg import Marker
 
+from drift_core.transforms import quaternion_from_yaw, quaternion_multiply
 from shared_pkg import Topics
-from vehicle_simulation.transforms import quaternion_from_yaw, quaternion_multiply
 
 
 class CarVizNode(Node):
