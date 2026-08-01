@@ -9,9 +9,6 @@ The `docker-compose.yaml` file defines the services for the Docker environment. 
 
 For joystick support, the container also needs access to the host input devices. The devcontainer maps `/dev/input` into the container and allows the `c 13:*` device class so `pygame` can detect Xbox controllers through Linux input events.
 
-### requirements.txt
-The `requirements.txt` file lists the Python dependencies required for the project. They are installed when the docker is built into a virtual environment within the Docker container to avoid conflicts with system-wide packages.
-
 ### Building and Running the Docker Container
 To build and run the Docker container, follow these steps:
 1. Ensure you have Docker and Docker Compose installed on your system.
@@ -37,4 +34,4 @@ You can also use Visual Studio Code's Remote Development extension to work direc
 3. Open the Command Palette (Ctrl+Shift+P) and select "Remote-Containers: Open Folder in Container".
 
 
-Keep in mind that you need to Rebuild the container if you make changes to the `Dockerfile`, `docker-compose.yaml`, or `requirements.txt` to ensure that the changes are reflected in the development environment.
+Keep in mind that you need to Rebuild the container if you make changes to the `Dockerfile`, `docker-compose.yaml`, or `pyproject.toml` to ensure that the changes are reflected in the development environment.

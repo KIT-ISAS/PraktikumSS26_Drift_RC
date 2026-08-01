@@ -43,10 +43,6 @@ RUN git config --system --add safe.directory '*'
 # Create virtual environment since Ubuntu doesn't allow system wide installation
 RUN python3 -m venv /opt/venv
 
-# Install Python dependencies into venv
-COPY requirements.txt .
-RUN source /opt/venv/bin/activate && pip install -r requirements.txt
-
 
 ########## Custom System-wide Configurations ##########
 # Enable colored terminal output

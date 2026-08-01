@@ -15,6 +15,7 @@ dependencies = [
     "pandas",
     "pyyaml",
     "rosbags",
+    "ruff"
 ]
 
 [project.optional-dependencies]
