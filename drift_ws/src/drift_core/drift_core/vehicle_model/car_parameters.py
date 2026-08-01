@@ -16,7 +16,7 @@ unambiguous (a recurring source of bugs).
 
 Example::
 
-    from drift_core.car_parameters import load_car_parameters
+    from drift_core.vehicle_model.car_parameters import load_car_parameters
 
     car = load_car_parameters("drift_rc")
     car.wheelbase_m                       # measured
@@ -174,7 +174,7 @@ class CarParameters:
 
 def _cars_dir():
     """Return the importlib traversable for the packaged ``cars/`` directory."""
-    return files("drift_core").joinpath("cars")
+    return files("drift_core.vehicle_model").joinpath("cars")
 
 
 def _from_dict(data: dict) -> CarParameters:

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from drift_core.data.rosbag_reader import _label_motor_commands
+from drift_core.vehicle_model.data.rosbag_reader import _label_motor_commands
 
 
 def _stream(rows: list[tuple[float, float, float]]) -> pd.DataFrame:

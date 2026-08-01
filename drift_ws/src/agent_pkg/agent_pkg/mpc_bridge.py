@@ -21,7 +21,7 @@ def mpc_inputs_from_messages(
     ``lateral_error`` [m] is signed + = car left of the centerline,
     ``heading_error`` [rad] is the car heading minus the track-tangent heading
     (wrapped), ``vx`` [m/s] the body-frame forward speed, and ``s`` [m] the arc
-    length along the centerline — all exactly as :class:`drift_core.control.PathMpc`
+    length along the centerline — all exactly as :class:`drift_core.agent.control.PathMpc`
     expects them.
     """
     car = odom.pose.pose.orientation

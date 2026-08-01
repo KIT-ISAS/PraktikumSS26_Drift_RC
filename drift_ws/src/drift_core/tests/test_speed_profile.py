@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from drift_core.control import build_speed_profile
+from drift_core.agent.control import build_speed_profile
 
 V_MAX = 2.0
 A_LAT = 3.5

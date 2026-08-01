@@ -38,26 +38,34 @@ pip install -e "drift_ws/src/drift_core[rl-cpu]" \
 
 ## Package layout
 
+Three domains — the car, the track it drives on, and the agent that drives it —
+plus two shared leaf modules that all three (and the ROS packages) depend on.
+
 ```
 drift_core/
-  track/         Bézier track geometry + projection; load_track(), list_tracks()
-  tracks/        packaged track data (figure_8.yaml)
-  models/        dynamics models + build_model() factory:
-                   kinematic, arcade  (basic, torch-free)
-                   neural, dynamic (physics), hybrid (physics + neural residual)
-  cars/          measured car parameters (drift_rc.yaml)
-  car_parameters.py   load_car_parameters() + derived quantities (CoG, mass, gearing, ...)
+  transforms.py  quaternion / angle maths, ROS-free (used by 5 ROS packages)
   paths.py       default run-directory locations (drift_ws/runs/agent | vehicle_model)
-  data/          rosbag reader, preprocessing, localization-jump sanity checks,
-                 regime labelling, variable-dt multi-step window datasets, DatasetSpec
-  training/      config-driven Trainer, file-based run dirs, train_model CLI
-  evaluation/    metrics (overall / per-regime / per-horizon), recorded-vs-predicted
-                 MCAP for Foxglove, plots, evaluate CLI
-  environments/  shared observation/action builder (sim-to-real seam) + RL env scaffold
-```
 
-> Components are introduced incrementally across the feature PRs; the layout above
-> is the full package.
+  track/         Bézier track geometry + projection; load_track(), list_tracks()
+    tracks/        packaged track data (figure_8.yaml)
+
+  vehicle_model/  build_model() factory + the VehicleModel interface, re-exported
+    models/        dynamics models:
+                     kinematic, arcade  (basic, torch-free)
+                     neural, dynamic (physics), hybrid (physics + neural residual)
+    car_parameters.py  load_car_parameters() + derived quantities (CoG, mass, gearing, ...)
+    cars/          measured car parameters (drift_rc.yaml)
+    data/          rosbag reader, preprocessing, localization-jump sanity checks,
+                   regime labelling, variable-dt multi-step window datasets, DatasetSpec
+    training/      config-driven Trainer, file-based run dirs, train_model CLI
+    evaluation/    metrics (overall / per-regime / per-horizon), recorded-vs-predicted
+                   MCAP for Foxglove, plots, evaluate CLI
+
+  agent/         DriftAgent inference + train/finetune/evaluate/analyze CLIs
+    environments/  shared observation/action builder (sim-to-real seam) + DriftEnv
+      configs/       packaged curriculum stages (stage1_path_follow, ...)
+    control/       deterministic path following: lateral MPC, speed profile, throttle PI
+```
 
 ## Usage
 
@@ -65,11 +73,11 @@ drift_core/
 from drift_core.track import load_track
 track = load_track("figure_8")                      # packaged name or a YAML path
 
-from drift_core.models import build_model
+from drift_core.vehicle_model import build_model
 model = build_model("arcade")                        # kinematic | dynamic | a run dir
 next_state = model.step(state, action, dt)
 
-from drift_core.car_parameters import load_car_parameters
+from drift_core.vehicle_model.car_parameters import load_car_parameters
 car = load_car_parameters("drift_rc")                # measured params + derived props
 ```
 
@@ -92,9 +100,9 @@ disk on a GPU server). The tree is git-ignored — share run dirs out-of-band.
 Train and evaluate a dynamics model (needs the `[neural]` / `[eval]` extras):
 
 ```bash
-python -m drift_core.training.train_model \
+python -m drift_core.vehicle_model.training.train_model \
     --bags drift_ws/rosbag2_<...> --tag v1   # -> drift_ws/runs/vehicle_model/<id>/
-python -m drift_core.evaluation.evaluate \
+python -m drift_core.vehicle_model.evaluation.evaluate \
     --run-dir drift_ws/runs/vehicle_model/<id> \
     --bags drift_ws/rosbag2_<...> --mcap-bag drift_ws/rosbag2_<...>
 ```
@@ -114,30 +122,30 @@ Connect Foxglove to `ws://localhost:8765` to watch it.
 ## RL agent (needs the `[rl]` extra)
 
 The drift agent is a Stable-Baselines3 **SAC** policy trained in `DriftEnv`
-(`environments/drift_env.py`), which steps any `build_model(...)` dynamics model
+(`agent/environments/drift_env.py`), which steps any `build_model(...)` dynamics model
 (arcade baseline now, a trained model later) on a track at 50 Hz. Training follows
 a three-stage curriculum — each stage is a packaged YAML config
-(`environments/configs/`), and later stages warm-start from the previous run:
+(`agent/environments/configs/`), and later stages warm-start from the previous run:
 
 ```bash
-python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1
-python -m drift_core.agents.train_agent --config stage2_fast  --init-from <s1_run_dir> --tag s2
-python -m drift_core.agents.train_agent --config stage3_drift --init-from <s2_run_dir> --tag s3
+python -m drift_core.agent.train_agent --config stage1_path_follow --tag s1
+python -m drift_core.agent.train_agent --config stage2_fast  --init-from <s1_run_dir> --tag s2
+python -m drift_core.agent.train_agent --config stage3_drift --init-from <s2_run_dir> --tag s3
 
-python -m drift_core.agents.evaluate_agent --run-dir drift_ws/runs/agent/<id> --episodes 10
+python -m drift_core.agent.evaluate_agent --run-dir drift_ws/runs/agent/<id> --episodes 10
 ```
 
 Each run writes a self-contained `drift_ws/runs/agent/<timestamp>__sac__<tag>/` (config, meta,
 `progress.csv`, `agent.zip` + `best_model.zip`, `eval/`). Inference — in the ROS
-node or anywhere else — goes through `drift_core.agents.DriftAgent`:
+node or anywhere else — goes through `drift_core.agent.DriftAgent`:
 
 ```python
-from drift_core.agents import DriftAgent
+from drift_core.agent import DriftAgent
 agent = DriftAgent("drift_ws/runs/agent/<id>")   # loads best_model.zip / agent.zip
 action = agent.act(obs)                      # -> VehicleAction, deterministic
 ```
 
-**Sim-to-real seam:** `environments/observation.py` is the single source of truth
+**Sim-to-real seam:** `agent/environments/observation.py` is the single source of truth
 for the policy input (local state + upcoming-centerline curvature, fixed
 normalization constants, no learned statistics). The deployment ROS node must
 build observations with exactly these helpers — every input maps 1:1 to
@@ -150,7 +158,7 @@ build observations with exactly these helpers — every input maps 1:1 to
 - `simulation_pkg` builds a model with `build_model(...)` and steps it to publish
   `/car/pose` — so any model (basic, trained, physics, hybrid) can be driven in sim.
 - `agent_pkg` runs a trained agent via `DriftAgent` and builds its observations with
-  `environments/observation.py` — the same code the agent was trained on.
+  `agent/environments/observation.py` — the same code the agent was trained on.
 
 Keep this logic in the library; do not duplicate it in the ROS packages.
 

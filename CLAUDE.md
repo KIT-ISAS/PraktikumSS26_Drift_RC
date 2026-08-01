@@ -64,7 +64,7 @@ ROS 2 packages live in `drift_ws/src/`:
 | `libsurvive_pkg` | ament_cmake (C++) | Thin wrapper around the `libsurvive_ros2` driver; publishes vehicle and lighthouse poses in the world frame via TF and on `/car/pose` |
 | `steamvr_pkg` | ament_python | Alternative tracking source: receives tracker poses from the host-side SteamVR bridge (`steamvr_bridge/`, UDP) and publishes the same TF contract + a pseudo-IMU |
 | `track_pkg` | ament_python | Bezier track representation, lap progress tracking, and centerline publisher |
-| `agent_pkg` | ament_python | Runs a trained RL agent (`drift_core.agents.DriftAgent`) as the control source: `/car/odom` + `/track/progress` + `/track/centerline` → shared observation builder → `VehicleActionRequest` at 50 Hz |
+| `agent_pkg` | ament_python | Runs a trained RL agent (`drift_core.agent.DriftAgent`) as the control source: `/car/odom` + `/track/progress` + `/track/centerline` → shared observation builder → `VehicleActionRequest` at 50 Hz |
 
 **Control data flow:** `joystick_pkg` → `VehicleActionRequest` topic → `vehicle_communication_pkg` → UDP/JSON → ESP32 firmware → PWM (servo/ESC). Status flows back: ESP32 → UDP → `vehicle_communication_pkg` → `VehicleStatus` topic.
 
@@ -76,6 +76,19 @@ Two interchangeable tracking sources exist (`tracking_source:=libsurvive|steamvr
 
 The world frame is **defined by the lighthouse constellation**, identically for both sources: each source latches raw `<source>_world -> <lighthouse serial>` TFs, and `car_localization_pkg`'s `world_anchor_node` (started by both tracking launches) fits `world -> <source>_world` against `car_localization_pkg/config/lighthouses_world.yaml` at startup. Move the lighthouses and the world (and track) moves with them; a lighthouse moved relative to the others triggers a residual warning — see `steamvr_pkg/README.md`.
 
+### `drift_core` layout (`drift_ws/src/drift_core`, plain pip package)
+
+ROS-free library grouped into three domains plus two shared leaves. See its README.
+
+| Path | Role |
+|------|------|
+| `drift_core/vehicle_model/` | `build_model()` + the `VehicleModel` interface (re-exported from `models/`); `car_parameters.py` + `cars/`, `data/`, `training/`, `evaluation/` |
+| `drift_core/track/` | `BezierTrack`, `TrackProjector`, `load_track()`; packaged tracks in `track/tracks/` |
+| `drift_core/agent/` | `DriftAgent` + the train/finetune/evaluate/analyze CLIs; `environments/` (DriftEnv + the sim-to-real observation seam, stage YAMLs in `environments/configs/`); `control/` (MPC path following) |
+| `drift_core/transforms.py`, `paths.py` | Shared leaves — quaternion/angle maths and run-directory defaults |
+
+Import from the domain root where one exists (`from drift_core.vehicle_model import build_model`), not from `vehicle_model.models`. Packaged YAML is resolved with `importlib.resources.files("drift_core.<subpackage>")`, so moving a data directory means updating both that anchor and `[tool.setuptools.package-data]` in the package's `pyproject.toml`.
+
 ### Conventions
 
 - **Never hardcode topic names.** Import them from `shared_pkg`'s `Topics` class (e.g. `Topics.VEHICLE_ACTION_REQUEST`). Add new topics there.
@@ -83,7 +96,7 @@ The world frame is **defined by the lighthouse constellation**, identically for 
 
 ## Track package (`track_pkg`)
 
-Track geometry is defined as closed cubic Bézier splines in YAML files under `track_pkg/config/` (e.g. `figure_8.yaml`). The pipeline is:
+The geometry itself lives in `drift_core/track/` (ROS-free); `track_pkg` is the node wrapper. Tracks are closed cubic Bézier splines in YAML files under `drift_core/track/tracks/` (e.g. `figure_8.yaml`), loaded by name via `drift_core.track.load_track`. The pipeline is:
 
 1. **`BezierTrack`** (`bezier_track.py`) — loads a YAML file and `discretize()`s it into `(x, y, heading)` waypoints plus curvature and cumulative arc-length arrays.
 2. **`TrackProjector`** (`track_projector.py`) — projects a 2D car position onto the closed centerline, returns a `Projection` (arc-length distance, lateral error, off-track flag, lap count, lap progress). ROS-free; unit-testable in isolation. Uses a sliding search window to disambiguate crossings (e.g. the figure-8 origin), and validates lap count/progress via in-order arc-length checkpoints so shortcuts across a crossing earn no progress; the lap count is non-decreasing.
@@ -92,7 +105,7 @@ Track geometry is defined as closed cubic Bézier splines in YAML files under `t
    - `TrackProgress` on `/track/progress` (each car pose update)
    - Marker arrays on `/track/visualization` and `/track/progress_visualization` for Foxglove
 
-To add a new track, create a YAML file with `name`, `frame_id`, and a `segments` list (each segment is four `[x, y]` control points), then point the node's `track_config` parameter at it.
+To add a new track, drop a YAML file with `name`, `frame_id`, and a `segments` list (each segment is four `[x, y]` control points) into `drift_core/track/tracks/`, then pass its name as the node's `track_file` parameter (an explicit path outside the package works too).
 
 ## ESP32 firmware (`esp32_controller/`)
 

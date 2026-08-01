@@ -42,13 +42,18 @@ Supervisor: Daniel Frisch
 
 ## `drift_core` modules
 
+Three domains — the car, the track, and the agent driving it — plus two shared leaves.
+
 | Module | Content |
 |--------|---------|
-| `models/` | Vehicle dynamics models: `kinematic`, `dynamic`, `arcade`, `neural`, `hybrid`, plus ESC model, integrators and a config-driven `loader` |
-| `environments/` | Gymnasium drift environment, observation builder, reward functions and env configs |
-| `agents/` | RL policy plus the `train_agent` / `finetune_agent` / `evaluate_agent` / `analyze_runs` entry points |
-| `training/` | Vehicle-model training: trainer, config, run-directory handling |
-| `data/` | Rosbag reader, dataset assembly, preprocessing, driving-regime labelling and sanity checks |
-| `evaluation/` | Metrics, plots and MCAP writing for evaluating models and agents |
-| `track/` | `BezierTrack` geometry and the `TrackProjector` (arc-length, lateral error, lap counting) |
-| `cars/`, `tracks/` | YAML parameter sets: the drift RC car, and the figure-8 track |
+| `vehicle_model/` | The car: `build_model()` factory and the `VehicleModel` interface |
+| `vehicle_model/models/` | Dynamics models: `kinematic`, `dynamic`, `arcade`, `neural`, `hybrid`, plus ESC model, integrators and a config-driven `loader` |
+| `vehicle_model/car_parameters.py`, `cars/` | Measured car parameters (`drift_rc.yaml`) plus derived quantities (CoG, mass, gearing) |
+| `vehicle_model/data/` | Rosbag reader, dataset assembly, preprocessing, driving-regime labelling and sanity checks |
+| `vehicle_model/training/` | Vehicle-model training: trainer, config, run-directory handling |
+| `vehicle_model/evaluation/` | Metrics, plots and MCAP writing for evaluating dynamics models |
+| `track/`, `track/tracks/` | `BezierTrack` geometry, the `TrackProjector` (arc-length, lateral error, lap counting), and the packaged figure-8 track |
+| `agent/` | RL policy plus the `train_agent` / `finetune_agent` / `evaluate_agent` / `analyze_runs` entry points |
+| `agent/environments/` | Gymnasium drift environment, observation builder, reward functions and curriculum stage configs |
+| `agent/control/` | Deterministic path following: lateral MPC, speed profile, throttle PI |
+| `transforms.py`, `paths.py` | Shared leaves: quaternion/angle maths (used by five ROS packages) and the default run-directory locations |

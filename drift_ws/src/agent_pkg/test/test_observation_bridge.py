@@ -13,7 +13,7 @@ try:
     from nav_msgs.msg import Odometry
 
     from agent_pkg.agent_node import observation_from_messages
-    from drift_core.environments.observation import (
+    from drift_core.agent.environments.observation import (
         OBS_DIM,
         build_observation,
         curvature_lookahead,

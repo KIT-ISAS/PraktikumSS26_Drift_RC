@@ -5,7 +5,7 @@
 # This file is the single source of truth for the car's measured properties.
 # It is BOTH human-readable (you are reading it) and machine-readable:
 #
-#     from drift_core.car_parameters import load_car_parameters
+#     from drift_core.vehicle_model.car_parameters import load_car_parameters
 #     car = load_car_parameters("drift_rc")
 #     car.wheelbase_m       # -> 0.256
 #     car.tire_radius_m     # -> derived: 0.03015

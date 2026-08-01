@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from drift_core.data.regimes import label_regimes, regime_counts
+from drift_core.vehicle_model.data.regimes import label_regimes, regime_counts
 
 
 def test_labels_each_regime():

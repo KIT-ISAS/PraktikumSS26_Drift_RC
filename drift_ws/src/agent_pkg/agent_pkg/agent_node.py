@@ -5,7 +5,7 @@ Closes the loop the training environment simulates: subscribes to the canonical
 car state (``/car/odom`` — pose + body-frame twist) and the track topics
 (``/track/progress``, latched ``/track/centerline``), builds the policy
 observation with the **shared** builder from
-``drift_core.environments.observation`` (the sim-to-real seam — the exact
+``drift_core.agent.environments.observation`` (the sim-to-real seam — the exact
 code the agent was trained on), and publishes ``VehicleActionRequest`` at the
 control rate. Because both the simulation and the real car publish the same
 canonical surface, this node is sim/real agnostic.

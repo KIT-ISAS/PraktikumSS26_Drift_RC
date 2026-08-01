@@ -99,7 +99,7 @@ Consequences:
 - A freshly powered (or hand-pushed) car reverses on the very first negative throttle.
 - After coasting to a stop, reverse engages directly — no double-tap needed.
 
-When driving with the joystick, this happens naturally. Automated scripts must perform the sequence explicitly (see `test_esp32.py`, Phase 3a–3c). The simulation mirrors this behaviour exactly in `drift_ws/src/drift_core/drift_core/models/esc.py`.
+When driving with the joystick, this happens naturally. Automated scripts must perform the sequence explicitly (see `test_esp32.py`, Phase 3a–3c). The simulation mirrors this behaviour exactly in `drift_ws/src/drift_core/drift_core/vehicle_model/models/esc.py`.
 
 ## WiFi networks
 

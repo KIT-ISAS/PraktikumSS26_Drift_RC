@@ -5,7 +5,7 @@ Shared by the recording nodes (:mod:`agent_pkg.data_collection_node`,
 :mod:`agent_pkg.demo_recorder_node`): both reconstruct the
 ``(obs, action, reward, next_obs, done)`` transitions ``DriftEnv.step`` would have
 produced and persist them for off-board SAC fine-tuning with
-``drift_core.agents.finetune_agent``. Pure numpy (no ROS), so the
+``drift_core.agent.finetune_agent``. Pure numpy (no ROS), so the
 pending/buffer mechanics are unit-testable in isolation.
 
 A "pending" transition is one whose action has been applied but whose reward and

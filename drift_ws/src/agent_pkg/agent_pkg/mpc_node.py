@@ -6,7 +6,7 @@ canonical inputs (``/car/odom``, ``/track/progress``, latched
 ``/track/centerline``), same start/stop/override gating and safety braking
 (inherited from :class:`~agent_pkg.lib.agent_control_node.AgentControlNode`),
 same ``VehicleActionRequest`` output at the control rate — but the action comes
-from :class:`drift_core.control.PathMpc` (linear time-varying MPC on the
+from :class:`drift_core.agent.control.PathMpc` (linear time-varying MPC on the
 kinematic bicycle in Frenet error coordinates) plus a curvature-based speed
 profile tracked by a PI throttle controller. No training run required.
 
@@ -23,14 +23,14 @@ import rclpy
 
 from agent_pkg.lib.agent_control_node import AgentControlNode
 from agent_pkg.mpc_bridge import mpc_inputs_from_messages
-from drift_core.car_parameters import load_car_parameters
-from drift_core.control import (
+from drift_core.agent.control import (
     PathMpc,
     PathMpcConfig,
     SpeedController,
     SpeedControllerConfig,
     build_speed_profile,
 )
+from drift_core.vehicle_model.car_parameters import load_car_parameters
 from shared_interfaces.msg import Track
 
 __all__ = ["MpcNode", "main"]

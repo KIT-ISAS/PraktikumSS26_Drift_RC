@@ -15,7 +15,7 @@ import rclpy
 from rclpy.node import Node
 from tf2_ros import StaticTransformBroadcaster
 
-from drift_core.car_parameters import load_car_parameters
+from drift_core.vehicle_model.car_parameters import load_car_parameters
 from shared_pkg import Frames
 
 from .mount import tracker_to_base, tracker_to_imu

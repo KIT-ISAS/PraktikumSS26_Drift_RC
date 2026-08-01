@@ -8,10 +8,10 @@ import sys
 import numpy as np
 import pytest
 
-from drift_core.models import build_model
-from drift_core.models.base import VehicleState
-from drift_core.models.integrate import integrate_pose, simulate
-from drift_core.models.kinematic import KinematicBicycleModel
+from drift_core.vehicle_model import build_model
+from drift_core.vehicle_model.models.base import VehicleState
+from drift_core.vehicle_model.models.integrate import integrate_pose, simulate
+from drift_core.vehicle_model.models.kinematic import KinematicBicycleModel
 
 
 def test_vehicle_state_body_vector():
@@ -75,7 +75,7 @@ def test_build_model_dynamic_baseline():
     # The physics bicycle has physically-motivated initial params, so it builds
     # (untrained) as a baseline with no checkpoint.
     pytest.importorskip("torch")
-    from drift_core.models.dynamic import DynamicBicycleModel
+    from drift_core.vehicle_model.models.dynamic import DynamicBicycleModel
 
     assert isinstance(build_model("dynamic"), DynamicBicycleModel)
 
@@ -92,8 +92,8 @@ def test_kinematic_path_imports_without_torch():
     """Building/stepping the kinematic model must not import torch (light path)."""
     code = (
         "import sys\n"
-        "from drift_core.models import build_model\n"
-        "from drift_core.models.base import VehicleState, VehicleAction\n"
+        "from drift_core.vehicle_model import build_model\n"
+        "from drift_core.vehicle_model.models.base import VehicleState, VehicleAction\n"
         "m = build_model('kinematic')\n"
         "m.step(VehicleState(), VehicleAction(0.2, 0.5), 0.02)\n"
         "assert 'torch' not in sys.modules, 'torch was imported on the kinematic path'\n"
@@ -113,7 +113,7 @@ def _latent_toy_model():
     """A stochastic model with latents: 3 chassis dims + 2 latents, cov over the chassis."""
     import torch
 
-    from drift_core.models.base import Prediction, TrainableModel
+    from drift_core.vehicle_model.models.base import Prediction, TrainableModel
 
     class LatentToy(TrainableModel):
         latent_dim = 2
@@ -143,7 +143,7 @@ def test_sampled_step_noises_only_the_chassis_dims():
     # deterministically and must receive no diffusion noise of their own.
     torch = pytest.importorskip("torch")
 
-    from drift_core.models.base import VehicleAction
+    from drift_core.vehicle_model.models.base import VehicleAction
 
     model = _latent_toy_model()
     out = model.step_stochastic(VehicleState(vx=1.0), VehicleAction(0.0, 0.0), 0.02)
@@ -156,7 +156,7 @@ def test_seeded_sampling_is_reproducible_with_latent_states():
     # same seed reproduces the step exactly, a different seed changes it.
     pytest.importorskip("torch")
 
-    from drift_core.models.base import VehicleAction
+    from drift_core.vehicle_model.models.base import VehicleAction
 
     def step_with(seed):
         model = _latent_toy_model()

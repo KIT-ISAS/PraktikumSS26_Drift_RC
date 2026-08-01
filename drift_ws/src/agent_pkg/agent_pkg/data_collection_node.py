@@ -8,7 +8,7 @@ would have produced — using the shared bridges in :mod:`.observation_bridge` a
 reward/termination config the policy was trained on (read from the run dir's
 ``config.yaml``). Transitions are appended to an in-memory buffer and written to a
 pure-numpy ``.npz`` (no torch), which is then fed to
-``drift_core.agents.finetune_agent`` on a laptop/server.
+``drift_core.agent.finetune_agent`` on a laptop/server.
 
 The policy still runs the car, so all of :mod:`.agent_node`'s safety machinery is
 reused (shared via :mod:`agent_pkg.lib`): start/stop gating, an input-freshness
@@ -32,7 +32,7 @@ import rclpy
 from agent_pkg.lib.agent_control_node import AgentControlNode
 from agent_pkg.lib.transition_recorder import TransitionRecorder
 from agent_pkg.observation_bridge import observation_from_messages, score_step
-from drift_core.environments.config import StageConfig
+from drift_core.agent.environments.config import StageConfig
 
 
 class DataCollectionNode(AgentControlNode):

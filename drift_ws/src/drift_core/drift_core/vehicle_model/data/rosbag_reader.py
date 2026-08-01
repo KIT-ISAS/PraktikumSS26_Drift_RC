@@ -8,8 +8,8 @@ from rosbags.rosbag2 import Reader
 from rosbags.typesys import Stores, get_types_from_msg, get_typestore
 from rosbags.typesys.store import Typestore
 
+from ...transforms import yaw_from_quaternion
 from ..models.esc import EscStateMachine
-from ..transforms import yaw_from_quaternion
 
 
 def _register_bag_types(typestore: Typestore, reader: Reader) -> None:

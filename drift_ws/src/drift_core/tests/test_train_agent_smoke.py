@@ -11,11 +11,11 @@ import pytest
 
 pytest.importorskip("stable_baselines3")
 
-from drift_core.agents.evaluate_agent import evaluate_agent  # noqa: E402
-from drift_core.agents.policy import DriftAgent  # noqa: E402
-from drift_core.agents.train_agent import train  # noqa: E402
-from drift_core.environments import OBS_DIM, StageConfig  # noqa: E402
-from drift_core.models.base import VehicleAction  # noqa: E402
+from drift_core.agent.environments import OBS_DIM, StageConfig  # noqa: E402
+from drift_core.agent.evaluate_agent import evaluate_agent  # noqa: E402
+from drift_core.agent.policy import DriftAgent  # noqa: E402
+from drift_core.agent.train_agent import train  # noqa: E402
+from drift_core.vehicle_model.models.base import VehicleAction  # noqa: E402
 
 
 @pytest.fixture(scope="module")

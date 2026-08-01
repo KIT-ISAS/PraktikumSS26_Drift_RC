@@ -2,7 +2,7 @@
 
 import pytest
 
-from drift_core.environments.config import (
+from drift_core.agent.environments.config import (
     EnvConfig,
     StageConfig,
     TrainConfig,

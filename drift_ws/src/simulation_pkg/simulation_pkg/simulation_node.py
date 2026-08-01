@@ -15,8 +15,8 @@ import rclpy
 from rclpy.node import Node
 from tf2_ros import TransformBroadcaster
 
-from drift_core.models import VehicleAction, VehicleState, build_model
 from drift_core.transforms import quaternion_from_yaw
+from drift_core.vehicle_model import VehicleAction, VehicleState, build_model
 from shared_interfaces.msg import VehicleActionRequest
 from shared_pkg import Frames, Topics
 

@@ -13,7 +13,7 @@ mpc_node:
     gyro_gain: 0.0
 
     # --- lateral MPC ----------------------------------------------------------
-    # Car parameter set (wheelbase, steering lock) from drift_core/cars.
+    # Car parameter set (wheelbase, steering lock) from drift_core/vehicle_model/cars.
     car: "drift_rc"
     # Horizon: 20 steps x 0.05 s = 1.0 s (~2 m of preview at loop speed).
     horizon_steps: 20

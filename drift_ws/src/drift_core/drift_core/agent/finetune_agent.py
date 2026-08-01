@@ -9,7 +9,7 @@ the experience — so this runs on any laptop/GPU box with the ``[rl]`` extra.
 
 Usage (needs the ``[rl]`` extra)::
 
-    python -m drift_core.agents.finetune_agent \
+    python -m drift_core.agent.finetune_agent \
         --init-from drift_ws/runs/agent/<sim_run> --data recordings/*.npz --tag real-s3
 
 Each run writes a self-contained ``drift_ws/runs/agent/<timestamp>__sac__<tag>/`` (see
@@ -27,8 +27,8 @@ from pathlib import Path
 
 import numpy as np
 
-from ..environments.config import StageConfig
 from ..paths import agent_runs_dir
+from .environments.config import StageConfig
 from .run_dir import create_run_dir, write_meta
 
 
@@ -108,7 +108,7 @@ def finetune(
     from stable_baselines3.common.monitor import Monitor
     from stable_baselines3.common.utils import get_device
 
-    from ..environments.drift_env import DriftEnv
+    from .environments.drift_env import DriftEnv
 
     device = str(get_device(device))
     batch_size = batch_size or stage.train.batch_size

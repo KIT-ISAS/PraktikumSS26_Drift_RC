@@ -129,7 +129,7 @@ class StageConfig:
         path = Path(name_or_path)
         if path.suffix in (".yaml", ".yml") or path.exists():
             return StageConfig.from_yaml(path)
-        resource = importlib.resources.files("drift_core.environments") / "configs"
+        resource = importlib.resources.files("drift_core.agent.environments") / "configs"
         candidate = resource / f"{name_or_path}.yaml"
         if not candidate.is_file():
             available = sorted(p.stem for p in candidate.parent.iterdir() if p.suffix == ".yaml")
@@ -141,5 +141,5 @@ class StageConfig:
 
 def list_stages() -> list[str]:
     """Names of the packaged curriculum stage configs."""
-    resource = importlib.resources.files("drift_core.environments") / "configs"
+    resource = importlib.resources.files("drift_core.agent.environments") / "configs"
     return sorted(p.stem for p in resource.iterdir() if p.suffix == ".yaml")

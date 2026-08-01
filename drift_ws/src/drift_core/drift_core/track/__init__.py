@@ -20,7 +20,7 @@ __all__ = [
 
 def _tracks_dir():
     """Return the importlib traversable for the packaged ``tracks/`` directory."""
-    return files("drift_core").joinpath("tracks")
+    return files("drift_core.track").joinpath("tracks")
 
 
 def load_track(name_or_path: str) -> BezierTrack:

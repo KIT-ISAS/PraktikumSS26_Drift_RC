@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from drift_core.car_parameters import (
+from drift_core.vehicle_model.car_parameters import (
     CarParameters,
     list_cars,
     load_car_parameters,

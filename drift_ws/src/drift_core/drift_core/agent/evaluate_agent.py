@@ -3,7 +3,7 @@ Evaluate a trained drift agent: roll deterministic episodes, report metrics.
 
 Usage::
 
-    python -m drift_core.agents.evaluate_agent --run-dir drift_ws/runs/agent/<id> [--episodes 10]
+    python -m drift_core.agent.evaluate_agent --run-dir drift_ws/runs/agent/<id> [--episodes 10]
 
 Writes ``<run_dir>/eval/metrics.json`` and ``<run_dir>/eval/trajectories.npz``
 (per-step arrays concatenated over episodes with an ``episode`` index column) and,
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ..environments.config import StageConfig
+from .environments.config import StageConfig
 from .policy import DriftAgent
 
 TRAJECTORY_FIELDS = (
@@ -49,7 +49,7 @@ def evaluate_agent(
     ``config`` defaults to the run's own ``config.yaml``; spawn noise is left as
     configured there (use a modified config for fully deterministic spawns).
     """
-    from ..environments.drift_env import DriftEnv
+    from .environments.drift_env import DriftEnv
 
     run_dir = Path(run_dir)
     if config is None:

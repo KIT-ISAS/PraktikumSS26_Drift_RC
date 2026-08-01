@@ -3,7 +3,7 @@ Train the SAC drift agent in simulation, one curriculum stage per run.
 
 Usage (needs the ``[rl]`` extra)::
 
-    python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1
+    python -m drift_core.agent.train_agent --config stage1_path_follow --tag s1
     python -m ...train_agent --config stage2_fast --init-from <stage1_run> --tag s2
     python -m ...train_agent --config stage3_drift --init-from <stage2_run> --tag s3
 
@@ -17,8 +17,8 @@ import argparse
 import copy
 from pathlib import Path
 
-from ..environments.config import StageConfig
 from ..paths import agent_runs_dir
+from .environments.config import StageConfig
 from .run_dir import create_run_dir, write_meta
 
 
@@ -47,7 +47,7 @@ def train(
     from stable_baselines3.common.monitor import Monitor
     from stable_baselines3.common.utils import get_device
 
-    from ..environments.drift_env import DriftEnv
+    from .environments.drift_env import DriftEnv
 
     cfg = stage.train
     steps = total_steps if total_steps is not None else cfg.total_steps

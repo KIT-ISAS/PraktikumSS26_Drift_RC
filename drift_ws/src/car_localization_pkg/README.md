@@ -46,7 +46,7 @@ world ──(source)──▶ tracker_link ──(mount_tf_node, static)──�
   source's launch with the matching `tracking_frame`.
 - **`mount_tf_node`** — publishes the static `tracker_link → base_link` (and
   `tracker_link → imu_link`) transforms, derived from the measured car
-  parameters (`drift_core` `cars/*.yaml`). The mount orientation
+  parameters (`drift_core` `vehicle_model/cars/*.yaml`). The mount orientation
   (tracker y-forward + inverted) is exposed as parameters
   (`tracker_yaw_offset_deg`, `tracker_upside_down`) to confirm against a known
   pose at bring-up.

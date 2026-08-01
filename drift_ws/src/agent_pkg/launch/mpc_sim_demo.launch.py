@@ -29,7 +29,7 @@ def generate_launch_description():
     track_file_arg = DeclareLaunchArgument(
         "track_file",
         default_value="figure_8",
-        description="Track name (in drift_core/tracks) or path to a track YAML",
+        description="Track name (in drift_core/track/tracks) or path to a track YAML",
     )
 
     simulation_node = Node(

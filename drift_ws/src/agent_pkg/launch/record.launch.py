@@ -5,7 +5,7 @@ Works against either the real car stack (libsurvive + car_localization + track
 publisher + vehicle communication) or the simulation (simulation_pkg + track
 publisher) — the node only sees the canonical topics. Transitions are written to
 ``.npz`` files under the node's ``output_dir`` for off-board fine-tuning with
-``drift_core.agents.finetune_agent``.
+``drift_core.agent.finetune_agent``.
 
 Usage:
     ros2 launch agent_pkg record.launch.py run_dir:=drift_ws/runs/agent/<id>
