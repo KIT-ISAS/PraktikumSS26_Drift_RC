@@ -13,7 +13,7 @@ agent (/agent/stop + /agent/override) and takes over control instantly.
 Publishing /agent/start hands control back to the agent.
 
 Usage:
-    ros2 launch drift_ws/launch/agent_driving_with_viz.launch.py run_dir:=/path/to/runs/<id>
+    ros2 launch drift_ws/launch/agent_driving_with_viz.launch.py run_dir:=drift_ws/runs/agent/<id>
 
 Connect Foxglove to ws://localhost:8765.
 """

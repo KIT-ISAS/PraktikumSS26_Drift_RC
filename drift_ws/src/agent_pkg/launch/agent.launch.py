@@ -6,7 +6,7 @@ communication) or the simulation (simulation_pkg + track publisher) — the node
 only sees the canonical topics.
 
 Usage:
-    ros2 launch agent_pkg agent.launch.py run_dir:=/path/to/runs/<id>
+    ros2 launch agent_pkg agent.launch.py run_dir:=drift_ws/runs/agent/<id>
 """
 
 from launch import LaunchDescription

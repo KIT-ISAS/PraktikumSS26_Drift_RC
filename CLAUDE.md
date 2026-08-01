@@ -43,6 +43,10 @@ ruff format src/        # CI enforces `ruff format --check src/`
 
 To create a package, use `ros2 pkg create <name> --build-type ament_python` from `drift_ws/src`, then re-run `update_package_list.sh`.
 
+## Training runs
+
+Both trainers write self-contained run dirs under `drift_ws/runs/`: `agent/` (RL policies) and `vehicle_model/` (dynamics models). The defaults come from `drift_core/paths.py` and are anchored to the repo checkout, **not** the working directory — never reintroduce a CWD-relative `"runs"` default. Override per command with `--runs-dir`, or globally with `DRIFT_RUNS_DIR`. The tree is git-ignored.
+
 ## Linting: two tools must agree
 
 Both **Ruff** (config in `pyproject.toml`) and **ament_flake8** (runs as part of `colcon test`) gate the code, and CI fails on either. The known conflict — Flake8 wants single quotes, Ruff uses double — is resolved by patching `ament_flake8.ini` to allow double quotes (`.devcontainer/scripts/init_flake8.sh`). When in doubt, match Ruff's output since format-on-save uses it. Details: `documentation/Ruff.md`, `documentation/Ros.md`.

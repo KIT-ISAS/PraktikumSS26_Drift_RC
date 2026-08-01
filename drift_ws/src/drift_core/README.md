@@ -47,6 +47,7 @@ drift_core/
                    neural, dynamic (physics), hybrid (physics + neural residual)
   cars/          measured car parameters (drift_rc.yaml)
   car_parameters.py   load_car_parameters() + derived quantities (CoG, mass, gearing, ...)
+  paths.py       default run-directory locations (drift_ws/runs/agent | vehicle_model)
   data/          rosbag reader, preprocessing, localization-jump sanity checks,
                  regime labelling, variable-dt multi-step window datasets, DatasetSpec
   training/      config-driven Trainer, file-based run dirs, train_model CLI
@@ -72,13 +73,30 @@ from drift_core.car_parameters import load_car_parameters
 car = load_car_parameters("drift_rc")                # measured params + derived props
 ```
 
+### Where runs are written
+
+Both trainers write self-contained run directories under `drift_ws/runs/`, split by
+what was trained:
+
+```
+drift_ws/runs/
+  agent/           RL policies      (train_agent, finetune_agent, analyze_runs)
+  vehicle_model/   dynamics models  (train_model)
+```
+
+These defaults are anchored to the repo checkout (`drift_core/paths.py`), not the
+working directory, so runs land in the same place whatever you `cd` into. Override
+per command with `--runs-dir`, or globally with `DRIFT_RUNS_DIR` (e.g. a scratch
+disk on a GPU server). The tree is git-ignored — share run dirs out-of-band.
+
 Train and evaluate a dynamics model (needs the `[neural]` / `[eval]` extras):
 
 ```bash
 python -m drift_core.training.train_model \
-    --bags drift_ws/rosbag2_<...> --tag v1            # -> runs/<id>/ (self-contained)
+    --bags drift_ws/rosbag2_<...> --tag v1   # -> drift_ws/runs/vehicle_model/<id>/
 python -m drift_core.evaluation.evaluate \
-    --run-dir runs/<id> --bags drift_ws/rosbag2_<...> --mcap-bag drift_ws/rosbag2_<...>
+    --run-dir drift_ws/runs/vehicle_model/<id> \
+    --bags drift_ws/rosbag2_<...> --mcap-bag drift_ws/rosbag2_<...>
 ```
 
 A trained model is reloaded by passing its run directory to `build_model(run_dir)`,
@@ -86,7 +104,8 @@ including into the ROS simulator (`simulation_pkg`) — which is how you drive a
 trained model yourself, by keyboard or gamepad:
 
 ```bash
-ros2 launch simulation_pkg simulation_demo.launch.py model_type:=runs/<id>
+ros2 launch simulation_pkg simulation_demo.launch.py \
+    model_type:=drift_ws/runs/vehicle_model/<id>
 ros2 run joystick_pkg keyboard_control     # separate terminal (or joystick:=true above)
 ```
 
@@ -102,19 +121,19 @@ a three-stage curriculum — each stage is a packaged YAML config
 
 ```bash
 python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1
-python -m drift_core.agents.train_agent --config stage2_fast  --init-from runs/<s1> --tag s2
-python -m drift_core.agents.train_agent --config stage3_drift --init-from runs/<s2> --tag s3
+python -m drift_core.agents.train_agent --config stage2_fast  --init-from <s1_run_dir> --tag s2
+python -m drift_core.agents.train_agent --config stage3_drift --init-from <s2_run_dir> --tag s3
 
-python -m drift_core.agents.evaluate_agent --run-dir runs/<id> --episodes 10
+python -m drift_core.agents.evaluate_agent --run-dir drift_ws/runs/agent/<id> --episodes 10
 ```
 
-Each run writes a self-contained `runs/<timestamp>__sac__<tag>/` (config, meta,
+Each run writes a self-contained `drift_ws/runs/agent/<timestamp>__sac__<tag>/` (config, meta,
 `progress.csv`, `agent.zip` + `best_model.zip`, `eval/`). Inference — in the ROS
 node or anywhere else — goes through `drift_core.agents.DriftAgent`:
 
 ```python
 from drift_core.agents import DriftAgent
-agent = DriftAgent("runs/<id>")             # loads best_model.zip / agent.zip
+agent = DriftAgent("drift_ws/runs/agent/<id>")   # loads best_model.zip / agent.zip
 action = agent.act(obs)                      # -> VehicleAction, deterministic
 ```
 

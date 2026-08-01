@@ -4,10 +4,10 @@ Train the SAC drift agent in simulation, one curriculum stage per run.
 Usage (needs the ``[rl]`` extra)::
 
     python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1
-    python -m ...train_agent --config stage2_fast --init-from runs/<stage1_run> --tag s2
-    python -m ...train_agent --config stage3_drift --init-from runs/<stage2_run> --tag s3
+    python -m ...train_agent --config stage2_fast --init-from <stage1_run> --tag s2
+    python -m ...train_agent --config stage3_drift --init-from <stage2_run> --tag s3
 
-Each run writes a self-contained ``runs/<timestamp>__sac__<tag>/`` directory (see
+Each run writes a self-contained ``drift_ws/runs/agent/<timestamp>__sac__<tag>/`` (see
 :mod:`.run_dir`). ``--init-from`` warm-starts the policy/critic weights from a
 previous stage's run; the replay buffer is deliberately NOT carried over — the
 stages reward differently, and stale rewards would poison the new critic.
@@ -18,6 +18,7 @@ import copy
 from pathlib import Path
 
 from ..environments.config import StageConfig
+from ..paths import agent_runs_dir
 from .run_dir import create_run_dir, write_meta
 
 
@@ -33,7 +34,7 @@ def _eval_stage(stage: StageConfig) -> StageConfig:
 def train(
     stage: StageConfig,
     *,
-    runs_dir="runs",
+    runs_dir=None,
     tag: str = "",
     seed: int = 0,
     init_from: str | None = None,
@@ -52,7 +53,7 @@ def train(
     steps = total_steps if total_steps is not None else cfg.total_steps
     device = str(get_device(cfg.device))
 
-    run_dir = create_run_dir(runs_dir, "sac", tag or stage.name)
+    run_dir = create_run_dir(runs_dir or agent_runs_dir(), "sac", tag or stage.name)
     stage.to_yaml(run_dir / "config.yaml")
     write_meta(
         run_dir,
@@ -119,7 +120,9 @@ def main(argv=None) -> None:
     parser.add_argument("--total-steps", type=int, help="override the stage's total_steps")
     parser.add_argument("--tag", default="", help="run-dir label (default: the stage name)")
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--runs-dir", default="runs")
+    parser.add_argument(
+        "--runs-dir", help="base directory for run dirs (default: drift_ws/runs/agent)"
+    )
     args = parser.parse_args(argv)
 
     stage = StageConfig.load(args.config)

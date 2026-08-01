@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
 
 from ..data.dataset import Window, stack_windows
 from ..data.spec import DatasetSpec
+from ..paths import vehicle_model_runs_dir
 from .config import TrainConfig
 from .run_dir import MetricsLogger, create_run_dir, write_meta, write_notes
 
@@ -134,13 +135,13 @@ class Trainer:
         train_windows: list[Window],
         val_windows: list[Window],
         dataset_spec: DatasetSpec,
-        run_base: str = "runs",
+        run_base=None,
     ) -> None:
         self.cfg = cfg
         self.train_windows = train_windows
         self.val_windows = val_windows
         self.spec = dataset_spec
-        self.run_base = run_base
+        self.run_base = run_base or vehicle_model_runs_dir()
         self.device = pick_device(cfg.device)
 
     def fit(self):

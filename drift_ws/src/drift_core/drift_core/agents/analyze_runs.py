@@ -3,7 +3,7 @@ Evaluate and plot every training run under a runs directory.
 
 Usage::
 
-    python -m drift_core.agents.analyze_runs [--runs-root runs] [--episodes 5]
+    python -m drift_core.agents.analyze_runs [--runs-root <dir>] [--episodes 5]
 
 For each run directory (recognized by its ``config.yaml`` + ``progress.csv``) this rolls
 deterministic evaluation episodes via :mod:`.evaluate_agent` when ``eval/metrics.json``
@@ -26,6 +26,7 @@ import numpy as np
 import pandas as pd
 
 from ..environments.config import StageConfig
+from ..paths import agent_runs_dir
 from ..track import load_track
 from .evaluate_agent import evaluate_agent
 
@@ -231,7 +232,9 @@ def summarize(runs: list[dict], out_path: Path) -> pd.DataFrame:
 def main(argv=None) -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Evaluate and plot all training runs.")
-    parser.add_argument("--runs-root", default="runs")
+    parser.add_argument(
+        "--runs-root", help="directory of run dirs to analyze (default: drift_ws/runs/agent)"
+    )
     parser.add_argument("--out-dir", help="output directory (default: <runs-root>/analysis)")
     parser.add_argument("--episodes", type=int, default=5, help="evaluation episodes per run")
     parser.add_argument(
@@ -239,12 +242,13 @@ def main(argv=None) -> None:
     )
     args = parser.parse_args(argv)
 
-    run_dirs = discover_runs(args.runs_root)
+    runs_root = Path(args.runs_root) if args.runs_root else agent_runs_dir()
+    run_dirs = discover_runs(runs_root)
     if not run_dirs:
-        raise SystemExit(f"no run directories found under {args.runs_root}")
+        raise SystemExit(f"no run directories found under {runs_root}")
     runs = [load_run(d, args.episodes, args.re_evaluate) for d in run_dirs]
 
-    out_dir = Path(args.out_dir) if args.out_dir else Path(args.runs_root) / "analysis"
+    out_dir = Path(args.out_dir) if args.out_dir else runs_root / "analysis"
     out_dir.mkdir(parents=True, exist_ok=True)
     _apply_style()
     plot_learning_curves(runs, out_dir / "learning_curves.png")
