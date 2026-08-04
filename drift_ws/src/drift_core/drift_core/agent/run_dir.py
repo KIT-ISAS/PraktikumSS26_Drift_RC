@@ -24,7 +24,7 @@ import subprocess
 import sys
 
 
-def create_run_dir(base, kind: str = "sac", tag: str = "") -> Path:
+def create_run_dir(base: str | Path, kind: str = "sac", tag: str = "") -> Path:
     """Create and return ``base/<timestamp>__<kind>__<tag>/`` (+ ``eval/``)."""
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     name = f"{stamp}__{kind}" + (f"__{tag}" if tag else "")

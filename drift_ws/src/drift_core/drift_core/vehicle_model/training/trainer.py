@@ -8,6 +8,8 @@ Gaussian NLL). Device-agnostic and structured for later DistributedDataParallel
 self-contained run directory: config, dataset spec, metrics, checkpoints, curves.
 """
 
+from pathlib import Path
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
@@ -135,7 +137,7 @@ class Trainer:
         train_windows: list[Window],
         val_windows: list[Window],
         dataset_spec: DatasetSpec,
-        run_base=None,
+        run_base: str | Path | None = None,
     ) -> None:
         self.cfg = cfg
         self.train_windows = train_windows
