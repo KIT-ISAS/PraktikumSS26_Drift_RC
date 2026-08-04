@@ -43,6 +43,8 @@ ruff format src/        # CI enforces `ruff format --check src/`
 
 To create a package, use `ros2 pkg create <name> --build-type ament_python` from `drift_ws/src`, then re-run `update_package_list.sh`.
 
+ROS-side changes can be exercised end to end without the car by running the real nodes against a fake ESP32 on loopback UDP — see `documentation/Testing.md`.
+
 ## Training runs
 
 Both trainers write self-contained run dirs under `drift_ws/runs/`: `agent/` (RL policies) and `vehicle_model/` (dynamics models). The defaults come from `drift_core/paths.py` and are anchored to the repo checkout, **not** the working directory — never reintroduce a CWD-relative `"runs"` default. Override per command with `--runs-dir`, or globally with `DRIFT_RUNS_DIR`. The tree is git-ignored.
