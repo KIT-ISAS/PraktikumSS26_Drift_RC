@@ -13,5 +13,5 @@ esp32_controller/libraries/
 drift_ws/rosbag2_*/
 
 # Training run artifacts (self-contained run dirs; share out-of-band)
-drift_ws/runs/
 runs/
+!drift_ws/runs/agent/20260718_161934__sac__s3/
