@@ -30,7 +30,7 @@ from drift_core.agent.control import (
     SpeedControllerConfig,
     build_speed_profile,
 )
-from drift_core.vehicle_model.car_parameters import load_car_parameters
+from drift_core.vehicle_model import load_car_parameters
 from shared_interfaces.msg import Track
 
 __all__ = ["MpcNode", "main"]

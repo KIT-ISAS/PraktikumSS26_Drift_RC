@@ -34,7 +34,7 @@ import math
 import numpy as np
 
 from ...transforms import wrap_angle
-from ...vehicle_model.models.base import VehicleAction, VehicleState
+from ...vehicle_model import VehicleAction, VehicleState
 
 # Arc-length offsets (m) ahead of the car at which upcoming centerline curvature is
 # sampled. Spacing grows with distance: dense where control decisions are imminent

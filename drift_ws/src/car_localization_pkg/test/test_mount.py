@@ -14,7 +14,7 @@ from drift_core.transforms import (
     quaternion_multiply,
     rotate_vector_by_quaternion,
 )
-from drift_core.vehicle_model.car_parameters import load_car_parameters
+from drift_core.vehicle_model import load_car_parameters
 
 _SQRT_HALF = math.sqrt(0.5)
 

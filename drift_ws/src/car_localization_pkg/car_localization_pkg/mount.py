@@ -22,7 +22,7 @@ from drift_core.transforms import (
     quaternion_multiply,
     rotate_vector_by_quaternion,
 )
-from drift_core.vehicle_model.car_parameters import CarParameters
+from drift_core.vehicle_model import CarParameters
 
 # 180 deg about the X axis, as a quaternion (x, y, z, w): flips an upside-down
 # mount right-side up while leaving the forward axis unchanged.

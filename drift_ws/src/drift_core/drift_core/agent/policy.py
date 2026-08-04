@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ..vehicle_model.models.base import VehicleAction
+from ..vehicle_model import VehicleAction
 from .environments.observation import action_from_array
 
 

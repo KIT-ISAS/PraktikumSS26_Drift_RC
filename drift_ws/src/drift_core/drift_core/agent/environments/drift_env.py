@@ -22,8 +22,12 @@ import numpy as np
 
 from ...track import FIGURE8_LOST_DISTANCE_M, TrackProjector, load_track
 from ...transforms import wrap_angle
-from ...vehicle_model import build_model
-from ...vehicle_model.models.base import VehicleAction, VehicleModel, VehicleState
+from ...vehicle_model import (
+    VehicleAction,
+    VehicleModel,
+    VehicleState,
+    build_model,
+)
 from .config import EnvConfig, StageConfig
 from .observation import OBS_HIGH, OBS_LOW, observation_from_state
 from .rewards import compute_reward, progress_delta

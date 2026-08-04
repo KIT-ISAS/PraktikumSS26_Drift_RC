@@ -82,7 +82,7 @@ ROS-free library grouped into three domains plus two shared leaves. See its READ
 
 | Path | Role |
 |------|------|
-| `drift_core/vehicle_model/` | `build_model()` + the `VehicleModel` interface (re-exported from `models/`); `car_parameters.py` + `cars/`, `data/`, `training/`, `evaluation/` |
+| `drift_core/vehicle_model/` | `build_model()` + the `VehicleModel` interface (re-exported from `models/`) and `load_car_parameters()`/`CarParameters` (from `car_parameters.py` + `cars/`); plus `data/`, `training/`, `evaluation/` |
 | `drift_core/track/` | `BezierTrack`, `TrackProjector`, `load_track()`; packaged tracks in `track/tracks/` |
 | `drift_core/agent/` | `DriftAgent` + the train/finetune/evaluate/analyze CLIs; `environments/` (DriftEnv + the sim-to-real observation seam, stage YAMLs in `environments/configs/`); `control/` (MPC path following) |
 | `drift_core/transforms.py`, `paths.py` | Shared leaves — quaternion/angle maths and run-directory defaults |

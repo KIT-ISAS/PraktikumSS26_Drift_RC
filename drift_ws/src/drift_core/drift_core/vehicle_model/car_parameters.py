@@ -16,7 +16,7 @@ unambiguous (a recurring source of bugs).
 
 Example::
 
-    from drift_core.vehicle_model.car_parameters import load_car_parameters
+    from drift_core.vehicle_model import load_car_parameters
 
     car = load_car_parameters("drift_rc")
     car.wheelbase_m                       # measured
