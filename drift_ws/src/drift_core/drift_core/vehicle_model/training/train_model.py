@@ -9,7 +9,7 @@ Usage::
 
     # Quick start straight from bags (default spec + config):
     python -m drift_core.vehicle_model.training.train_model \
-        --bags drift_ws/rosbag2_2026_06_03-11_43_14 --tag quickstart \
+        --bags drift_ws/bags/rosbag2_2026_07_12-16_09_18 --tag quickstart \
         --notes "first neural model, drift+corner only"
 
 The dataset recipe (DatasetSpec) and hyperparameters (TrainConfig) are saved into
