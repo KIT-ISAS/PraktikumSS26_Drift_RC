@@ -30,7 +30,9 @@ def _parse_args(argv=None) -> argparse.Namespace:
     p.add_argument(
         "--bags", nargs="+", help="rosbag2 dirs (build a default spec if no --dataset-spec)"
     )
-    p.add_argument("--runs-dir", default="runs", help="base directory for run dirs")
+    p.add_argument(
+        "--runs-dir", help="base directory for run dirs (default: drift_ws/runs/vehicle_model)"
+    )
     p.add_argument("--tag", help="short run label (overrides config)")
     p.add_argument("--notes", help="free-text notes (overrides config)")
     p.add_argument("--epochs", type=int, help="override config.epochs")

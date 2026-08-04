@@ -1,8 +1,8 @@
 # Training the drift agent on a GPU server
 
 The SAC drift agent trains in pure simulation (no ROS, no car), so it runs on any
-GPU box. A run is a self-contained `runs/<timestamp>__sac__<tag>/` directory
-([`run_dir.py`](run_dir.py)) — train remotely, then `scp` the run dir back.
+GPU box. A run is a self-contained `drift_ws/runs/agent/<timestamp>__sac__<tag>/`
+directory ([`run_dir.py`](run_dir.py)) — train remotely, then `scp` the run dir back.
 
 ## 1. Connect and get the code
 
@@ -40,20 +40,25 @@ pip install -e "/root/repo/drift_ws/src/drift_core[all]"
 Three stages, each warm-started from the previous run. Training auto-selects CUDA
 when available; confirm via the `device` field in the run's `meta.json`.
 
-```bash
-cd /root/repo/drift_ws/src/drift_core
+Runs are written to `drift_ws/runs/agent/` regardless of the working directory
+(see [`paths.py`](../paths.py)), so you can launch from anywhere in the repo:
 
-/opt/venv/bin/python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1 > runs/s1_train.log 2>&1
-/opt/venv/bin/python -m drift_core.agents.train_agent --config stage2_fast  --init-from runs/<stage1_run> --tag s2 > runs/s2_train.log 2>&1
-/opt/venv/bin/python -m drift_core.agents.train_agent --config stage3_drift --init-from runs/<stage2_run> --tag s3 > runs/s3_train.log 2>&1
+```bash
+cd /root/repo
+RUNS=drift_ws/runs/agent
+
+/opt/venv/bin/python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1 > $RUNS/s1_train.log 2>&1
+/opt/venv/bin/python -m drift_core.agents.train_agent --config stage2_fast  --init-from $RUNS/<stage1_run> --tag s2 > $RUNS/s2_train.log 2>&1
+/opt/venv/bin/python -m drift_core.agents.train_agent --config stage3_drift --init-from $RUNS/<stage2_run> --tag s3 > $RUNS/s3_train.log 2>&1
 ```
 
-Useful flags: `--total-steps N` (override), `--seed N`, `--runs-dir <path>`.
+Useful flags: `--total-steps N` (override), `--seed N`, `--runs-dir <path>`
+(or `DRIFT_RUNS_DIR=<path>` to relocate the whole tree, e.g. onto a scratch disk).
 Each run writes `config.yaml`, `meta.json`, `progress.csv`, `agent.zip`, and
 `best_model.zip` (plus `eval/`). Optionally evaluate on the server:
 
 ```bash
-python -m drift_core.agents.evaluate_agent --run-dir runs/<stage3_run> --episodes 10
+python -m drift_core.agents.evaluate_agent --run-dir $RUNS/<stage3_run> --episodes 10
 ```
 
 ## 5. Sync runs back with rsync
@@ -64,13 +69,13 @@ repo at `/root/repo`, so runs live under the host clone path):
 
 ```bash
 rsync -avz --progress \
-  user@gpu-server:<repo>/drift_ws/src/drift_core/runs/ \
-  ./drift_ws/src/drift_core/runs/
+  user@gpu-server:<repo>/drift_ws/runs/agent/ \
+  ./drift_ws/runs/agent/
 ```
 
-Trailing slashes matter: `runs/` on both sides copies contents into local `runs/`
-(without them you get a nested `runs/runs/`). Add `--delete` to make local an exact
-mirror, or `--exclude='*.log'` to skip the `*_train.log` files.
+Trailing slashes matter: `agent/` on both sides copies contents into the local
+`agent/` (without them you get a nested `agent/agent/`). Add `--delete` to make local
+an exact mirror, or `--exclude='*.log'` to skip the `*_train.log` files.
 
 ## Fine-tuning on real-car data
 
@@ -79,7 +84,7 @@ Record real transitions and train offline afterwards.
 **1. Record on the car** Drive the sim policy with
 
 ```bash
-ros2 launch agent_pkg record.launch.py run_dir:=/path/to/runs/<sim_run>
+ros2 launch agent_pkg record.launch.py run_dir:=drift_ws/runs/agent/<sim_run>
 # ros2 topic pub --once /agent/start std_msgs/msg/Empty {}
 ```
 
@@ -92,7 +97,7 @@ Transitions land in the node's `output_dir` (default `recordings/`) as
 
 ```bash
 /opt/venv/bin/python -m drift_core.agents.finetune_agent \
-    --init-from runs/<sim_run> --data recordings/*.npz --tag real-s3 --gradient-steps 20000
+    --init-from $RUNS/<sim_run> --data recordings/*.npz --tag real-s3 --gradient-steps 20000
 ```
 
 Useful flags: `--batch-size`, `--learning-rate` (keep modest — offline SAC can over-estimate),
@@ -130,7 +135,7 @@ until they are restored.
 
 ```bash
 /opt/venv/bin/python -m drift_core.agents.finetune_agent \
-    --init-from runs/<sim_run> --data recordings/*__human_demo.npz --tag human-s3
+    --init-from $RUNS/<sim_run> --data recordings/*__human_demo.npz --tag human-s3
 ```
 
 Human demos are off-distribution for the critic; mixing them with the policy's own
@@ -151,6 +156,5 @@ Then train as in step 4; the run's `meta.json` `device` field will read `cpu`. K
 runs short with `--total-steps` since CPU rollout is slow:
 
 ```bash
-cd /root/repo/drift_ws/src/drift_core
 /opt/venv/bin/python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1-cpu
 ```

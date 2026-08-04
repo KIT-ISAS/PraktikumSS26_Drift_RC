@@ -3,7 +3,7 @@ File-based training-run directory: the single self-contained artifact of a run.
 
 Layout::
 
-    runs/<timestamp>__sac__<tag>/
+    drift_ws/runs/agent/<timestamp>__sac__<tag>/
       config.yaml          resolved StageConfig of the run
       meta.json            git sha, host, device, seed, warm-start source
       progress.csv         SB3 logger output (rollout/eval metrics over time)
@@ -24,7 +24,7 @@ import subprocess
 import sys
 
 
-def create_run_dir(base, kind: str = "sac", tag: str = "") -> Path:
+def create_run_dir(base: str | Path, kind: str = "sac", tag: str = "") -> Path:
     """Create and return ``base/<timestamp>__<kind>__<tag>/`` (+ ``eval/``)."""
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     name = f"{stamp}__{kind}" + (f"__{tag}" if tag else "")

@@ -6,7 +6,7 @@ trained on), the track_publisher_node, a foxglove_bridge, the car mesh marker,
 and the agent node closing the loop.
 
 Usage:
-    ros2 launch agent_pkg agent_sim_demo.launch.py run_dir:=/path/to/runs/<id>
+    ros2 launch agent_pkg agent_sim_demo.launch.py run_dir:=drift_ws/runs/agent/<id>
 
 Connect Foxglove to ws://localhost:8765.
 """

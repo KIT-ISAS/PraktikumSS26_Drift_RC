@@ -40,6 +40,26 @@
       "negateValue": false,
       "foxglovePanelTitle": "SteeringRequest"
     },
+    "Publish!48jdt0r": {
+      "topicName": "/agent/start",
+      "datatype": "std_msgs/msg/Empty",
+      "value": "{}",
+      "buttonText": "Start",
+      "buttonTooltip": "Start Agent",
+      "buttonColor": "#4bff00",
+      "foxglovePanelTitle": "Start Agent",
+      "advancedView": false
+    },
+    "Publish!2l9japx": {
+      "foxglovePanelTitle": "Stop",
+      "topicName": "/agent/stop",
+      "datatype": "std_msgs/msg/Empty",
+      "value": "{}",
+      "buttonText": "Stop Agent",
+      "buttonTooltip": "Stop Agent",
+      "buttonColor": "#ff0000",
+      "advancedView": false
+    },
     "Indicator!2fy27z9": {
       "path": "/car/vehicle_status.connected",
       "style": "background",
@@ -125,13 +145,13 @@
     "3D!2nekybg": {
       "cameraState": {
         "perspective": true,
-        "distance": 8.802533372996347,
-        "phi": 34.99456558943333,
-        "thetaOffset": 170.91107006521642,
+        "distance": 4.078136514895359,
+        "phi": 35.27664628084184,
+        "thetaOffset": -179.3217948131096,
         "targetOffset": [
-          0.39695377842916507,
-          0.7334745817194359,
-          -6.412171961077457e-17
+          0.010483410030203285,
+          0.3098655248316671,
+          -6.2280422886655e-17
         ],
         "target": [
           0,
@@ -207,6 +227,10 @@
             }
           },
           "showOutlines": false
+        },
+        "/libsurvive/car/visualization": {
+          "visible": true,
+          "showOutlines": false
         }
       },
       "layers": {
@@ -244,11 +268,24 @@
       "imageMode": {},
       "followTf": "world"
     },
+    "RosOut!3yerhvx": {
+      "minLogLevel": 1,
+      "preload": true,
+      "searchTerms": [],
+      "nameFilter": {},
+      "fontSize": 12,
+      "showLevel": true,
+      "showDate": true,
+      "showTime": true,
+      "showTimezone": true,
+      "showName": true,
+      "showSourceLocation": false
+    },
     "Plot!1c58pzm": {
       "paths": [
         {
           "timestampMethod": "receiveTime",
-          "value": "/car/imu.linear_acceleration.x",
+          "value": "/libsurvive/imu.linear_acceleration.x",
           "enabled": true,
           "color": "#4e98e2",
           "id": "6cfd4e76-5584-4a52-aa39-8f805ffb799d",
@@ -256,7 +293,7 @@
         },
         {
           "timestampMethod": "receiveTime",
-          "value": "/car/imu.linear_acceleration.y",
+          "value": "/libsurvive/imu.linear_acceleration.y",
           "enabled": true,
           "color": "#f5774d",
           "id": "8dcb4623-704b-4e03-b06f-00a23cbe9fa6",
@@ -264,8 +301,8 @@
         },
         {
           "timestampMethod": "receiveTime",
-          "value": "/car/imu.linear_acceleration.z",
-          "enabled": true,
+          "value": "/libsurvive/car/imu.linear_acceleration.z",
+          "enabled": false,
           "color": "#f7df71",
           "id": "2a4ecb90-7975-48dc-9fd4-7aade1f65cd5",
           "label": "Accel_Z"
@@ -344,26 +381,41 @@
       "first": {
         "first": {
           "first": {
-            "first": "Indicator!2fy27z9",
-            "second": "Indicator!4dxnqz1",
-            "direction": "row"
+            "first": {
+              "first": "Publish!48jdt0r",
+              "second": "Publish!2l9japx",
+              "direction": "row"
+            },
+            "second": {
+              "first": "Indicator!2fy27z9",
+              "second": "Indicator!4dxnqz1",
+              "direction": "row"
+            },
+            "direction": "column",
+            "splitPercentage": 45.73368417569818
           },
           "second": "Indicator!qh6zm8",
-          "direction": "column"
+          "direction": "column",
+          "splitPercentage": 66.81553518309255
         },
         "second": "Tab!3y9wyd3",
         "direction": "column",
         "splitPercentage": 29.786732649935193
       },
-      "second": "3D!2nekybg",
+      "second": {
+        "first": "3D!2nekybg",
+        "second": "RosOut!3yerhvx",
+        "direction": "column",
+        "splitPercentage": 75.27419814815588
+      },
       "direction": "row",
-      "splitPercentage": 18.819802381740676
+      "splitPercentage": 12.905551550108147
     },
     "second": {
       "first": "Plot!1c58pzm",
       "second": "Plot!c2huyw",
       "direction": "column"
     },
-    "splitPercentage": 67.19119165471902
+    "splitPercentage": 76.07688393885329
   }
 }

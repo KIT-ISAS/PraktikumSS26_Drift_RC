@@ -8,7 +8,7 @@ publisher) — the node only sees the canonical topics. Transitions are written 
 ``drift_core.agents.finetune_agent``.
 
 Usage:
-    ros2 launch agent_pkg record.launch.py run_dir:=/path/to/runs/<id>
+    ros2 launch agent_pkg record.launch.py run_dir:=drift_ws/runs/agent/<id>
 """
 
 from launch import LaunchDescription

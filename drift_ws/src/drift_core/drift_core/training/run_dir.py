@@ -3,7 +3,7 @@ File-based training-run directory: the single self-contained artifact of a run.
 
 Layout::
 
-    runs/<timestamp>__<model_type>__<tag>/
+    drift_ws/runs/vehicle_model/<timestamp>__<model_type>__<tag>/
       config.yaml          dataset_spec.yaml      notes.md
       model.pt             model_last.pt          metrics.csv
       loss_curve.png       meta.json
@@ -23,7 +23,7 @@ import subprocess
 import sys
 
 
-def create_run_dir(base: str, model_type: str, tag: str = "") -> Path:
+def create_run_dir(base, model_type: str, tag: str = "") -> Path:
     """Create and return ``base/<timestamp>__<model_type>__<tag>/`` (+ ``eval/``)."""
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     name = f"{stamp}__{model_type}" + (f"__{tag}" if tag else "")

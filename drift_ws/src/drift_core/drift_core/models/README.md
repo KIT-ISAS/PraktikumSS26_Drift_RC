@@ -31,7 +31,7 @@ comparing models is the core experiment loop.
   build_model("kinematic")               # no-slip baseline
   build_model("dynamic")                 # physics bicycle, untrained baseline
   build_model("neural", weights="m.pt")  # trained data-driven model
-  build_model(run_dir="runs/<id>/")      # any trained model from its run dir
+  build_model(run_dir="drift_ws/runs/vehicle_model/<id>/")   # a trained model from its run dir
   # "hybrid" likewise loads from weights / a run dir
   ```
 

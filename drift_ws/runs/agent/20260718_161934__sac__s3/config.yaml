@@ -1,0 +1,53 @@
+name: stage3_drift
+env:
+  track: figure_8
+  model_type: arcade
+  model_config: null
+  model_kwargs: {}
+  dt: 0.02
+  points_per_segment: 20
+  max_episode_steps: 1500
+  spawn:
+    speed: 1.5
+    speed_noise_std: 0.2
+    standstill_prob: 0.15
+    lateral_noise_std: 0.05
+    heading_noise_std: 0.15
+  reward:
+    progress_weight: 1.0
+    target_speed: 1.0
+    speed_weight: 0.5
+    max_speed: 1.25
+    overspeed_weight: 2.0
+    lateral_weight: 1.0
+    heading_weight: 0.1
+    action_rate_weight: 0.3
+    drift_weight: 2.0
+    drift_beta_target: 0.5
+    drift_beta_sigma: 0.25
+    drift_kappa_min: 0.5
+    drift_min_speed: 1.0
+    straight_beta_weight: 0.5
+  termination:
+    lateral_limit_m: 0.45
+    stall_speed: 0.1
+    stall_timeout_s: 2.0
+    off_track_penalty: 20.0
+    stall_penalty: 20.0
+train:
+  total_steps: 500000
+  learning_rate: 0.0003
+  buffer_size: 300000
+  batch_size: 256
+  gamma: 0.995
+  tau: 0.005
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 5000
+  ent_coef: auto
+  net_arch:
+  - 256
+  - 256
+  eval_freq: 10000
+  n_eval_episodes: 5
+  device: auto

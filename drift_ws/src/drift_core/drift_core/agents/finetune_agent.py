@@ -10,9 +10,9 @@ the experience — so this runs on any laptop/GPU box with the ``[rl]`` extra.
 Usage (needs the ``[rl]`` extra)::
 
     python -m drift_core.agents.finetune_agent \
-        --init-from runs/<sim_run> --data recordings/*.npz --tag real-s3
+        --init-from drift_ws/runs/agent/<sim_run> --data recordings/*.npz --tag real-s3
 
-Each run writes a self-contained ``runs/<timestamp>__sac__<tag>/`` directory (see
+Each run writes a self-contained ``drift_ws/runs/agent/<timestamp>__sac__<tag>/`` (see
 :mod:`.run_dir`), same layout as :mod:`.train_agent`, with ``meta.json`` recording the
 warm-start source, the data files, and the transition/gradient-step counts.
 
@@ -28,6 +28,7 @@ from pathlib import Path
 import numpy as np
 
 from ..environments.config import StageConfig
+from ..paths import agent_runs_dir
 from .run_dir import create_run_dir, write_meta
 
 
@@ -91,7 +92,7 @@ def finetune(
     init_from: str,
     data_files: list[Path],
     *,
-    runs_dir="runs",
+    runs_dir: str | Path | None = None,
     tag: str = "",
     seed: int = 0,
     gradient_steps: int = 20_000,
@@ -112,7 +113,7 @@ def finetune(
     device = str(get_device(device))
     batch_size = batch_size or stage.train.batch_size
 
-    run_dir = create_run_dir(runs_dir, "sac", tag or f"finetune_{stage.name}")
+    run_dir = create_run_dir(runs_dir or agent_runs_dir(), "sac", tag or f"finetune_{stage.name}")
     stage.to_yaml(run_dir / "config.yaml")
     write_meta(
         run_dir,
@@ -193,7 +194,9 @@ def main(argv=None) -> None:
     parser.add_argument("--tag", default="", help="run-dir label (default: finetune_<stage>)")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--device", default="auto")
-    parser.add_argument("--runs-dir", default="runs")
+    parser.add_argument(
+        "--runs-dir", help="base directory for run dirs (default: drift_ws/runs/agent)"
+    )
     args = parser.parse_args(argv)
 
     if args.config:
