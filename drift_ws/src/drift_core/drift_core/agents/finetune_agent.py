@@ -92,7 +92,7 @@ def finetune(
     init_from: str,
     data_files: list[Path],
     *,
-    runs_dir=None,
+    runs_dir: str | Path | None = None,
     tag: str = "",
     seed: int = 0,
     gradient_steps: int = 20_000,

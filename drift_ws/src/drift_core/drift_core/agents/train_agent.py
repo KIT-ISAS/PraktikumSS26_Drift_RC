@@ -34,7 +34,7 @@ def _eval_stage(stage: StageConfig) -> StageConfig:
 def train(
     stage: StageConfig,
     *,
-    runs_dir=None,
+    runs_dir: str | Path | None = None,
     tag: str = "",
     seed: int = 0,
     init_from: str | None = None,
