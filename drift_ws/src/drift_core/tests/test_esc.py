@@ -6,7 +6,7 @@ reverse lockout is set by forward throttle and cleared only at
 neutral-at-standstill; positive throttle always drives forward.
 """
 
-from drift_core.models.esc import EscStateMachine, MotorCommand
+from drift_core.vehicle_model.models.esc import EscStateMachine, MotorCommand
 
 
 def _lock(esc: EscStateMachine) -> None:

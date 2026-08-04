@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from drift_core.data.sanity import (
+from drift_core.vehicle_model.data.sanity import (
     detect_discontinuities,
     sanitize_episodes,
     split_on_discontinuities,

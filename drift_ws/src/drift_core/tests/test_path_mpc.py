@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 
-from drift_core.control import PathMpc, PathMpcConfig, build_speed_profile
+from drift_core.agent.control import PathMpc, PathMpcConfig, build_speed_profile
 
 WHEELBASE = 0.256
 MAX_STEER = 1.309  # rad (75 deg)

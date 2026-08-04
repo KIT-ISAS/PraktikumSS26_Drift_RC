@@ -3,7 +3,7 @@ CLI to evaluate a trained model: metrics + per-regime + per-horizon + MCAP.
 
 Usage::
 
-    python -m drift_core.evaluation.evaluate \
+    python -m drift_core.vehicle_model.evaluation.evaluate \
         --run-dir drift_ws/runs/vehicle_model/<id> --bags drift_ws/rosbag2_2026_06_03-11_43_14 \
         --mcap-bag drift_ws/rosbag2_2026_06_03-11_43_14
 

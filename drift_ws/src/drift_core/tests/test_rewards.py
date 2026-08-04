@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from drift_core.environments.rewards import (
+from drift_core.agent.environments.rewards import (
     MAX_DS_PER_STEP_M,
     RewardConfig,
     TerminationConfig,

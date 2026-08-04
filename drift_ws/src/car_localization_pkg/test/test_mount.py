@@ -9,12 +9,12 @@ from car_localization_pkg.mount import (
     tracker_to_base,
     tracker_to_imu,
 )
-from drift_core.car_parameters import load_car_parameters
 from drift_core.transforms import (
     quaternion_conjugate,
     quaternion_multiply,
     rotate_vector_by_quaternion,
 )
+from drift_core.vehicle_model import load_car_parameters
 
 _SQRT_HALF = math.sqrt(0.5)
 

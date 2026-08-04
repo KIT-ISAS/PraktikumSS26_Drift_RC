@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from drift_core.evaluation.mcap_writer import write_eval_mcap
+from drift_core.vehicle_model.evaluation.mcap_writer import write_eval_mcap
 
 
 def test_write_and_reopen_mcap(tmp_path):
@@ -54,8 +54,8 @@ def test_sampled_fan_reslice_follows_sanitize_truncation():
     # torch-free model, so the spread collapses onto the mean — shapes are the point.
     import pandas as pd
 
-    from drift_core.evaluation.mcap_writer import sampled_rollout_fan
-    from drift_core.models.kinematic import KinematicBicycleModel
+    from drift_core.vehicle_model.evaluation.mcap_writer import sampled_rollout_fan
+    from drift_core.vehicle_model.models.kinematic import KinematicBicycleModel
 
     n = 30
     t = np.arange(n) * 0.02
@@ -87,8 +87,8 @@ def test_sampled_fan_reslice_follows_sanitize_truncation():
 def test_rollout_from_recording_shapes():
     import pandas as pd
 
-    from drift_core.evaluation.mcap_writer import rollout_from_recording
-    from drift_core.models import build_model
+    from drift_core.vehicle_model import build_model
+    from drift_core.vehicle_model.evaluation.mcap_writer import rollout_from_recording
 
     n = 50
     t = np.arange(n) * 0.02
@@ -138,8 +138,8 @@ def _glitchy_df(jump_at: int, n: int = 50):
 def test_rollout_truncates_at_a_localization_jump():
     # A tracker jump mid-window must not be integrated across: the clean rollout ends
     # at the jump instead of "predicting" the teleport.
-    from drift_core.evaluation.mcap_writer import rollout_from_recording
-    from drift_core.models import build_model
+    from drift_core.vehicle_model import build_model
+    from drift_core.vehicle_model.evaluation.mcap_writer import rollout_from_recording
 
     df = _glitchy_df(jump_at=10)
     model = build_model("kinematic")
@@ -153,8 +153,8 @@ def test_rollout_refuses_to_seed_from_a_glitch():
     # good model look broken; it must raise, not silently roll from a 60 m/s state.
     import pytest
 
-    from drift_core.evaluation.mcap_writer import rollout_from_recording
-    from drift_core.models import build_model
+    from drift_core.vehicle_model import build_model
+    from drift_core.vehicle_model.evaluation.mcap_writer import rollout_from_recording
 
     df = _glitchy_df(jump_at=10)
     model = build_model("kinematic")

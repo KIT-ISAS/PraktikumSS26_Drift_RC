@@ -47,9 +47,9 @@ Runs are written to `drift_ws/runs/agent/` regardless of the working directory
 cd /root/repo
 RUNS=drift_ws/runs/agent
 
-/opt/venv/bin/python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1 > $RUNS/s1_train.log 2>&1
-/opt/venv/bin/python -m drift_core.agents.train_agent --config stage2_fast  --init-from $RUNS/<stage1_run> --tag s2 > $RUNS/s2_train.log 2>&1
-/opt/venv/bin/python -m drift_core.agents.train_agent --config stage3_drift --init-from $RUNS/<stage2_run> --tag s3 > $RUNS/s3_train.log 2>&1
+/opt/venv/bin/python -m drift_core.agent.train_agent --config stage1_path_follow --tag s1 > $RUNS/s1_train.log 2>&1
+/opt/venv/bin/python -m drift_core.agent.train_agent --config stage2_fast  --init-from $RUNS/<stage1_run> --tag s2 > $RUNS/s2_train.log 2>&1
+/opt/venv/bin/python -m drift_core.agent.train_agent --config stage3_drift --init-from $RUNS/<stage2_run> --tag s3 > $RUNS/s3_train.log 2>&1
 ```
 
 Useful flags: `--total-steps N` (override), `--seed N`, `--runs-dir <path>`
@@ -58,7 +58,7 @@ Each run writes `config.yaml`, `meta.json`, `progress.csv`, `agent.zip`, and
 `best_model.zip` (plus `eval/`). Optionally evaluate on the server:
 
 ```bash
-python -m drift_core.agents.evaluate_agent --run-dir $RUNS/<stage3_run> --episodes 10
+python -m drift_core.agent.evaluate_agent --run-dir $RUNS/<stage3_run> --episodes 10
 ```
 
 ## 5. Sync runs back with rsync
@@ -96,7 +96,7 @@ Transitions land in the node's `output_dir` (default `recordings/`) as
 **3. Fine-tune off-board.**
 
 ```bash
-/opt/venv/bin/python -m drift_core.agents.finetune_agent \
+/opt/venv/bin/python -m drift_core.agent.finetune_agent \
     --init-from $RUNS/<sim_run> --data recordings/*.npz --tag real-s3 --gradient-steps 20000
 ```
 
@@ -134,7 +134,7 @@ until they are restored.
 **2. Fine-tune off-board** exactly as above, pointing `--data` at the demo files:
 
 ```bash
-/opt/venv/bin/python -m drift_core.agents.finetune_agent \
+/opt/venv/bin/python -m drift_core.agent.finetune_agent \
     --init-from $RUNS/<sim_run> --data recordings/*__human_demo.npz --tag human-s3
 ```
 
@@ -156,5 +156,5 @@ Then train as in step 4; the run's `meta.json` `device` field will read `cpu`. K
 runs short with `--total-steps` since CPU rollout is slow:
 
 ```bash
-/opt/venv/bin/python -m drift_core.agents.train_agent --config stage1_path_follow --tag s1-cpu
+/opt/venv/bin/python -m drift_core.agent.train_agent --config stage1_path_follow --tag s1-cpu
 ```

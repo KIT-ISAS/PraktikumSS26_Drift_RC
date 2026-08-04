@@ -3,7 +3,7 @@ Evaluate and plot every training run under a runs directory.
 
 Usage::
 
-    python -m drift_core.agents.analyze_runs [--runs-root <dir>] [--episodes 5]
+    python -m drift_core.agent.analyze_runs [--runs-root <dir>] [--episodes 5]
 
 For each run directory (recognized by its ``config.yaml`` + ``progress.csv``) this rolls
 deterministic evaluation episodes via :mod:`.evaluate_agent` when ``eval/metrics.json``
@@ -25,9 +25,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from ..environments.config import StageConfig
 from ..paths import agent_runs_dir
 from ..track import load_track
+from .environments.config import StageConfig
 from .evaluate_agent import evaluate_agent
 
 # Reference dataviz palette (categorical slots in fixed, CVD-validated order + chrome).

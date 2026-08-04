@@ -12,12 +12,12 @@ import pytest
 
 pytest.importorskip("torch")
 
-from drift_core.data.spec import DatasetSpec  # noqa: E402
-from drift_core.models import build_model  # noqa: E402
-from drift_core.models.base import VehicleAction, VehicleState  # noqa: E402
-from drift_core.models.loader import load_model_from_run  # noqa: E402
-from drift_core.training.config import TrainConfig  # noqa: E402
-from drift_core.training.trainer import Trainer  # noqa: E402
+from drift_core.vehicle_model import build_model  # noqa: E402
+from drift_core.vehicle_model.data.spec import DatasetSpec  # noqa: E402
+from drift_core.vehicle_model.models.base import VehicleAction, VehicleState  # noqa: E402
+from drift_core.vehicle_model.models.loader import load_model_from_run  # noqa: E402
+from drift_core.vehicle_model.training.config import TrainConfig  # noqa: E402
+from drift_core.vehicle_model.training.trainer import Trainer  # noqa: E402
 
 _NORM = {
     "input_mean": np.zeros(6),
@@ -29,7 +29,7 @@ _NORM = {
 
 
 def test_inv_softplus_saturates_without_overflowing():
-    from drift_core.models.dynamic import _inv_softplus
+    from drift_core.vehicle_model.models.dynamic import _inv_softplus
 
     # math.expm1 overflows well below this; softplus(x) ~ x in the large-arg regime,
     # so the identity branch must return the argument unchanged and stay finite.

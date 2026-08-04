@@ -3,7 +3,7 @@ Lateral path-following MPC on the kinematic bicycle in Frenet error coordinates.
 
 Deterministic alternative to the RL agent: at every control tick a linear
 time-varying MPC steers the car onto the track centerline; the throttle is
-handled separately (:mod:`~drift_core.control.longitudinal`).
+handled separately (:mod:`~drift_core.agent.control.longitudinal`).
 
 Formulation
 -----------
@@ -45,7 +45,7 @@ import time
 import numpy as np
 from scipy.optimize import lsq_linear
 
-from ..transforms import wrap_angle
+from ...transforms import wrap_angle
 from .speed_profile import SpeedProfile
 
 __all__ = ["PathMpc", "PathMpcConfig", "MpcSolution"]

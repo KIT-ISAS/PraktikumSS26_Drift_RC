@@ -1,7 +1,7 @@
 """
 Longitudinal speed controller: feedforward + PI with anti-windup (ROS-free).
 
-Tracks the :class:`~drift_core.control.speed_profile.SpeedProfile` reference with
+Tracks the :class:`~drift_core.agent.control.speed_profile.SpeedProfile` reference with
 a throttle command in ``[-1, 1]``. Deliberately simple — the ESC/tire longitudinal
 dynamics are poorly identified (wheelspin above ~40 % throttle on the real car),
 so the lateral MPC is decoupled from it and this loop only has to keep the speed

@@ -3,17 +3,17 @@
 import numpy as np
 import pytest
 
-from drift_core.car_parameters import load_car_parameters
-from drift_core.control import (
+from drift_core.agent.control import (
     PathMpc,
     PathMpcConfig,
     SpeedController,
     SpeedControllerConfig,
     build_speed_profile,
 )
-from drift_core.models.base import VehicleAction, VehicleState
-from drift_core.models.kinematic import KinematicBicycleModel
 from drift_core.track import TrackProjector, load_track
+from drift_core.vehicle_model.car_parameters import load_car_parameters
+from drift_core.vehicle_model.models.base import VehicleAction, VehicleState
+from drift_core.vehicle_model.models.kinematic import KinematicBicycleModel
 
 DT = 0.02
 SPEED_PREVIEW_S = 0.3

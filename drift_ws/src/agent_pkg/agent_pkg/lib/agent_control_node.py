@@ -238,7 +238,7 @@ class AgentControlNode(Node):
 
     def _load_agent(self):
         # Lazy import: pulls in stable-baselines3/torch, which only these nodes need.
-        from drift_core.agents import DriftAgent
+        from drift_core.agent import DriftAgent
 
         if not self._run_dir:
             raise ValueError(

@@ -10,7 +10,8 @@ class TrainConfig:
     """
     All hyperparameters for one training run.
 
-    The dataset recipe lives separately in a :class:`~drift_core.data.spec.DatasetSpec`
+    The dataset recipe lives separately in a
+    :class:`~drift_core.vehicle_model.data.spec.DatasetSpec`
     (saved as ``dataset_spec.yaml``); this captures everything else. The rollout
     horizon is taken from the dataset windows, so single-step vs multi-step is a
     property of the dataset, not this config.

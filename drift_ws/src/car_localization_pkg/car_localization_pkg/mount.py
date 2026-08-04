@@ -16,13 +16,13 @@ exposed as ``yaw_offset_rad`` / ``upside_down`` rather than baked in.
 
 import math
 
-from drift_core.car_parameters import CarParameters
 from drift_core.transforms import (
     quaternion_conjugate,
     quaternion_from_yaw,
     quaternion_multiply,
     rotate_vector_by_quaternion,
 )
+from drift_core.vehicle_model import CarParameters
 
 # 180 deg about the X axis, as a quaternion (x, y, z, w): flips an upside-down
 # mount right-side up while leaving the forward axis unchanged.

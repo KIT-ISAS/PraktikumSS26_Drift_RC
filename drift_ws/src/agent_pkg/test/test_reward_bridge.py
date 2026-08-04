@@ -11,7 +11,7 @@ try:
     from nav_msgs.msg import Odometry
 
     from agent_pkg.observation_bridge import reward_from_messages, score_step
-    from drift_core.environments.rewards import (
+    from drift_core.agent.environments.rewards import (
         RewardConfig,
         TerminationConfig,
         compute_reward,

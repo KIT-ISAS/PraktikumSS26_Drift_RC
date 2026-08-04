@@ -1,7 +1,7 @@
 """
 DriftEnv — gymnasium environment stepping a vehicle model against a track.
 
-Rolls any :class:`~drift_core.models.base.VehicleModel` (built via
+Rolls any :class:`~drift_core.vehicle_model.models.base.VehicleModel` (built via
 ``build_model``: arcade baseline now, a trained dynamics run dir later) on a
 Bézier track at a fixed control rate, with the stage-parameterized reward from
 :mod:`.rewards` and observations from the shared builder in :mod:`.observation`
@@ -9,7 +9,7 @@ Bézier track at a fixed control rate, with the stage-parameterized reward from
 :class:`~.config.EnvConfig` or a packaged stage name.
 
 This is the only module in ``environments/`` that imports ``gymnasium`` — import
-it lazily (``drift_core.environments.DriftEnv``) so the light path works
+it lazily (``drift_core.agent.environments.DriftEnv``) so the light path works
 without the ``[rl]`` extra.
 """
 
@@ -20,10 +20,14 @@ import gymnasium
 from gymnasium import spaces
 import numpy as np
 
-from ..models import build_model
-from ..models.base import VehicleAction, VehicleModel, VehicleState
-from ..track import FIGURE8_LOST_DISTANCE_M, TrackProjector, load_track
-from ..transforms import wrap_angle
+from ...track import FIGURE8_LOST_DISTANCE_M, TrackProjector, load_track
+from ...transforms import wrap_angle
+from ...vehicle_model import (
+    VehicleAction,
+    VehicleModel,
+    VehicleState,
+    build_model,
+)
 from .config import EnvConfig, StageConfig
 from .observation import OBS_HIGH, OBS_LOW, observation_from_state
 from .rewards import compute_reward, progress_delta

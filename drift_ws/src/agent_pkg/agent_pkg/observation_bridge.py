@@ -22,8 +22,8 @@ import math
 from nav_msgs.msg import Odometry
 import numpy as np
 
-from drift_core.environments.observation import build_observation, curvature_lookahead
-from drift_core.environments.rewards import (
+from drift_core.agent.environments.observation import build_observation, curvature_lookahead
+from drift_core.agent.environments.rewards import (
     RewardConfig,
     StepOutcome,
     TerminationConfig,

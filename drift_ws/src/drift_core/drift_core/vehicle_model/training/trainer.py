@@ -14,9 +14,9 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
 
+from ...paths import vehicle_model_runs_dir
 from ..data.dataset import Window, stack_windows
 from ..data.spec import DatasetSpec
-from ..paths import vehicle_model_runs_dir
 from .config import TrainConfig
 from .run_dir import MetricsLogger, create_run_dir, write_meta, write_notes
 

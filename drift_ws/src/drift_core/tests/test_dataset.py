@@ -4,9 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from drift_core.data.dataset import build_windows, split_windows, stack_windows
-from drift_core.data.preprocessing import build_dataset, segment_episodes, split_contiguous
-from drift_core.data.spec import DatasetSpec
+from drift_core.vehicle_model.data.dataset import build_windows, split_windows, stack_windows
+from drift_core.vehicle_model.data.preprocessing import (
+    build_dataset,
+    segment_episodes,
+    split_contiguous,
+)
+from drift_core.vehicle_model.data.spec import DatasetSpec
 
 
 def _episode(n: int = 200, dt: float = 0.01) -> pd.DataFrame:

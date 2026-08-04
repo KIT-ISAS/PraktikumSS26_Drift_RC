@@ -2,9 +2,9 @@
 
 import math
 
-from drift_core.models import build_model
-from drift_core.models.base import VehicleAction, VehicleState
-from drift_core.models.old import OldSlipAngleVehicleModel, OldStandardVehicleModel
+from drift_core.vehicle_model import build_model
+from drift_core.vehicle_model.models.base import VehicleAction, VehicleState
+from drift_core.vehicle_model.models.old import OldSlipAngleVehicleModel, OldStandardVehicleModel
 
 # The predecessor game's fixed tick; at this dt the ports match the originals.
 DT = 0.008

@@ -7,8 +7,8 @@ gymnasium = pytest.importorskip("gymnasium")
 
 from gymnasium.utils.env_checker import check_env  # noqa: E402
 
-from drift_core.environments import StageConfig  # noqa: E402
-from drift_core.environments.drift_env import DriftEnv  # noqa: E402
+from drift_core.agent.environments import StageConfig  # noqa: E402
+from drift_core.agent.environments.drift_env import DriftEnv  # noqa: E402
 
 INFO_KEYS = {
     "s",
@@ -63,8 +63,8 @@ def _stochastic_neural_env(stochastic: bool):
     """A DriftEnv rolling a fresh untrained *stochastic* neural model each reset."""
     torch = pytest.importorskip("torch")
 
-    from drift_core.environments.config import EnvConfig
-    from drift_core.models.neural import NeuralDynamicsModel
+    from drift_core.agent.environments.config import EnvConfig
+    from drift_core.vehicle_model.models.neural import NeuralDynamicsModel
 
     norm = {
         "input_mean": np.zeros(6, dtype=np.float32),

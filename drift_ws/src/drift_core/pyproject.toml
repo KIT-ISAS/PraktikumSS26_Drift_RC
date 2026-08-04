@@ -35,4 +35,6 @@ where = ["."]
 include = ["drift_core*"]
 
 [tool.setuptools.package-data]
-drift_core = ["tracks/*.yaml", "cars/*.yaml", "environments/configs/*.yaml"]
+"drift_core.track" = ["tracks/*.yaml"]
+"drift_core.vehicle_model" = ["cars/*.yaml"]
+"drift_core.agent.environments" = ["configs/*.yaml"]
