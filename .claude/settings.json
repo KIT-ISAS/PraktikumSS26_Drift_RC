@@ -1,5 +1,13 @@
 {
   "enabledPlugins": {
     "github@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(ruff check *)",
+      "Bash(ruff format *)",
+      "Bash(colcon build *)",
+      "Bash(colcon test *)"
+    ]
   }
 }
