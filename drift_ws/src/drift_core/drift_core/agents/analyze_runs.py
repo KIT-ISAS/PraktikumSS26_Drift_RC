@@ -243,6 +243,8 @@ def main(argv=None) -> None:
     args = parser.parse_args(argv)
 
     runs_root = Path(args.runs_root) if args.runs_root else agent_runs_dir()
+    if not runs_root.is_dir():
+        raise SystemExit(f"runs directory does not exist: {runs_root}")
     run_dirs = discover_runs(runs_root)
     if not run_dirs:
         raise SystemExit(f"no run directories found under {runs_root}")
