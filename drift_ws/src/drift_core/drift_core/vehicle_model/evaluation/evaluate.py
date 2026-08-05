@@ -5,11 +5,14 @@ Usage::
 
     python -m drift_core.vehicle_model.evaluation.evaluate \
         --run-dir drift_ws/runs/vehicle_model/<id> \
-        --bags drift_ws/bags/rosbag2_2026_07_12-16_09_18 \
-        --mcap-bag drift_ws/bags/rosbag2_2026_07_12-16_09_18
+        --bags drift_ws/bags/rosbag2_2026_07_12-16_09_18 --mcap-bag
 
 Writes ``<run_dir>/eval/metrics.json`` (+ plots if matplotlib is installed) and,
 when ``--mcap-bag`` is given, a recorded-vs-predicted ``.mcap`` for Foxglove.
+The metrics run over the whole evaluation set (``--bags`` may name several bags, or
+``--dataset-spec`` a saved recipe), while an MCAP rolls out one recording — so bare
+``--mcap-bag`` reuses the evaluation bag when there is exactly one, and otherwise you
+name the recording to render.
 """
 
 import argparse
@@ -20,6 +23,9 @@ from ..models.loader import load_model_from_run
 from .metrics import evaluate_model
 from .plots import save_all
 
+# --mcap-bag given without a value: render the evaluation bag itself.
+_EVAL_BAG = object()
+
 
 def _parse_args(argv=None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Evaluate a trained vehicle model.")
@@ -27,7 +33,13 @@ def _parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--dataset-spec", help="DatasetSpec YAML for eval data")
     p.add_argument("--bags", nargs="+", help="bags to build an eval dataset (if no spec)")
     p.add_argument("--device", default="cpu")
-    p.add_argument("--mcap-bag", help="bag to render a recorded-vs-predicted MCAP")
+    p.add_argument(
+        "--mcap-bag",
+        nargs="?",
+        const=_EVAL_BAG,
+        help="bag to render a recorded-vs-predicted MCAP; pass it without a value to "
+        "render the evaluation bag itself (only if the evaluation data is one bag)",
+    )
     p.add_argument(
         "--mcap-start",
         type=int,
@@ -66,6 +78,18 @@ def _eval_spec(args) -> DatasetSpec:
     )
 
 
+def _resolve_mcap_bag(args, spec: DatasetSpec) -> str | None:
+    """Resolve ``--mcap-bag``; bare, it means "the bag the evaluation data came from"."""
+    if args.mcap_bag is not _EVAL_BAG:
+        return args.mcap_bag
+    if len(spec.bags) != 1:
+        raise SystemExit(
+            f"bare --mcap-bag needs the evaluation data to be a single bag, got {len(spec.bags)}"
+            " — name the recording to render instead"
+        )
+    return spec.bags[0]
+
+
 def main(argv=None) -> None:
     """Run evaluation methods 1-3 and write artifacts into the run dir's eval/."""
     args = _parse_args(argv)
@@ -82,7 +106,10 @@ def main(argv=None) -> None:
 
     if not (args.dataset_spec or args.bags):
         raise SystemExit("Provide --dataset-spec or --bags for evaluation data")
-    train, val, test, _ = build_dataset_from_spec(_eval_spec(args))
+    spec = _eval_spec(args)
+    # Resolved before the dataset build so a bad --mcap-bag fails in a second, not a minute.
+    mcap_bag = _resolve_mcap_bag(args, spec)
+    train, val, test, _ = build_dataset_from_spec(spec)
     eval_windows = test or val or train
     report = evaluate_model(model, eval_windows, device=args.device)
     report.save(str(eval_dir / "metrics.json"))
@@ -96,11 +123,11 @@ def main(argv=None) -> None:
         )
     print(f"wrote {eval_dir / 'metrics.json'}" + (f" + {len(plots)} plots" if plots else ""))
 
-    if args.mcap_bag:
+    if mcap_bag:
         from ..data.rosbag_reader import read_driving_data
         from .mcap_writer import rollout_from_recording, sampled_rollout_fan, write_eval_mcap
 
-        df = read_driving_data(args.mcap_bag)
+        df = read_driving_data(mcap_bag)
         written = 0
         for start in args.mcap_start:
             # One glitchy start (a localization jump at the seed / next sample) raises
