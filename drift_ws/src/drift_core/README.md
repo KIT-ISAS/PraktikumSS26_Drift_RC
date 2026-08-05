@@ -101,10 +101,10 @@ Train and evaluate a dynamics model (needs the `[neural]` / `[eval]` extras):
 
 ```bash
 python -m drift_core.vehicle_model.training.train_model \
-    --bags drift_ws/rosbag2_<...> --tag v1   # -> drift_ws/runs/vehicle_model/<id>/
+    --bags drift_ws/bags/rosbag2_<...> --tag v1   # -> drift_ws/runs/vehicle_model/<id>/
 python -m drift_core.vehicle_model.evaluation.evaluate \
     --run-dir drift_ws/runs/vehicle_model/<id> \
-    --bags drift_ws/rosbag2_<...> --mcap-bag drift_ws/rosbag2_<...>
+    --bags drift_ws/bags/rosbag2_<...> --mcap-bag
 ```
 
 A trained model is reloaded by passing its run directory to `build_model(run_dir)`,
