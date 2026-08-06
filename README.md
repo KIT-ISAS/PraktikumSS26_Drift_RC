@@ -17,7 +17,7 @@ Supervisor: Daniel Frisch
 | `drift_ws/` | The colcon workspace — all ROS 2 packages (`src/`), top-level launch files (`launch/`) and training runs (`runs/`) |
 | `esp32_controller/` | Arduino firmware for the car's control ECU (ESP32): UDP/JSON command input, state machine, arming, PWM output to servo/ESC. [README.md](esp32_controller/README.md) is the authoritative spec |
 | `steamvr_bridge/` | Host-side script (runs *outside* the container) that reads tracker poses from SteamVR via OpenVR and streams them over UDP to `steamvr_pkg` |
-| `documentation/` | Setup and tooling guides (`Docker.md`, `Ros.md`, `Python.md`, `Ruff.md`, `Foxglove.md`) plus the final report and presentations |
+| `documentation/` | Setup and tooling guides (`Docker.md`, `Ros.md`, `Python.md`, `Ruff.md`, `Foxglove.md`, `Testing.md`) plus the final report and presentations |
 | `.devcontainer/` | Docker dev container definition, compose files (incl. GPU variant), and post-start scripts |
 | `.github/workflows/` | CI pipeline (`ros2_ci.yml`): build, `colcon test`, Ruff check/format |
 | `foxglove/` | Foxglove Studio layout/config for visualizing the running system |

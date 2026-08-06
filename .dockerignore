@@ -1,0 +1,38 @@
+# Docker build context for .devcontainer/Dockerfile.
+#
+# The context is the repo root, but the build only COPYs requirements.txt and
+# .devcontainer/scripts/.bash_aliases -- the working tree itself is bind-mounted at
+# runtime (see docker-compose.yaml). Everything large is therefore dead weight that
+# was being shipped to the daemon on every build.
+
+# Recorded data and training artifacts
+drift_ws/bags/
+runs/
+
+# Version control
+.git/
+.gitattributes
+
+# Build, install and log trees (colcon + Python), at the root and per-workspace
+build/
+install/
+log/
+**/build/
+**/install/
+**/log/
+**/__pycache__/
+*.egg-info/
+.venv/
+/venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Editor / local config
+.vscode/
+.claude/
+
+# Documentation and presentation binaries (LFS objects; not needed to build)
+documentation/presentations/

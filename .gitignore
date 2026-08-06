@@ -9,8 +9,12 @@ esp32_controller/libraries/
 *.egg-info/
 .venv/
 
+# Per-machine Claude Code settings. .claude/settings.json is the shared, committed
+# config; the .local.json overlay holds personal paths and permissions.
+.claude/settings.local.json
+
 # Recorded rosbags (large binaries; share out-of-band, do not commit)
-drift_ws/rosbag2_*/
+drift_ws/bags/
 
 # Training run artifacts (self-contained run dirs; share out-of-band)
 runs/
