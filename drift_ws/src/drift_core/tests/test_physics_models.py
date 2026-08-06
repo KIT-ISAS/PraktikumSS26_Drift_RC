@@ -162,6 +162,19 @@ def test_sigma_only_calibration_freezes_the_physics(tmp_path, linear_windows):
             assert k1 == k2
             assert torch.equal(v1, v2), f"physics parameter {name}.{k1} moved during Sigma-cal"
 
+    # Freezing alone is only half the contract: the run must also have *trained* the
+    # thing it left unfrozen. Without this, a Sigma-cal that silently learns nothing
+    # (e.g. the grad clip scaling the diffusion's gradients away because the frozen
+    # physics' stale .grad was folded into the norm) passes the assertions above.
+    moved = [
+        k
+        for (k, v1), (_, v2) in zip(
+            before._diff.state_dict().items(), after._diff.state_dict().items()
+        )
+        if not torch.equal(v1, v2)
+    ]
+    assert moved, "Sigma-cal left the diffusion head untouched — it trained nothing"
+
 
 def test_stochastic_hybrid_trains_with_nll_and_reloads(tmp_path, linear_windows):
     # The paper's SDE path end to end: diffusion head + NLL loss through the Trainer.

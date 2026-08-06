@@ -140,11 +140,11 @@ def rollout_loss(
     if loss_type == "nll":
         if any(c is None for c in covs):
             raise ValueError("loss='nll' requires a stochastic model (cov is None)")
-        # Observation model, same as the particle loss: the residual contains tracker
-        # noise on top of the process increment. Without this floor, states where the
-        # model's cov is legitimately ~zero (the diffusion is slip-gated; a rolling
-        # car has almost no process noise) divide the measurement noise by ~0 and
-        # dominate the loss — the physics then bends to appease them.
+        # Observation model, same as the particle loss: the recorded residual contains
+        # tracker noise on top of the process increment, and Sigma alone cannot tell the
+        # two apart. Without this floor the fit inflates the diffusion to cover the
+        # measurement noise as if it were process noise — worst where true process noise
+        # is smallest (a parked or cleanly rolling car) but tracker jitter is not.
         r_meas = torch.as_tensor(meas_std, dtype=pred.dtype, device=pred.device) ** 2
         cov = torch.stack(covs, dim=1) + r_meas  # (B,H,3)
         resid = pred - gt
@@ -176,8 +176,9 @@ def nll_paper_particle_loss(
     Deviations from Eq. 3, both deliberate: the ``0.5`` / per-step / per-dim
     normalization is the repo's convention (a global positive constant vs. Eq. 3's raw
     sum over k — identical optimum, comparable across the three NLL paths); and ``meas_std``
-    adds a variance floor, as in the other two losses, so the slip-gated Σ (which can
-    reach ~0) keeps the log-likelihood finite. Unlike moment matching, this works with a
+    adds a variance floor, as in the other two losses, so that Σ — which is free to shrink
+    to its ``_LOG_STD_RANGE`` floor — absorbs process noise rather than tracker noise.
+    Unlike moment matching, this works with a
     single particle (no empirical variance is needed), so ``particles >= 1``.
     """
     k = int(particles)
@@ -279,11 +280,13 @@ class Trainer:
             # Freeze the physics; calibrate only the diffusion head. This is what makes
             # the particle NLL safe on a small dataset: sampling cannot push the tire
             # fit toward the degenerate over-grippy solution when the tires cannot move.
-            params = model.diffusion_parameters()
+            params = list(model.diffusion_parameters())
         elif cfg.train_scope == "all":
-            params = model.trainable_parameters()
+            params = list(model.trainable_parameters())
         else:
             raise ValueError(f"Unknown train_scope: {cfg.train_scope!r}")
+        # Materialized above: some models return a generator, which the optimizer would
+        # consume, leaving nothing for the per-batch grad clip to see.
         opt = torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
 
         (tr, regimes_tr) = _to_tensors(self.train_windows, self.device)
@@ -317,7 +320,12 @@ class Trainer:
                 opt.zero_grad()
                 loss.backward()
                 if cfg.grad_clip:
-                    torch.nn.utils.clip_grad_norm_(model.trainable_parameters(), cfg.grad_clip)
+                    # Clip exactly what the optimizer steps. Under train_scope="diffusion"
+                    # `opt` holds only the Sigma head, so opt.zero_grad() never clears the
+                    # frozen physics' .grad while backward() keeps repopulating it: those
+                    # stale gradients accumulate and, if included here, inflate total_norm
+                    # and scale the diffusion's own gradients down with it.
+                    torch.nn.utils.clip_grad_norm_(params, cfg.grad_clip)
                 opt.step()
                 train_losses.append(float(loss.item()))
 
