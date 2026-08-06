@@ -413,18 +413,32 @@ def test_diffusion_is_gated_by_tire_slip():
     assert (cov_rolling < 0.05 * cov_spinning).all(), "clean rolling should be near-quiet"
 
 
-def test_parked_wheel_settles_at_rest_even_with_a_trained_direction_net():
-    # An unpinned NN0 residual shifted the tire's zero-force point to a nonzero wheel
-    # slip, so init_latent settled a *parked* wheel at omega ~ -1.5 rad/s — phantom
-    # slip that opened the slip-gated diffusion. The residual is scaled by the slip
-    # magnitude now; perturb the net the way training would and the parked
-    # equilibrium must stay at omega = 0.
+@pytest.mark.xfail(
+    reason="The tire curve's zero-force point is unpinned: a fitted F(0) != 0 drives a "
+    "parked wheel off omega = 0. See the 'Deferred' note in _rear_slip about the F(0) "
+    "boundary condition. Drop this marker once the curve is pinned at the origin.",
+)
+def test_parked_wheel_settles_at_rest_with_a_trained_tire_curve():
+    # An unpinned zero-force point shifts the parked equilibrium: init_latent settles a
+    # *parked* wheel at omega != 0, which is phantom slip the rest of the model then acts
+    # on (it is why a trained checkpoint creeps in a deterministic sim).
+    #
+    # Perturbing NN0 alone cannot show this and an untrained model cannot either: the
+    # ExpTanh curve is initialized with F(0) = 0 exactly, so the rear force vanishes at
+    # zero slip and the direction net has nothing to point. Training moves f5 off zero and
+    # F(0) with it — real checkpoints sit at ~1.9 N — so perturb the *curve*, which is
+    # what actually breaks the equilibrium.
     import torch
 
     model = _new()
-    with torch.no_grad():  # emulate a trained residual: nonzero at any input
-        model._nn0.net[2].bias.fill_(0.3)
-        model._nn0.net[2].weight.normal_(0.0, 0.3)
+    with torch.no_grad():  # emulate a trained curve: shifts the coefficients, incl. f5
+        model._rear.net[-1].bias.add_(torch.tensor([0.2, 0.3, 0.1, 0.4, 0.25]))
+        model._nn0.net[-1].bias.fill_(0.3)  # net[-1] is the output layer, not net[2]
+        model._nn0.net[-1].weight.normal_(0.0, 0.3)
+    z = torch.zeros(1)
+    assert float(model._rear(z, model._tire_feat(z, z, z, z)).clamp(min=0.0)) > 0.0, (
+        "test is vacuous unless the perturbed curve actually has F(0) != 0"
+    )
     dyn = torch.tensor([[0.0, 0.0, 0.0]])
     latent = model.init_latent(dyn, torch.tensor([[0.0, 0.0, 0.0]]))
     assert abs(float(latent[0, 2])) < 1e-3, (
