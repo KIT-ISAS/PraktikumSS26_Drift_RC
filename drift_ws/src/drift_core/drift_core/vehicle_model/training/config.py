@@ -41,8 +41,10 @@ class TrainConfig:
     # Per-dim measurement-noise std [vx, vy, yaw_rate] added (as variance) to the particle
     # ensemble's variance in the moment-matched NLL. The recorded residuals contain
     # tracker noise that is NOT process noise; without this floor the fit inflates the
-    # diffusion to cover it — worst at standstill, where true process noise is zero (the
-    # model gates Sigma there) but tracker jitter is not.
+    # diffusion to cover it — worst at standstill, where true process noise is near zero
+    # but tracker jitter is not. Note Sigma is currently *ungated* (see the "Deferred"
+    # note above the diffusion call in hybrid/model.py), so it carries that jitter rather
+    # than being switched off at rest; this floor is what keeps it out of the fit.
     nll_meas_std: tuple = (0.03, 0.03, 0.1)
     epochs: int = 50
     batch_size: int = 256

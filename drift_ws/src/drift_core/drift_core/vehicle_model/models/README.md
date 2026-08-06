@@ -109,24 +109,28 @@ and the learned parts are the paper's **free ExpTanh tire curves**
 (`F(z) = f1 + f2·e^(−f3|z|)·tanh(f4(z − f5))`, with the five coefficients
 **state-conditioned** like the paper's — `NN(feat)` over `[r, V, β]` at the front and
 `[r, V, β, ω_r]` at the rear, so the curve reshapes with the operating point) plus a
-handful of bounded scalars. Pass `tire_features: false` in the config for fixed per-axle
-curves instead (every checkpoint before 2026-07-22 has them; conditioning is only
-weakly identifiable from a dataset that tops out near 3 m/s, so A/B it). The peaks are *free* like the paper's — initialized at the measured
+handful of bounded scalars. Conditioning is not optional: the fixed per-axle form was
+removed, and checkpoints predating 2026-07-22 (which carry it) are rejected on load.
+The peaks are *free* like the paper's — initialized at the measured
 acceleration envelope (µ ≈ 0.3) but not bounded to it, so check the fitted
 `peak_force()` against the envelope after retraining.
 
 The front force is purely lateral over `tan(αf)`, with the slip taken in the **tire's
 own frame** (the paper's small-angle form flips the force sign at this chassis' 75° of
 lock). The rear is one **combined-slip** curve over the paper's squared slip
-`z = tan²(αr) + f0·σ²`, split along a **learned direction** `NN0(αr, σ)/‖NN0‖`
-(zero-initialized as a residual on the geometric slip direction, so an untrained model
-is a plain friction circle). The longitudinal input is the paper's true **slip
-ratio**, `σ = (R·ω − vx)/max(|vx|, v_floor)`, where the rear wheel speed `ω` is a
+`z = tan²(αr) + f0·σ²`, split along a **learned direction** `NN0(αr, σ)/‖NN0‖`. By
+default (`nn0_residual: false`) that direction *is* the raw network output, the paper's
+literal form, so an untrained model's split is random rather than physical; the opt-in
+`nn0_residual: true` instead learns a zero-initialized residual on the geometric slip
+direction, which does start as a plain friction circle. The longitudinal input is the
+paper's true **slip ratio**, `σ = (R·ω − vx)/max(|vx|, |R·ω|)` — the denominator is
+two-sided on purpose, so a spinning wheel on a stopped car still yields a bounded slip
+ratio instead of dividing by the floor. The rear wheel speed `ω` is a
 **latent state** integrated from the wheel's own torque balance (the car has no
 wheel-speed sensor). This is what lets the wheel spin up when the tire saturates and
-erode rear grip, i.e. actually drift — a drive-force surrogate cannot. Three latent
-states (`latent_dim = 3`): servo angle, ESC drive torque, and wheel speed — the
-actuator lags are RC-specific (the paper commands physical δ and torque directly; our
+erode rear grip, i.e. actually drift — a drive-force surrogate cannot. Four latent
+states (`latent_dim = 4`): servo angle, ESC drive torque, wheel speed, and brake
+actuation — the actuator lags are RC-specific (the paper commands physical δ and torque directly; our
 action is a normalized stick). The lags integrate **exactly** and the stiff (~2 ms)
 wheel mode gets a linearly-implicit step in `advance`, while the chassis stays
 explicit Euler. Several parameters are *measured*, not learned: steering lock, tire
@@ -136,7 +140,8 @@ diffusion Σ(x, u)** (a small net returning a per-second chassis variance) and t
 with `loss: nll` — the neural-SDE setup the paper credits for zero-shot sim-to-real
 policy transfer. Loading such a checkpoint returns the covariance either way;
 `stochastic=True` at load time additionally makes `step_stochastic` sample from it.
-Requires the `[neural]` extra. Knobs: `car`, `stochastic`.
+Requires the `[neural]` extra. Knobs: `car`, `stochastic`, `bounded_params` (identifiability
+bands on the RC-specific actuator/wheel scalars; on by default), `nn0_residual`.
 
 > Checkpoints carry `tire_form: exptanh`; older hybrid checkpoints (the drive-force
 > bicycle and the bounded-µ wheel-slip variant) are rejected with a clear message.
