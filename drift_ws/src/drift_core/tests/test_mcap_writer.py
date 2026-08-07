@@ -84,6 +84,50 @@ def test_sampled_fan_reslice_follows_sanitize_truncation():
     assert all(s.shape[0] == len(times) for s in sampled)
 
 
+def test_sampled_rollout_fan_spreads_only_when_stochastic():
+    import pandas as pd
+    import pytest
+
+    torch = pytest.importorskip("torch")
+
+    from drift_core.vehicle_model.evaluation.mcap_writer import sampled_rollout_fan
+    from drift_core.vehicle_model.models.hybrid import PhysicsInformedModel
+
+    n = 40
+    t = np.arange(n) * 0.02
+    df = pd.DataFrame(
+        {
+            "t": t,
+            "x": t * 1.0,
+            "y": np.zeros(n),
+            "heading": np.zeros(n),
+            "vx": np.ones(n),
+            "vy": np.zeros(n),
+            "yaw_rate": np.zeros(n),
+            "steering": np.zeros(n),
+            "throttle": np.full(n, 0.5),
+        }
+    )
+    norm = {
+        "input_mean": np.zeros(6),
+        "input_std": np.ones(6),
+        "output_mean": np.zeros(3),
+        "output_std": np.ones(3),
+        "dyn_std": np.ones(3),
+    }
+    torch.manual_seed(0)
+    model = PhysicsInformedModel.new(norm, stochastic=True)  # _can_sample armed
+    times, rec, pred, actions, sampled = sampled_rollout_fan(
+        model, df, start_idx=0, horizon=20, samples=3
+    )
+    assert len(sampled) == 3
+    assert all(s.shape == pred.shape for s in sampled)
+    # The fan must genuinely spread (SDE sampling), and every path starts at the seed.
+    assert not np.allclose(sampled[0], sampled[1])
+    for s in sampled:
+        assert np.allclose(s[0], pred[0])
+
+
 def test_rollout_from_recording_shapes():
     import pandas as pd
 
