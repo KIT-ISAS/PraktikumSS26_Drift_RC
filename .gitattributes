@@ -2,3 +2,5 @@
 documentation/presentations/Intermediate_Presentation.pptx filter=lfs diff=lfs merge=lfs -text
 presentation/Final_Presentation.pptx filter=lfs diff=lfs merge=lfs -text
 documentation/presentations/Final_Presentation.pptx filter=lfs diff=lfs merge=lfs -text
+*.ipt filter=lfs diff=lfs merge=lfs -text
+*.iam filter=lfs diff=lfs merge=lfs -text
